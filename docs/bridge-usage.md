@@ -8,6 +8,10 @@ The Screen Stocks demo is a Unity Mono game. The bridge runs as a BepInEx 5 plug
 
 The official support mechanism discussed earlier is tied to the game's `modSupport` setting and the `thesmallshort_online_settings.sav` file-based interface. The bridge does not enable that setting, access that file, or redirect that filesystem API. It does not write API snapshots, trade requests/results, market exports, or command files. Instead, it reads live game objects in memory and sends JSON over an authenticated TCP connection bound to `127.0.0.1`. BepInEx still writes its normal config and logs, and the game can persist normal game settings. In particular, changing auto-action configuration uses the game's own manager APIs and may be saved by the game.
 
+### Network boundary
+
+The bridge itself does not connect to the game's backend or implement its network protocol. Its socket listener binds only to `127.0.0.1` for the local Python client. For commands, the plugin calls in-process game methods such as `StockManager` trade methods, `GameManager.PurchaseUpgrades`, or the level-claim method. In online mode those game methods may send requests to the game's server themselves; that network traffic belongs to the game, not to a backend client implemented by this plugin.
+
 ## Connect from Python
 
 Install the local package with Python 3.10 or later:
@@ -68,7 +72,7 @@ The default and maximum page size is 32 samples. `before_tick` is an exclusive c
 
 ## Submit individual trades
 
-Each `bridge.trade(action, stock_id, percent=None)` call submits one action through the game's normal trade methods. Supported actions are `buy_max`, `buy_percent`, `short_max`, `short_percent`, `sell_max`, `sell_percent`, `cover_max`, `cover_percent`, `close_max`, and `close_percent`. Percentage actions accept values greater than 0 and up to 100.
+Each `bridge.trade(action, stock_id, percent=None)` call asks the running game to execute one action using its in-process `StockManager` trade methods. Supported actions are `buy_max`, `buy_percent`, `short_max`, `short_percent`, `sell_max`, `sell_percent`, `cover_max`, `cover_percent`, `close_max`, and `close_percent`. Percentage actions accept values greater than 0 and up to 100. The bridge does not call the game's backend directly; an online game method may contact its server as part of normal game operation.
 
 ```python
 response = bridge.trade("buy_percent", "STOCK_ID", percent=10)
@@ -133,7 +137,7 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
     print(result)  # status is submitted; refresh upgrades() for the observed level
 ```
 
-`purchase_upgrade(upgrade_id, quantity=1)` calls the game's normal `PurchaseUpgrades` method. Quantity must be from 1 to 1000. The game's affordability and maximum-level checks still apply. A successful RPC response means the game accepted the purchase request for processing; in online mode it can be optimistic, partially fulfilled, or later corrected by the server. `levelBefore` and `levelAfter` are observations around submission, not a completion receipt. Refresh the catalog to see the latest level and maxed state.
+`purchase_upgrade(upgrade_id, quantity=1)` asks the running game to process the purchase by calling its in-process `GameManager.PurchaseUpgrades` method. The bridge does not contact the game's backend directly. In online mode, the game method may send the purchase to its server, which remains authoritative. Quantity must be from 1 to 1000. The game's affordability and maximum-level checks still apply. A successful RPC response means the game accepted the purchase request for processing; it can be optimistic, partially fulfilled, or later corrected by the server. `levelBefore` and `levelAfter` are observations around submission, not a completion receipt. Refresh the catalog to see the latest level and maxed state.
 
 The catalog description is the game's own description when provided. These short hints summarize the apparent effect of the built-in upgrade IDs; the game description and live values remain authoritative for a particular build:
 
@@ -162,7 +166,7 @@ Live verification on the demo build confirmed that `upgrades.snapshot` returned 
 | `market.human_activity` | Read one page of graph activity for a visible stock |
 | `trade.submit` | Submit one allowlisted manual trade |
 | `upgrades.snapshot` | Discover upgrade descriptions, levels, values, limits, and next prices |
-| `upgrades.purchase` | Submit an upgrade purchase through the game's normal API |
+| `upgrades.purchase` | Ask the running game to process an upgrade purchase |
 | `auto_actions.snapshot` | Read auto-action slots and state |
 | `auto_actions.add` | Add an action if the game reports a free slot |
 | `auto_actions.update` | Replace a configured action's settings |

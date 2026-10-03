@@ -10,9 +10,10 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 - Dynamic upgrade catalog discovery, including game-provided descriptions,
   current and next values, next price, hidden state, and finite/unlimited/maxed
   status.
-- Upgrade purchases through the game's normal purchase method, with a bounded
-  quantity and explicit `submitted` status for server-authoritative online
-  purchases.
+- Upgrade purchases delegated to the game's in-process purchase method, with a
+  bounded quantity and explicit `submitted` status. The plugin does not connect
+  directly to the backend; online requests are made by the game and remain
+  server-authoritative.
 - Python `upgrades()` and `purchase_upgrade()` convenience methods and guide
   hints describing the effects of the built-in upgrade IDs.
 
@@ -35,8 +36,9 @@ Initial release for the Screen Stocks demo.
 - Market change subscriptions and paged aggregate graph activity for visible
   stocks. Activity is aggregated; the API does not expose individual player
   trades or identities.
-- Allowlisted buy, short, sell, cover, and close commands routed through the
-  game's normal trade methods, with asynchronous completion events.
+- Allowlisted buy, short, sell, cover, and close commands delegated to the
+  game's in-process trade methods, with asynchronous completion events. Online
+  server communication, when needed, is performed by the game.
 - Dynamic auto-action slot discovery, action configuration and controls, and
   per-action cooldown reporting.
 - Optional-by-setting direct claiming of available level rewards, enabled by

@@ -118,9 +118,11 @@ class BridgeClient:
         return self.request("upgrades.snapshot")
 
     def purchase_upgrade(self, upgrade_id: str, quantity: int = 1) -> dict[str, Any]:
-        """Submit a purchase through the game's normal upgrade purchase method.
+        """Ask the running game to process an upgrade through its in-process method.
 
-        The returned status is ``submitted``; online server state remains authoritative.
+        The bridge itself only talks to localhost. The game may communicate with its
+        server in online mode; server state remains authoritative. The returned status
+        is ``submitted``.
         Refresh :meth:`upgrades` to observe the resulting level.
         """
         return self.request("upgrades.purchase", {"upgradeId": upgrade_id, "quantity": quantity})

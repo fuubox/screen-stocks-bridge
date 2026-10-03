@@ -108,7 +108,7 @@ Trades change the shared online market. The example requires an explicit action 
 python .\examples\submit_trade.py --action buy_percent --stock-id STOCK_ID --percent 10
 ```
 
-Do not run the example unless you intend to submit that trade. The API validates market readiness, stock visibility and unlock state, trade queue/hold state, available short volume, and position availability; the game's trade methods remain responsible for their own cooldown, affordability, and final server checks.
+Do not run the example unless you intend to submit that trade. The plugin only exposes a loopback API and does not connect directly to the game's backend. Trade commands call in-process game methods; in online mode those methods may contact the game server, which remains responsible for final validation. The bridge also checks market readiness, stock visibility and unlock state, trade queue/hold state, available short volume, and position availability.
 
 ## Auto actions and cooldowns
 
