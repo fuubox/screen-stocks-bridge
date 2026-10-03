@@ -1,13 +1,34 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "screenstocks-bridge"
 version = "0.2.0"
 description = "Python client for the local Screen Stocks BepInEx bridge"
+readme = "README.md"
+license = "MIT-0"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = []
+keywords = ["screen-stocks", "bepinex", "game-modding", "bridge"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT No Attribution License (MIT-0)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/fuubox/screen-stocks-bridge"
+Documentation = "https://github.com/fuubox/screen-stocks-bridge#readme"
+Repository = "https://github.com/fuubox/screen-stocks-bridge"
+Issues = "https://github.com/fuubox/screen-stocks-bridge/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
