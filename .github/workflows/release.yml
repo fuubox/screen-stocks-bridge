@@ -29,7 +29,7 @@ jobs:
 
       - name: Validate release tag and project version
         id: version
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File {0}
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
@@ -55,11 +55,11 @@ jobs:
             throw "Plugin.cs PluginVersion must be defined once and match project version '$projectVersion'."
           }
 
-          "version=$projectVersion" >> $env:GITHUB_OUTPUT
-          "release_name=ScreenStocksBridge-$env:RELEASE_TAG" >> $env:GITHUB_OUTPUT
+          $stepOutputs = "version=$projectVersion`nrelease_name=ScreenStocksBridge-$env:RELEASE_TAG`n"
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, $stepOutputs, [System.Text.UTF8Encoding]::new($false))
 
       - name: Build and package the plugin
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File {0}
         env:
           SCREENSTOCKS_GAME_DIR: ${{ vars.SCREENSTOCKS_GAME_DIR }}
           VERSION: ${{ steps.version.outputs.version }}
