@@ -29,7 +29,7 @@ jobs:
 
       - name: Validate release tag and project version
         id: version
-        shell: pwsh
+        shell: powershell
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
@@ -59,7 +59,7 @@ jobs:
           "release_name=ScreenStocksBridge-$env:RELEASE_TAG" >> $env:GITHUB_OUTPUT
 
       - name: Build and package the plugin
-        shell: pwsh
+        shell: powershell
         env:
           SCREENSTOCKS_GAME_DIR: ${{ vars.SCREENSTOCKS_GAME_DIR }}
           VERSION: ${{ steps.version.outputs.version }}

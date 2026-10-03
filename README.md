@@ -51,7 +51,7 @@ The tag starts the release workflow. It builds against the game and BepInEx asse
 
 Repository maintainers need one Windows x64 self-hosted GitHub Actions runner on a machine with the game installed:
 
-1. Open the repository's **Settings → Actions → Runners → New self-hosted runner**, choose **Windows x64**, and follow GitHub's current download and configuration instructions. Install PowerShell 7 (`pwsh`) on the runner machine, make it available on the runner account's `PATH`, and restart the runner after installation; the Windows build steps explicitly use that shell.
+1. Open the repository's **Settings → Actions → Runners → New self-hosted runner**, choose **Windows x64**, and follow GitHub's current download and configuration instructions. The workflow uses the Windows PowerShell shell included with Windows.
 2. Extract the runner into a dedicated directory outside the repository. In the configuration command, add the custom label `screenstocks`; the workflow also requires GitHub's standard `self-hosted`, `Windows`, and `X64` labels.
 3. Run the configuration command locally with the temporary registration token shown by GitHub. Do not share the token or save it in the repository. Run the runner as a Windows account that can read the game's BepInEx and Managed assembly folders.
 4. Keep the runner software current (the workflow's Node 24 actions require runner version 2.327.1 or later) and keep it online when pushing a release tag. The workflow installs the .NET 8 SDK. If the game is not at the default Steam path used by the project, set the repository Actions variable `SCREENSTOCKS_GAME_DIR` to its installation directory.
