@@ -1,0 +1,177 @@
+name: Build and publish plugin release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build release package
+    runs-on: [self-hosted, Windows, X64, screenstocks]
+    permissions:
+      contents: read
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Validate release tag and project version
+        id: version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RELEASE_TAG -notmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw "Release tag '$env:RELEASE_TAG' must use vMAJOR.MINOR.PATCH, for example v0.1.0."
+          }
+
+          [xml]$project = Get-Content -Raw 'plugin/ScreenStocksBridge/ScreenStocksBridge.csproj'
+          $versionNodes = @($project.SelectNodes('/Project/PropertyGroup/Version'))
+          if ($versionNodes.Count -ne 1) {
+            throw 'Expected exactly one Version property in ScreenStocksBridge.csproj.'
+          }
+
+          $projectVersion = $versionNodes[0].InnerText.Trim()
+          if ($env:RELEASE_TAG -cne "v$projectVersion") {
+            throw "Tag '$env:RELEASE_TAG' does not match project version '$projectVersion'."
+          }
+
+          "version=$projectVersion" >> $env:GITHUB_OUTPUT
+          "release_name=ScreenStocksBridge-$env:RELEASE_TAG" >> $env:GITHUB_OUTPUT
+
+      - name: Build and package the plugin
+        shell: pwsh
+        env:
+          SCREENSTOCKS_GAME_DIR: ${{ vars.SCREENSTOCKS_GAME_DIR }}
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_NAME: ${{ steps.version.outputs.release_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $gameDir = $env:SCREENSTOCKS_GAME_DIR
+          if ([string]::IsNullOrWhiteSpace($gameDir)) {
+            $gameDir = 'C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks Demo'
+          }
+
+          $requiredReferences = @(
+            'BepInEx\core\BepInEx.dll',
+            'Screen Stocks_Data\Managed\Assembly-CSharp.dll',
+            'Screen Stocks_Data\Managed\UnityEngine.CoreModule.dll',
+            'Screen Stocks_Data\Managed\UnityEngine.dll',
+            'Screen Stocks_Data\Managed\UnityEngine.JSONSerializeModule.dll'
+          )
+          foreach ($relativePath in $requiredReferences) {
+            $referencePath = Join-Path $gameDir $relativePath
+            if (-not (Test-Path -LiteralPath $referencePath -PathType Leaf)) {
+              throw "Required game/BepInEx reference not found: $referencePath"
+            }
+          }
+
+          $projectPath = 'plugin/ScreenStocksBridge/ScreenStocksBridge.csproj'
+          dotnet build $projectPath -c Release "-p:GameDir=$gameDir"
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          $dllPath = 'plugin/ScreenStocksBridge/bin/Release/netstandard2.1/ScreenStocksBridge.dll'
+          if (-not (Test-Path -LiteralPath $dllPath -PathType Leaf)) {
+            throw "Expected build output was not created: $dllPath"
+          }
+
+          $runDirectory = Join-Path $env:RUNNER_TEMP "$($env:GITHUB_RUN_ID)-$($env:GITHUB_RUN_ATTEMPT)"
+          $packageRoot = Join-Path $runDirectory 'package'
+          $pluginDirectory = Join-Path $packageRoot 'BepInEx/plugins/ScreenStocksBridge'
+          $assetsDirectory = Join-Path $runDirectory 'assets'
+          New-Item -ItemType Directory -Force -Path $pluginDirectory, $assetsDirectory | Out-Null
+          Copy-Item -LiteralPath $dllPath -Destination (Join-Path $pluginDirectory 'ScreenStocksBridge.dll')
+          Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $pluginDirectory 'LICENSE')
+
+          $expectedFiles = @(
+            'BepInEx/plugins/ScreenStocksBridge/ScreenStocksBridge.dll',
+            'BepInEx/plugins/ScreenStocksBridge/LICENSE'
+          )
+          $actualFiles = @(Get-ChildItem -LiteralPath $packageRoot -File -Recurse | ForEach-Object {
+            $_.FullName.Substring($packageRoot.Length + 1).Replace('\', '/')
+          } | Sort-Object)
+          if (Compare-Object ($expectedFiles | Sort-Object) $actualFiles) {
+            throw "Package contents differ from the expected DLL and LICENSE: $($actualFiles -join ', ')"
+          }
+
+          $archivePath = Join-Path $assetsDirectory "$env:RELEASE_NAME.zip"
+          Compress-Archive -Path (Join-Path $packageRoot '*') -DestinationPath $archivePath -CompressionLevel Optimal -Force
+          if (-not (Test-Path -LiteralPath $archivePath -PathType Leaf)) {
+            throw 'Release ZIP was not created.'
+          }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+          try {
+            $archiveFiles = @($archive.Entries | Where-Object { -not $_.FullName.EndsWith('/') } | ForEach-Object { $_.FullName } | Sort-Object)
+            if (Compare-Object ($expectedFiles | Sort-Object) $archiveFiles) {
+              throw "ZIP contents differ from the expected DLL and LICENSE: $($archiveFiles -join ', ')"
+            }
+          }
+          finally {
+            $archive.Dispose()
+          }
+
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$archivePath.sha256"
+          $checksumText = "$hash  $env:RELEASE_NAME.zip`n"
+          [System.IO.File]::WriteAllText($checksumPath, $checksumText, [System.Text.UTF8Encoding]::new($false))
+
+      - name: Upload release assets for publication
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.version.outputs.release_name }}
+          path: |
+            ${{ runner.temp }}/${{ github.run_id }}-${{ github.run_attempt }}/assets/${{ steps.version.outputs.release_name }}.zip
+            ${{ runner.temp }}/${{ github.run_id }}-${{ github.run_attempt }}/assets/${{ steps.version.outputs.release_name }}.zip.sha256
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packaged release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: ScreenStocksBridge-${{ github.ref_name }}
+          path: release-assets
+
+      - name: Verify package checksum
+        shell: bash
+        env:
+          RELEASE_NAME: ScreenStocksBridge-${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd release-assets
+          test -s "${RELEASE_NAME}.zip"
+          test -s "${RELEASE_NAME}.zip.sha256"
+          sha256sum --check "${RELEASE_NAME}.zip.sha256"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${GITHUB_REF_NAME}"
+          "release-assets/ScreenStocksBridge-${GITHUB_REF_NAME}.zip"
+          "release-assets/ScreenStocksBridge-${GITHUB_REF_NAME}.zip.sha256"
+          --repo "${GITHUB_REPOSITORY}"
+          --verify-tag
+          --title "Screen Stocks Bridge ${GITHUB_REF_NAME#v}"
+          --generate-notes
