@@ -113,3 +113,9 @@ Protocol changes should keep existing fields stable and add new optional fields 
 - **No `market.updated` events:** subscribe after connecting; events are sampled at most four times per second and sent only when the serialized snapshot changes.
 - **Slow event callback:** the Python client keeps market updates and trade-completion events in separate bounded queues. If completion processing falls behind, TCP backpressure applies instead of silently discarding a trade result.
 - **Fractional buy or short percent:** the game accepts whole percentages for opening trades, so these values are rounded to the nearest whole percentage. Sell, cover, and close percentages retain fractional position sizing.
+
+## License
+
+This project is licensed under MIT No Attribution (`MIT-0`). You may use, copy, modify, publish, distribute, sublicense, and sell copies without attribution or a requirement to preserve the license notice. See [LICENSE](LICENSE) for the full terms, including the warranty and liability disclaimer.
+
+The license covers the original code, documentation, and release files in this project. It does not grant rights to Screen Stocks, Unity, BepInEx, or other third-party materials that are not included here.
