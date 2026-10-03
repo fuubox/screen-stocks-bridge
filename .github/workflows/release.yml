@@ -124,7 +124,7 @@ jobs:
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
           try {
-            $archiveFiles = @($archive.Entries | Where-Object { -not $_.FullName.EndsWith('/') } | ForEach-Object { $_.FullName } | Sort-Object)
+            $archiveFiles = @($archive.Entries | Where-Object { -not [string]::IsNullOrEmpty($_.Name) } | ForEach-Object { $_.FullName.Replace('\', '/') } | Sort-Object)
             if (Compare-Object ($expectedFiles | Sort-Object) $archiveFiles) {
               throw "ZIP contents differ from the expected DLL and LICENSE: $($archiveFiles -join ', ')"
             }
