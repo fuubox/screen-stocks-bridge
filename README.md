@@ -4,7 +4,17 @@ This project builds a BepInEx plugin and a small Python client for an in-memory 
 
 The bridge does not enable or use the game's official `modSupport` file API. It creates no game `mods` folder and writes no market exports, command files, API snapshots, request files, or trade results. Normal game saves remain enabled. BepInEx continues writing its own plugin config and logs; the bridge stores its access token in that config and prints a newly generated token once to the BepInEx log.
 
-## Build the plugin
+## Install a release
+
+Install the game and a compatible BepInEx 5 release first. Download the latest `ScreenStocksBridge-v<version>.zip` from [GitHub Releases](https://github.com/fuubox/screen-stocks-bridge/releases), close the game, and extract the ZIP into the Screen Stocks installation folder. The archive already contains the plugin directory structure. The resulting DLL path is:
+
+```text
+BepInEx\plugins\ScreenStocksBridge\ScreenStocksBridge.dll
+```
+
+The ZIP also includes the project's MIT-0 license beside the DLL. It does not bundle or install BepInEx. Keep the game's `modSupport` setting off. Restart the game after installation or replacing the DLL so BepInEx loads it.
+
+## Build the plugin from source
 
 Install the .NET SDK and build from the repository root in PowerShell:
 
@@ -18,13 +28,36 @@ The plugin references the installed BepInEx and game assemblies without copying 
 plugin\ScreenStocksBridge\bin\Release\netstandard2.1\ScreenStocksBridge.dll
 ```
 
-Install it manually by copying that DLL into:
+For a manual install, close the game and copy the DLL into:
 
 ```text
 C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks Demo\BepInEx\plugins\ScreenStocksBridge\ScreenStocksBridge.dll
 ```
 
-Keep the game's `modSupport` setting off. If the demo is already running, restart it after replacing the plugin DLL so the updated bridge code loads.
+Keep the game's `modSupport` setting off. Restart the game after replacing the plugin DLL.
+
+## Publish a release
+
+The plugin version is the `<Version>` value in `plugin/ScreenStocksBridge/ScreenStocksBridge.csproj`. To publish a release, update that value, commit and push the change, then create and push a matching semantic version tag. For example, project version `0.1.0` requires tag `v0.1.0`:
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The tag starts the release workflow. It builds against the game and BepInEx assemblies on the self-hosted Windows runner, then publishes the ZIP and its `.sha256` checksum as a GitHub Release. A malformed tag or tag/project version mismatch fails before publication.
+
+## Configure the release runner
+
+Repository maintainers need one Windows x64 self-hosted GitHub Actions runner on a machine with the game installed:
+
+1. Open the repository's **Settings → Actions → Runners → New self-hosted runner**, choose **Windows x64**, and follow GitHub's current download and configuration instructions.
+2. Extract the runner into a dedicated directory outside the repository. In the configuration command, add the custom label `screenstocks`; the workflow also requires GitHub's standard `self-hosted`, `Windows`, and `X64` labels.
+3. Run the configuration command locally with the temporary registration token shown by GitHub. Do not share the token or save it in the repository. Run the runner as a Windows account that can read the game's BepInEx and Managed assembly folders.
+4. Keep the runner software current (the workflow's Node 24 actions require runner version 2.327.1 or later) and keep it online when pushing a release tag. The workflow installs the .NET 8 SDK. If the game is not at the default Steam path used by the project, set the repository Actions variable `SCREENSTOCKS_GAME_DIR` to its installation directory.
+5. Restrict repository write access and protect `v*` release tags so only trusted maintainers can create them. The workflow runs on version tags only and does not run on pull requests.
+
+GitHub cautions that self-hosted runners can be compromised by untrusted code, especially in public repositories. Keep pull-request workflows off this runner and allow only trusted maintainers to create release tags; see [GitHub's secure use guidance](https://docs.github.com/en/actions/reference/security/secure-use).
 
 ## Python client
 
