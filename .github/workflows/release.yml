@@ -47,6 +47,12 @@ jobs:
             throw "Tag '$env:RELEASE_TAG' does not match project version '$projectVersion'."
           }
 
+          $pluginSource = Get-Content -Raw 'plugin/ScreenStocksBridge/Plugin.cs'
+          $pluginVersions = [regex]::Matches($pluginSource, 'public\s+const\s+string\s+PluginVersion\s*=\s*"([^"]+)"\s*;')
+          if ($pluginVersions.Count -ne 1 -or $pluginVersions[0].Groups[1].Value -cne $projectVersion) {
+            throw "Plugin.cs PluginVersion must be defined once and match project version '$projectVersion'."
+          }
+
           "version=$projectVersion" >> $env:GITHUB_OUTPUT
           "release_name=ScreenStocksBridge-$env:RELEASE_TAG" >> $env:GITHUB_OUTPUT
 
