@@ -109,4 +109,28 @@ namespace ScreenStocksBridge
         public long cooldownRemainingSeconds;
         public bool onCooldown;
     }
+
+    [Serializable]
+    public sealed class UpgradesSnapshotDto
+    {
+        public bool ready;
+        public List<UpgradeDto> upgrades = new List<UpgradeDto>();
+    }
+
+    [Serializable]
+    public sealed class UpgradeDto
+    {
+        public string upgradeId = string.Empty;
+        public string displayName = string.Empty;
+        public string description = string.Empty;
+        public bool hidden;
+        public int currentLevel;
+        public bool hasMaxLevel;
+        public int? maxLevel;
+        public int? remainingLevels;
+        public bool maxed;
+        public float currentValue;
+        public float? nextValue;
+        public string? nextPrice;
+    }
 }

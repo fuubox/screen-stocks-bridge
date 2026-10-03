@@ -118,6 +118,41 @@ The plugin can claim available per-level rewards directly, without Python or a b
 
 In online mode, the game sends the claim to its server and remains authoritative. Set `AutoClaimLevelRewards` to `false` if you prefer to claim rewards manually. This feature is local plugin behavior: it adds no Python API method and does not use the game's file-based mod API.
 
+## Discover and purchase upgrades
+
+`bridge.upgrades()` reads the game's live upgrade catalog. The catalog is discovered from the current game data, so clients should use the returned `upgradeId` values rather than assuming that every game build has the same list. Each record includes the game's `displayName` and `description`, whether it is hidden, its `currentLevel`, `currentValue`, and whether it is maxed. `hasMaxLevel` distinguishes finite upgrades from unlimited ones. For a finite upgrade, `maxLevel` and `remainingLevels` are numbers; for an unlimited upgrade they are `None` in Python/`null` in JSON. A maxed upgrade has `nextValue` and `nextPrice` set to `None`/`null`. Prices are strings to preserve large game values exactly. `nextValue` applies the next catalog level's change to the current effective value.
+
+```python
+with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
+    catalog = bridge.upgrades()
+    for upgrade in catalog["upgrades"]:
+        print(upgrade["upgradeId"], upgrade["description"],
+              upgrade["currentLevel"], upgrade["nextValue"], upgrade["nextPrice"])
+
+    result = bridge.purchase_upgrade("AutoActionSlots", quantity=1)
+    print(result)  # status is submitted; refresh upgrades() for the observed level
+```
+
+`purchase_upgrade(upgrade_id, quantity=1)` calls the game's normal `PurchaseUpgrades` method. Quantity must be from 1 to 1000. The game's affordability and maximum-level checks still apply. A successful RPC response means the game accepted the purchase request for processing; in online mode it can be optimistic, partially fulfilled, or later corrected by the server. `levelBefore` and `levelAfter` are observations around submission, not a completion receipt. Refresh the catalog to see the latest level and maxed state.
+
+The catalog description is the game's own description when provided. These short hints summarize the apparent effect of the built-in upgrade IDs; the game description and live values remain authoritative for a particular build:
+
+| Upgrade ID | Effect hint |
+| --- | --- |
+| `BuyCooldown` | Reduces the delay between buy trades. |
+| `ShortCooldown` | Reduces the delay between short trades. |
+| `IncomePerMinute` | Increases passive income per minute. |
+| `OfflineEarnings` | Improves the amount earned while away. |
+| `DividendGain` | Increases dividend gains. |
+| `OfflineHours` | Extends the time window used to accrue offline earnings. |
+| `AutoActionSlots` | Increases the number of auto-action slots available. |
+| `StockVolume` | Increases the player's allowed stock position volume. |
+| `AutoActionCooldown` | Reduces the delay between auto-action executions. |
+
+These hints are based on the upgrade identifiers and UI-facing descriptions found in the current game build. The bridge also returns each catalog record's description so scripts can display the game's own wording. Other bonuses can affect effective values, and the bridge reports `currentValue` through the game's `GetUpgradeValue` method.
+
+Live verification on the demo build confirmed that `upgrades.snapshot` returned a ready catalog with 8 currently defined upgrades, including finite, unlimited, and maxed entries. A one-level `DividendGain` purchase returned `submitted`; a subsequent catalog refresh reported the level increase. The catalog size and available upgrade IDs can vary by game build or player state.
+
 ## API methods
 
 | Method | Purpose |
@@ -126,6 +161,8 @@ In online mode, the game sends the claim to its server and remains authoritative
 | `state.subscribe` | Subscribe to `market.updated` events |
 | `market.human_activity` | Read one page of graph activity for a visible stock |
 | `trade.submit` | Submit one allowlisted manual trade |
+| `upgrades.snapshot` | Discover upgrade descriptions, levels, values, limits, and next prices |
+| `upgrades.purchase` | Submit an upgrade purchase through the game's normal API |
 | `auto_actions.snapshot` | Read auto-action slots and state |
 | `auto_actions.add` | Add an action if the game reports a free slot |
 | `auto_actions.update` | Replace a configured action's settings |

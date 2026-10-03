@@ -3,6 +3,25 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [0.2.0] - 2026-10-03
+
+### Added
+
+- Dynamic upgrade catalog discovery, including game-provided descriptions,
+  current and next values, next price, hidden state, and finite/unlimited/maxed
+  status.
+- Upgrade purchases through the game's normal purchase method, with a bounded
+  quantity and explicit `submitted` status for server-authoritative online
+  purchases.
+- Python `upgrades()` and `purchase_upgrade()` convenience methods and guide
+  hints describing the effects of the built-in upgrade IDs.
+
+### Verified
+
+- Built the plugin against the demo's Unity and BepInEx assemblies.
+- Queried the live demo's upgrade catalog and submitted a one-level
+  `DividendGain` purchase; a subsequent snapshot reported the increased level.
+
 ## [0.1.0] - 2026-10-03
 
 Initial release for the Screen Stocks demo.

@@ -38,11 +38,11 @@ Keep the game's `modSupport` setting off. Restart the game after replacing the p
 
 ## Publish a release
 
-The release version must match both the `<Version>` value in `plugin/ScreenStocksBridge/ScreenStocksBridge.csproj` and the `PluginVersion` constant in `plugin/ScreenStocksBridge/Plugin.cs`. Update both values, commit and push the change, then create and push a matching semantic version tag. The workflow rejects a mismatch. For example, version `0.1.0` requires tag `v0.1.0`:
+The release version must match the `<Version>` value in `plugin/ScreenStocksBridge/ScreenStocksBridge.csproj`, the `PluginVersion` constant in `plugin/ScreenStocksBridge/Plugin.cs`, and the Python package version in `python/pyproject.toml`. Update those values, add a matching section to `CHANGELOG.md`, commit and push the change, then create and push a matching semantic version tag. The workflow rejects a plugin/project mismatch. For example, version `0.2.0` requires tag `v0.2.0`:
 
 ```powershell
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 The tag starts the release workflow. It builds against the game and BepInEx assemblies on the self-hosted Windows runner, then publishes the ZIP and its `.sha256` checksum as a GitHub Release. The release notes are taken from the matching version section in `CHANGELOG.md`. A missing changelog section, malformed tag, or tag/version mismatch fails before publication.

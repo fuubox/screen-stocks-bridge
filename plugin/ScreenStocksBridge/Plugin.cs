@@ -11,7 +11,7 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
@@ -21,6 +21,7 @@ namespace ScreenStocksBridge
         private readonly HumanActivityService _humanActivity = new HumanActivityService();
         private readonly AutoActionsService _autoActions = new AutoActionsService();
         private readonly TradeService _trades = new TradeService();
+        private readonly UpgradeService _upgrades = new UpgradeService();
         private float _nextSnapshotAt;
         private float _nextLevelClaimAt;
         private string _lastSnapshot = string.Empty;
@@ -128,6 +129,11 @@ namespace ScreenStocksBridge
             if (request.method == "trade.submit")
             {
                 connection.Send(_trades.Submit(request, connection), false);
+                return;
+            }
+            if (request.method == "upgrades.snapshot" || request.method == "upgrades.purchase")
+            {
+                connection.Send(_upgrades.Handle(request.method, request), false);
                 return;
             }
             if (request.method == "auto_actions.snapshot" || request.method == "auto_actions.add" ||

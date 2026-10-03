@@ -62,6 +62,29 @@ namespace ScreenStocksBridge
                 .Append('}').ToString();
         }
 
+        internal static string SerializeUpgrades(UpgradesSnapshotDto value)
+        {
+            var json = new StringBuilder(512).Append("{\"ready\":").Append(Bool(value.ready)).Append(",\"upgrades\":[");
+            for (var i = 0; i < value.upgrades.Count; i++)
+            {
+                if (i > 0) json.Append(',');
+                var upgrade = value.upgrades[i];
+                json.Append("{\"upgradeId\":").Append(Quote(upgrade.upgradeId))
+                    .Append(",\"displayName\":").Append(Quote(upgrade.displayName))
+                    .Append(",\"description\":").Append(Quote(upgrade.description))
+                    .Append(",\"hidden\":").Append(Bool(upgrade.hidden))
+                    .Append(",\"currentLevel\":").Append(upgrade.currentLevel.ToString(CultureInfo.InvariantCulture))
+                    .Append(",\"hasMaxLevel\":").Append(Bool(upgrade.hasMaxLevel))
+                    .Append(",\"maxLevel\":").Append(upgrade.maxLevel.HasValue ? upgrade.maxLevel.Value.ToString(CultureInfo.InvariantCulture) : "null")
+                    .Append(",\"remainingLevels\":").Append(upgrade.remainingLevels.HasValue ? upgrade.remainingLevels.Value.ToString(CultureInfo.InvariantCulture) : "null")
+                    .Append(",\"maxed\":").Append(Bool(upgrade.maxed))
+                    .Append(",\"currentValue\":").Append(Number(upgrade.currentValue))
+                    .Append(",\"nextValue\":").Append(upgrade.nextValue.HasValue ? Number(upgrade.nextValue.Value) : "null")
+                    .Append(",\"nextPrice\":").Append(upgrade.nextPrice == null ? "null" : Quote(upgrade.nextPrice)).Append('}');
+            }
+            return json.Append("]}").ToString();
+        }
+
         internal static string SerializeTradeCompleted(string requestId, string action, string stockId, string status, string reason)
         {
             return "{\"requestId\":" + Quote(requestId) + ",\"action\":" + Quote(action) +
@@ -147,7 +170,7 @@ namespace ScreenStocksBridge
         private static string Number(double value) => double.IsNaN(value) || double.IsInfinity(value)
             ? "null" : value.ToString("R", CultureInfo.InvariantCulture);
 
-        private static string Quote(string value)
+        internal static string Quote(string value)
         {
             var json = new StringBuilder(value.Length + 2).Append('"');
             foreach (var character in value)

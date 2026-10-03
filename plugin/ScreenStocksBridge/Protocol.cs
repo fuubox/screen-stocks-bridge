@@ -16,6 +16,8 @@ namespace ScreenStocksBridge
     {
         public string action = string.Empty;
         public string stockId = string.Empty;
+        public string upgradeId = string.Empty;
+        public int quantity = 1;
         public float percent = 0f;
         public int slotIndex = -1;
         public string actionType = string.Empty;

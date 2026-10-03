@@ -113,6 +113,18 @@ class BridgeClient:
             params["percent"] = percent
         return self.request("trade.submit", params)
 
+    def upgrades(self) -> dict[str, Any]:
+        """Return the game's dynamically discovered upgrade catalog and current levels."""
+        return self.request("upgrades.snapshot")
+
+    def purchase_upgrade(self, upgrade_id: str, quantity: int = 1) -> dict[str, Any]:
+        """Submit a purchase through the game's normal upgrade purchase method.
+
+        The returned status is ``submitted``; online server state remains authoritative.
+        Refresh :meth:`upgrades` to observe the resulting level.
+        """
+        return self.request("upgrades.purchase", {"upgradeId": upgrade_id, "quantity": quantity})
+
     def auto_actions(self) -> dict[str, Any]:
         """Return dynamically discovered auto-action slots and cooldown state."""
         return self.request("auto_actions.snapshot")
