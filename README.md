@@ -45,7 +45,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The tag starts the release workflow. It builds against the game and BepInEx assemblies on the self-hosted Windows runner, then publishes the ZIP and its `.sha256` checksum as a GitHub Release. A malformed tag or tag/project version mismatch fails before publication.
+The tag starts the release workflow. It builds against the game and BepInEx assemblies on the self-hosted Windows runner, then publishes the ZIP and its `.sha256` checksum as a GitHub Release. The release notes are taken from the matching version section in `CHANGELOG.md`. A missing changelog section, malformed tag, or tag/version mismatch fails before publication.
 
 ## Configure the release runner
 

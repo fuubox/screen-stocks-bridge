@@ -136,6 +136,27 @@ jobs:
           $checksumText = "$hash  $env:RELEASE_NAME.zip`n"
           [System.IO.File]::WriteAllText($checksumPath, $checksumText, [System.Text.UTF8Encoding]::new($false))
 
+          $changelogLines = Get-Content -LiteralPath 'CHANGELOG.md'
+          $headingPrefix = "## [$($env:VERSION)] - "
+          $notesStart = -1
+          for ($index = 0; $index -lt $changelogLines.Count; $index++) {
+            if ($changelogLines[$index].StartsWith($headingPrefix, [System.StringComparison]::Ordinal)) {
+              $notesStart = $index
+              break
+            }
+          }
+          if ($notesStart -lt 0) {
+            throw "CHANGELOG.md does not contain a section for version $($env:VERSION)."
+          }
+
+          $notesEnd = $notesStart + 1
+          while ($notesEnd -lt $changelogLines.Count -and -not $changelogLines[$notesEnd].StartsWith('## ', [System.StringComparison]::Ordinal)) {
+            $notesEnd++
+          }
+          $releaseNotes = ($changelogLines[$notesStart..($notesEnd - 1)] -join "`n").Trim() + "`n"
+          $releaseNotesPath = Join-Path $assetsDirectory 'release-notes.md'
+          [System.IO.File]::WriteAllText($releaseNotesPath, $releaseNotes, [System.Text.UTF8Encoding]::new($false))
+
       - name: Upload release assets for publication
         uses: actions/upload-artifact@v7
         with:
@@ -143,6 +164,7 @@ jobs:
           path: |
             ${{ runner.temp }}/${{ github.run_id }}-${{ github.run_attempt }}/assets/${{ steps.version.outputs.release_name }}.zip
             ${{ runner.temp }}/${{ github.run_id }}-${{ github.run_attempt }}/assets/${{ steps.version.outputs.release_name }}.zip.sha256
+            ${{ runner.temp }}/${{ github.run_id }}-${{ github.run_attempt }}/assets/release-notes.md
           if-no-files-found: error
           retention-days: 1
 
@@ -180,4 +202,4 @@ jobs:
           --repo "${GITHUB_REPOSITORY}"
           --verify-tag
           --title "Screen Stocks Bridge ${GITHUB_REF_NAME#v}"
-          --generate-notes
+          --notes-file "release-assets/release-notes.md"
