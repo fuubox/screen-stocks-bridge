@@ -1,0 +1,28 @@
+# Local SDK and package caches
+/.appdata/
+/.dotnet-cli/
+/.nuget/
+
+# Build output
+**/bin/
+**/obj/
+**/build/
+**/dist/
+*.egg-info/
+
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Local game data and credentials
+*.sav
+*.log
+*.token
+*.secret
+
+# Local workflow state
+/.superpowers/
