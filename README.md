@@ -47,7 +47,7 @@ git push origin v0.2.0
 
 The tag starts the release workflow. It builds against the game and BepInEx assemblies on the self-hosted Windows runner, then publishes the ZIP and its `.sha256` checksum as a GitHub Release. The release notes are taken from the matching version section in `CHANGELOG.md`. A missing changelog section, malformed tag, or tag/version mismatch fails before publication.
 
-The separate `Publish Python package` workflow builds a wheel and source distribution on GitHub-hosted Ubuntu and publishes them to PyPI when a GitHub Release is published. It also supports manual dispatch with a tag input, which is used for the initial `v0.2.0` publication. Run that first dispatch from the `main` branch with tag `v0.2.0`; the workflow checks out that branch revision and validates that its Python package version matches the tag. Future GitHub releases publish from their tagged source. Before the first publish, configure a PyPI Trusted Publisher with project `screenstocks-bridge`, owner `fuubox`, repository `screen-stocks-bridge`, workflow `publish-python.yml`, and environment `pypi`. The workflow uses short-lived OIDC credentials and does not need a PyPI API token or repository secret. A pending publisher does not reserve the PyPI package name; the project is created on its first successful publish.
+The separate `Publish Python package` workflow builds a wheel and source distribution on GitHub-hosted Ubuntu and publishes them to PyPI when a GitHub Release is published. It also supports manual dispatch with a tag input. The initial `v0.2.0` package was published from the `main` branch after validating that its Python package version matched the tag; future GitHub releases publish from their tagged source. PyPI publishing uses the Trusted Publisher configured for project `screenstocks-bridge`, owner `fuubox`, repository `screen-stocks-bridge`, workflow `publish-python.yml`, and environment `pypi`. The workflow uses short-lived OIDC credentials and does not need a PyPI API token or repository secret.
 
 ## Configure the release runner
 
@@ -63,9 +63,7 @@ GitHub cautions that self-hosted runners can be compromised by untrusted code, e
 
 ## Python client
 
-Python 3.10 or newer is required. The package has no third-party runtime dependencies. From the repository root, install it for the current Python environment:
-
-After the package is published to PyPI, users can install it with:
+Python 3.10 or newer is required. The package has no third-party runtime dependencies. Install the published Python client with:
 
 ```powershell
 python -m pip install screenstocks-bridge
@@ -73,7 +71,7 @@ python -m pip install screenstocks-bridge
 
 This installs only the Python client. Install the matching BepInEx plugin from GitHub Releases separately and launch the game before connecting.
 
-For development from a repository checkout, install the local source in editable mode:
+For development from a repository checkout, install the local source in editable mode instead:
 
 ```powershell
 python -m pip install -e .\python

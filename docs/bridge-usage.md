@@ -14,11 +14,13 @@ The bridge itself does not connect to the game's backend or implement its networ
 
 ## Connect from Python
 
-Install the local package with Python 3.10 or later:
+Install the published Python client with Python 3.10 or later:
 
 ```powershell
-python -m pip install -e .\python
+python -m pip install screenstocks-bridge
 ```
+
+This installs only the Python client. Install the BepInEx plugin separately and launch the game before connecting. For development from a repository checkout, use `python -m pip install -e .\python` instead.
 
 Copy the token from `BepInEx\config\screenstocks.bridge.cfg` or the BepInEx log, then connect:
 
