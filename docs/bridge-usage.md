@@ -42,6 +42,31 @@ Port = 48721
 
 Edit `Port` while the game is closed, then restart the game for the setting to take effect. The plugin accepts ports from 1 through 65535 and binds only to `127.0.0.1`. If the selected port is unavailable, the listener fails to start and reports the error in the BepInEx log. When using a non-default port, pass the same value to `BridgeClient`, for example `BridgeClient(host="127.0.0.1", port=49321, token="YOUR_TOKEN")`, or set `SCREENSTOCKS_PORT` when running the example scripts.
 
+Under `[QualityOfLife]`, `AutoCloseOfflineSummary = true` (the default) captures and then closes the game's welcome-back screen. Set it to `false` to leave that screen open; the plugin still captures its data for the API.
+
+## Read the welcome-back summary
+
+When the game displays its welcome-back screen, the plugin captures the structured values supplied to that screen before closing it. The most recent capture stays in plugin memory for the current game session. It is not written to disk, and a later welcome-back screen replaces it.
+
+`bridge.offline_summary()` returns `{"available": false, "summary": null}` until a welcome-back summary has appeared. After capture, `available` is true and `summary` contains:
+
+- `total`, `generators`, `dividends`, and `autoActions`: exact game amounts represented as decimal strings.
+- `secondsAway` and `cappedEarningsSeconds`: elapsed and earnings-capped time supplied by the game.
+- `showEarnings`: whether the game marked the earnings section for display.
+- `positionChanges`: per-stock results with `stockId`, `isLong`, exact `cashChange` as a decimal string, and `percentChange`.
+
+The API is queryable even if the welcome-back screen appeared before Python connected. This feature only captures data the running game passes to its in-process screen; the bridge does not request extra history or contact the game's backend.
+
+```python
+with BridgeClient(token="YOUR_TOKEN") as bridge:
+    result = bridge.offline_summary()
+    if result["available"]:
+        summary = result["summary"]
+        print(summary["secondsAway"], summary["total"])
+        for change in summary["positionChanges"]:
+            print(change["stockId"], change["cashChange"], change["percentChange"])
+```
+
 ## Discover market status, stocks, and values
 
 `bridge.snapshot()` returns a dictionary assembled from the current in-memory game state:
@@ -194,6 +219,7 @@ Live verification on the demo build confirmed that `upgrades.snapshot` returned 
 | --- | --- |
 | `state.snapshot` | Read current market/player state, cooldowns, and auto actions |
 | `state.subscribe` | Subscribe to `market.updated` events |
+| `offline_summary.snapshot` | Read the latest in-memory welcome-back summary |
 | `market.human_activity` | Read one page of graph activity for a visible stock |
 | `market.human_activity.subscribe` | Subscribe this connection to updates for one visible stock |
 | `market.human_activity.unsubscribe` | Stop this connection's updates for one stock |

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using BepInEx;
 using BepInEx.Configuration;
+using HarmonyLib;
 using UnityEngine;
 
 namespace ScreenStocksBridge
@@ -12,13 +13,16 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
         internal ConfigEntry<bool> AutoClaimLevelRewards { get; private set; } = null!;
+        internal ConfigEntry<bool> AutoCloseOfflineSummary { get; private set; } = null!;
         private BridgeServer? _server;
+        private Harmony? _harmony;
         private readonly StateService _state = new StateService();
+        private readonly OfflineProgressCaptureService _offlineProgress = new OfflineProgressCaptureService();
         private readonly HumanActivityService _humanActivity = new HumanActivityService();
         private readonly HumanActivityFocusService _humanActivityFocus = new HumanActivityFocusService();
         private readonly AutoActionsService _autoActions = new AutoActionsService();
@@ -35,6 +39,8 @@ namespace ScreenStocksBridge
             BridgeToken = Config.Bind("Bridge", "Token", string.Empty, "Secret required by local Python clients.");
             AutoClaimLevelRewards = Config.Bind("QualityOfLife", "AutoClaimLevelRewards", true,
                 "Automatically claim available level rewards through the game's normal level-reward API.");
+            AutoCloseOfflineSummary = Config.Bind("QualityOfLife", "AutoCloseOfflineSummary", true,
+                "Capture the welcome-back summary for the bridge, then close its screen automatically.");
 
             if (string.IsNullOrWhiteSpace(BridgeToken.Value))
             {
@@ -44,6 +50,22 @@ namespace ScreenStocksBridge
             }
 
             Logger.LogInfo("Screen Stocks Python Bridge " + PluginVersion + " initialized.");
+
+            try
+            {
+                _harmony = new Harmony(PluginGuid + ".offline-progress");
+                OfflineProgressHarmonyPatch.CaptureService = _offlineProgress;
+                OfflineProgressHarmonyPatch.AutoClose = AutoCloseOfflineSummary.Value;
+                OfflineProgressHarmonyPatch.Install(_harmony);
+            }
+            catch (Exception ex)
+            {
+                OfflineProgressHarmonyPatch.CaptureService = null;
+                OfflineProgressHarmonyPatch.AutoClose = false;
+                _harmony?.UnpatchSelf();
+                _harmony = null;
+                Logger.LogWarning("Could not hook the welcome-back summary: " + ex.Message);
+            }
 
             if (BridgePort.Value < 1 || BridgePort.Value > 65535)
             {
@@ -136,6 +158,11 @@ namespace ScreenStocksBridge
 
         private void HandleRequest(BridgeRequest request, BridgeConnection connection)
         {
+            if (request.method == "offline_summary.snapshot")
+            {
+                connection.Send(ProtocolJson.Response(request.id, true, _offlineProgress.GetSnapshotJson(), string.Empty), false);
+                return;
+            }
             if (request.method == "state.snapshot")
             {
                 var snapshot = _state.CreateSnapshot();
@@ -244,6 +271,10 @@ namespace ScreenStocksBridge
 
         private void OnDestroy()
         {
+            OfflineProgressHarmonyPatch.CaptureService = null;
+            OfflineProgressHarmonyPatch.AutoClose = false;
+            _harmony?.UnpatchSelf();
+            _harmony = null;
             if (!_humanActivityFocus.RestoreOnShutdown())
                 Logger.LogWarning("Could not restore the game's activity focus while shutting down the plugin.");
             _server?.Dispose();

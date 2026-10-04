@@ -61,6 +61,35 @@ namespace ScreenStocksBridge
     }
 
     [Serializable]
+    public sealed class OfflineProgressSummaryDto
+    {
+        public string total = "0";
+        public string generators = "0";
+        public string dividends = "0";
+        public string autoActions = "0";
+        public float secondsAway;
+        public float cappedEarningsSeconds;
+        public bool showEarnings;
+        public List<OfflinePositionChangeDto> positionChanges = new List<OfflinePositionChangeDto>();
+    }
+
+    [Serializable]
+    public sealed class OfflinePositionChangeDto
+    {
+        public string stockId = string.Empty;
+        public bool isLong;
+        public string cashChange = "0";
+        public float percentChange;
+    }
+
+    [Serializable]
+    public sealed class OfflineProgressSnapshotDto
+    {
+        public bool available;
+        public OfflineProgressSummaryDto? summary;
+    }
+
+    [Serializable]
     public sealed class PositionDto
     {
         public string stockId = string.Empty;

@@ -98,6 +98,10 @@ class BridgeClient:
         """Return the current in-memory player and visible-market snapshot."""
         return self.request("state.snapshot")
 
+    def offline_summary(self) -> dict[str, Any]:
+        """Return the latest captured welcome-back summary, if one has appeared this session."""
+        return self.request("offline_summary.snapshot")
+
     def human_activity(self, stock_id: str, limit: int = 32,
                        before_tick: int | None = None) -> dict[str, Any]:
         """Return one page of aggregate graph activity for a visible stock."""

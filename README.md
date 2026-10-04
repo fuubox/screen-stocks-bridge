@@ -55,7 +55,7 @@ with BridgeClient(
 
 ## API guide
 
-See the [bridge usage guide](docs/bridge-usage.md) for market and stock discovery, graph activity, cooldowns, trades, upgrades, auto actions, and complete examples. The plugin automatically claims available level rewards by default; to turn this off, set `AutoClaimLevelRewards = false` under `[QualityOfLife]` in `BepInEx\config\screenstocks.bridge.cfg` and restart the game.
+See the [bridge usage guide](docs/bridge-usage.md) for market and stock discovery, the captured welcome-back summary, graph activity, cooldowns, trades, upgrades, auto actions, and complete examples. The plugin automatically claims available level rewards and captures then closes the welcome-back screen by default. To change either behavior, set `AutoClaimLevelRewards` or `AutoCloseOfflineSummary` under `[QualityOfLife]` in `BepInEx\config\screenstocks.bridge.cfg`, then restart the game.
 
 ## Troubleshooting
 

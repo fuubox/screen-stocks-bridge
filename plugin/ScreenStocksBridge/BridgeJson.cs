@@ -67,6 +67,32 @@ namespace ScreenStocksBridge
             return "{\"active\":" + Bool(value.active) + ",\"stockId\":" + Quote(value.stockId ?? string.Empty) + "}";
         }
 
+        internal static string SerializeOfflineProgressSnapshot(OfflineProgressSnapshotDto value)
+        {
+            if (!value.available || value.summary == null) return "{\"available\":false,\"summary\":null}";
+
+            var summary = value.summary;
+            var json = new StringBuilder(512);
+            json.Append("{\"available\":true,\"summary\":{\"total\":").Append(Quote(summary.total))
+                .Append(",\"generators\":").Append(Quote(summary.generators))
+                .Append(",\"dividends\":").Append(Quote(summary.dividends))
+                .Append(",\"autoActions\":").Append(Quote(summary.autoActions))
+                .Append(",\"secondsAway\":").Append(Number(summary.secondsAway))
+                .Append(",\"cappedEarningsSeconds\":").Append(Number(summary.cappedEarningsSeconds))
+                .Append(",\"showEarnings\":").Append(Bool(summary.showEarnings))
+                .Append(",\"positionChanges\":[");
+            for (var i = 0; i < summary.positionChanges.Count; i++)
+            {
+                if (i > 0) json.Append(',');
+                var change = summary.positionChanges[i];
+                json.Append("{\"stockId\":").Append(Quote(change.stockId))
+                    .Append(",\"isLong\":").Append(Bool(change.isLong))
+                    .Append(",\"cashChange\":").Append(Quote(change.cashChange))
+                    .Append(",\"percentChange\":").Append(Number(change.percentChange)).Append('}');
+            }
+            return json.Append("]}}").ToString();
+        }
+
         internal static string SerializeUpgrades(UpgradesSnapshotDto value)
         {
             var json = new StringBuilder(512).Append("{\"ready\":").Append(Bool(value.ready)).Append(",\"upgrades\":[");

@@ -3,7 +3,20 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
-## [Unreleased]
+## [0.4.0] - 2026-10-04
+
+### Added
+
+- Automatic welcome-back summary capture and optional screen dismissal, with
+  session-memory access through `offline_summary()`. Auto-dismiss is enabled
+  by default and can be disabled in BepInEx config.
+
+### Verified
+
+- Confirmed in the running game that the welcome-back popup auto-closed and the
+  API returned its earnings breakdown, time away, and stock position changes.
+- Built and installed the plugin against the demo's Unity and BepInEx
+  assemblies; the installed DLL hash matched the build.
 
 ## [0.3.0] - 2026-10-04
 

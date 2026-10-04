@@ -73,6 +73,7 @@ jobs:
 
           $requiredReferences = @(
             'BepInEx\core\BepInEx.dll',
+            'BepInEx\core\0Harmony.dll',
             'Screen Stocks_Data\Managed\Assembly-CSharp.dll',
             'Screen Stocks_Data\Managed\UnityEngine.CoreModule.dll',
             'Screen Stocks_Data\Managed\UnityEngine.dll',

@@ -38,3 +38,8 @@ for the full API and its online behavior. Activity history reads page through
 only the samples the game currently retains in memory; they do not fetch older
 history from the game's server, and the bridge makes no guarantee about the
 retained history's total depth or time span.
+
+Use `offline_summary()` to read the latest welcome-back summary captured during
+the current game session. The plugin captures it in memory before automatically
+closing the screen; set `AutoCloseOfflineSummary = false` in the BepInEx config
+to leave the screen open while retaining API access.
