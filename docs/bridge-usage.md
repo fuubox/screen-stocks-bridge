@@ -66,20 +66,38 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
 
 For change notifications, `bridge.subscribe_market(callback)` delivers `market.updated` events containing a new snapshot. Updates are sampled up to four times per second and sent when the snapshot changes.
 
-## Read the graph's activity bars
+## Read and subscribe to graph activity
 
-Use `bridge.human_activity(stock_id, limit=32, before_tick=None)` to retrieve one page for a visible stock. This is an on-demand per-stock call so large histories do not inflate every state snapshot or market update. Each returned sample matches a graph/history tick and contains `sampleTick`, `up`, `down`, `total`, `net`, `upImpact`, `downImpact`, `totalImpact`, and `netImpact`. These are aggregated activity buckets, not individual trade records or player identities.
+The game has one active human-activity focus. Set it explicitly with `bridge.set_human_activity_focus(stock_id)`; this changes the game's activity feed without changing the visible graph stock. While active, the game displays a centered, opaque `Activity focus override: STOCK_ID` overlay.
 
 ```python
-page = bridge.human_activity("STOCK_ID")
-for sample in page["samples"]:
-    print(sample["sampleTick"], sample["up"], sample["down"], sample["total"])
+focus = bridge.set_human_activity_focus("TECH")
+print(focus)  # {"active": True, "stockId": "TECH"}
 
-if page["hasMore"]:
-    older_page = bridge.human_activity("STOCK_ID", before_tick=page["nextBeforeTick"])
+page = bridge.human_activity("TECH")
 ```
 
-The default and maximum page size is 32 samples. `before_tick` is an exclusive cursor for older samples. For typed access, convert a response with `HumanActivityPage.from_dict(data)`; its `.samples` are `HumanActivity` records.
+Clear the override with `bridge.clear_human_activity_focus()`. The game returns to the activity focus associated with the graph stock selected before the override began. Manually selecting a different graph stock cancels the override and hides the label. The override is global to the running game, not tied to a Python connection; another authenticated client can replace or clear it, and disconnecting does not clear it.
+
+The bridge permits at least five seconds between focus changes it requests. A request that comes too soon raises `BridgeError` with `code == "rate_limited"` and `retry_after_ms` set to the remaining milliseconds. Repeating the active focus is a no-op. Normal graph selection remains immediate.
+
+`bridge.human_activity(stock_id, limit=32, before_tick=None)` retrieves a page of in-memory graph activity for a visible stock. Each sample matches a graph/history tick and contains `sampleTick`, `up`, `down`, `total`, `net`, `upImpact`, `downImpact`, `totalImpact`, and `netImpact`. These are aggregated activity buckets, not individual trade records or player identities. The default and maximum page size is 32; `before_tick` is an exclusive cursor for older samples. For typed access, convert a response with `HumanActivityPage.from_dict(data)`; its `.samples` are `HumanActivity` records.
+
+To receive updates, separately call `subscribe_human_activity(stock_id, callback)` for the currently focused stock. Subscribing immediately sends its current page. The plugin checks subscribed pages up to four times per second and emits `human_activity.updated` when the page changes; each event contains up to 32 latest samples. The game itself observes one activity stock at a time, so another subscribed stock can have empty or stale activity until it is focused. The bridge does not rotate stocks. Older history remains available through the paged query. Under event backpressure, an update may be dropped; query again to resynchronize. Call `unsubscribe_human_activity(stock_id)` to stop updates for one stock. Callbacks run on the Python event worker thread.
+
+```python
+def on_event(event):
+    if event.get("event") != "human_activity.updated":
+        return
+    page = event["data"]
+    print("activity refresh:", page["stockId"], page["samples"])
+
+bridge.set_human_activity_focus("TECH")
+bridge.subscribe_human_activity("TECH", on_event)
+# Later:
+bridge.unsubscribe_human_activity("TECH")
+bridge.clear_human_activity_focus()
+```
 
 ## Submit individual trades
 
@@ -175,6 +193,10 @@ Live verification on the demo build confirmed that `upgrades.snapshot` returned 
 | `state.snapshot` | Read current market/player state, cooldowns, and auto actions |
 | `state.subscribe` | Subscribe to `market.updated` events |
 | `market.human_activity` | Read one page of graph activity for a visible stock |
+| `market.human_activity.subscribe` | Subscribe this connection to updates for one visible stock |
+| `market.human_activity.unsubscribe` | Stop this connection's updates for one stock |
+| `market.human_activity.set_focus` | Override the game's single active activity focus |
+| `market.human_activity.clear_focus` | Clear the override and restore the previous graph stock's activity focus |
 | `trade.submit` | Submit one allowlisted manual trade |
 | `upgrades.snapshot` | Discover upgrade descriptions, levels, values, limits, and next prices |
 | `upgrades.purchase` | Ask the running game to process an upgrade purchase |

@@ -17,9 +17,14 @@ namespace ScreenStocksBridge
             return prefix.Replace("\"data\":\"\"", "\"data\":" + rawData);
         }
 
-        internal static string Error(string id, string code, string message)
+        internal static string Error(string id, string code, string message, int retryAfterMs = 0)
         {
-            var escaped = JsonUtility.ToJson(new ErrorDto { code = code, message = message });
+            var escaped = JsonUtility.ToJson(new ErrorDto
+            {
+                code = code,
+                message = message,
+                retryAfterMs = Mathf.Max(0, retryAfterMs)
+            });
             return Response(id, false, "null", escaped);
         }
 
@@ -28,6 +33,7 @@ namespace ScreenStocksBridge
         {
             public string code = string.Empty;
             public string message = string.Empty;
+            public int retryAfterMs;
         }
     }
 }

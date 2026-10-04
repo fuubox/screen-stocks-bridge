@@ -80,7 +80,14 @@ class BridgeClient:
                 raise BridgeError("disconnected", str(response)) from response
             if not response.get("ok"):
                 error = response.get("error") or {}
-                raise BridgeError(str(error.get("code", "remote_error")), str(error.get("message", "Bridge request failed.")))
+                retry_after_ms = error.get("retryAfterMs")
+                if type(retry_after_ms) is not int or retry_after_ms <= 0:
+                    retry_after_ms = None
+                raise BridgeError(
+                    str(error.get("code", "remote_error")),
+                    str(error.get("message", "Bridge request failed.")),
+                    retry_after_ms,
+                )
             result = response.get("result")
             return result if isinstance(result, dict) else {}
         finally:
@@ -98,6 +105,36 @@ class BridgeClient:
         if before_tick is not None:
             params["beforeTick"] = before_tick
         return self.request("market.human_activity", params)
+
+    def subscribe_human_activity(self, stock_id: str,
+                                 callback: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
+        """Subscribe to activity-page updates for one visible stock.
+
+        The callback receives ``human_activity.updated`` events. Each event's
+        data is a fresh page of up to 32 latest samples for the stock.
+        Call this method again to subscribe to additional stocks.
+        """
+        with self._callbacks_lock:
+            if callback not in self._callbacks:
+                self._callbacks.append(callback)
+        return self.request("market.human_activity.subscribe", {"stockId": stock_id})
+
+    def unsubscribe_human_activity(self, stock_id: str) -> dict[str, Any]:
+        """Stop receiving activity-page updates for one stock on this connection."""
+        return self.request("market.human_activity.unsubscribe", {"stockId": stock_id})
+
+    def set_human_activity_focus(self, stock_id: str) -> dict[str, Any]:
+        """Override the game's activity feed to observe one stock.
+
+        Focus selection is global to the running game and independent from
+        subscribing to ``human_activity.updated`` events. Focus changes are
+        limited to one every five seconds.
+        """
+        return self.request("market.human_activity.set_focus", {"stockId": stock_id})
+
+    def clear_human_activity_focus(self) -> dict[str, Any]:
+        """Clear the global activity-focus override and restore the prior game focus."""
+        return self.request("market.human_activity.clear_focus")
 
     def subscribe_market(self, callback: Callable[[dict[str, Any]], None]) -> None:
         """Subscribe to market.updated and trade.completed event dictionaries."""

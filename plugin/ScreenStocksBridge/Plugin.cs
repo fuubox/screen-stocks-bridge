@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using BepInEx;
 using BepInEx.Configuration;
@@ -11,7 +12,7 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
@@ -19,12 +20,14 @@ namespace ScreenStocksBridge
         private BridgeServer? _server;
         private readonly StateService _state = new StateService();
         private readonly HumanActivityService _humanActivity = new HumanActivityService();
+        private readonly HumanActivityFocusService _humanActivityFocus = new HumanActivityFocusService();
         private readonly AutoActionsService _autoActions = new AutoActionsService();
         private readonly TradeService _trades = new TradeService();
         private readonly UpgradeService _upgrades = new UpgradeService();
         private float _nextSnapshotAt;
         private float _nextLevelClaimAt;
         private string _lastSnapshot = string.Empty;
+        private readonly Dictionary<string, string> _lastHumanActivitySnapshots = new Dictionary<string, string>(StringComparer.Ordinal);
 
         private void Awake()
         {
@@ -63,17 +66,44 @@ namespace ScreenStocksBridge
 
         private void Update()
         {
-            _server?.Drain(HandleRequest, 32);
+            _humanActivityFocus.Update();
+            var server = _server;
+            server?.Drain(HandleRequest, 32);
             _trades.Update();
             TryAutoClaimLevelReward();
-            if (_server == null || !_server.HasSubscribers || Time.unscaledTime < _nextSnapshotAt) return;
+            if (server == null || !server.HasSubscribers || Time.unscaledTime < _nextSnapshotAt) return;
             _nextSnapshotAt = Time.unscaledTime + 0.25f;
-            var snapshotDto = _state.CreateSnapshot();
-            if (!snapshotDto.ready) return;
-            var snapshot = BridgeJson.SerializeSnapshot(snapshotDto);
-            if (string.Equals(snapshot, _lastSnapshot, StringComparison.Ordinal)) return;
-            _lastSnapshot = snapshot;
-            _server.Publish("market.updated", snapshot);
+
+            if (server.HasMarketSubscribers)
+            {
+                var snapshotDto = _state.CreateSnapshot();
+                if (snapshotDto.ready)
+                {
+                    var snapshot = BridgeJson.SerializeSnapshot(snapshotDto);
+                    if (!string.Equals(snapshot, _lastSnapshot, StringComparison.Ordinal))
+                    {
+                        _lastSnapshot = snapshot;
+                        server.Publish("market.updated", snapshot);
+                    }
+                }
+            }
+
+            var activityStockIds = server.GetSubscribedHumanActivityStockIds();
+            var activeStockIds = new HashSet<string>(activityStockIds, StringComparer.Ordinal);
+            foreach (var stockId in activityStockIds)
+            {
+                if (!_humanActivity.TryCreatePage(stockId, 0, 0L, out var page, out _, out _)) continue;
+                var activitySnapshot = BridgeJson.SerializeHumanActivityPage(page);
+                if (_lastHumanActivitySnapshots.TryGetValue(stockId, out var previous) &&
+                    string.Equals(activitySnapshot, previous, StringComparison.Ordinal)) continue;
+                _lastHumanActivitySnapshots[stockId] = activitySnapshot;
+                server.PublishHumanActivity(stockId, activitySnapshot);
+            }
+
+            var staleStockIds = new List<string>();
+            foreach (var stockId in _lastHumanActivitySnapshots.Keys)
+                if (!activeStockIds.Contains(stockId)) staleStockIds.Add(stockId);
+            foreach (var stockId in staleStockIds) _lastHumanActivitySnapshots.Remove(stockId);
         }
 
         private void TryAutoClaimLevelReward()
@@ -126,6 +156,39 @@ namespace ScreenStocksBridge
                 connection.Send(_humanActivity.Handle(request), false);
                 return;
             }
+            if (request.method == "market.human_activity.set_focus")
+            {
+                if (!_humanActivityFocus.TrySetFocus(request.@params?.stockId ?? string.Empty,
+                        out var focus, out var errorCode, out var errorMessage, out var retryAfterMs))
+                {
+                    connection.Send(ProtocolJson.Error(request.id, errorCode, errorMessage, retryAfterMs), false);
+                    return;
+                }
+                connection.Send(ProtocolJson.Response(request.id, true,
+                    BridgeJson.SerializeHumanActivityFocus(focus), string.Empty), false);
+                return;
+            }
+            if (request.method == "market.human_activity.clear_focus")
+            {
+                if (!_humanActivityFocus.TryClearFocus(out var focus, out var errorCode, out var errorMessage, out var retryAfterMs))
+                {
+                    connection.Send(ProtocolJson.Error(request.id, errorCode, errorMessage, retryAfterMs), false);
+                    return;
+                }
+                connection.Send(ProtocolJson.Response(request.id, true,
+                    BridgeJson.SerializeHumanActivityFocus(focus), string.Empty), false);
+                return;
+            }
+            if (request.method == "market.human_activity.subscribe")
+            {
+                SubscribeHumanActivity(request, connection);
+                return;
+            }
+            if (request.method == "market.human_activity.unsubscribe")
+            {
+                UnsubscribeHumanActivity(request, connection);
+                return;
+            }
             if (request.method == "trade.submit")
             {
                 connection.Send(_trades.Submit(request, connection), false);
@@ -146,10 +209,79 @@ namespace ScreenStocksBridge
             connection.Send(ProtocolJson.Error(request.id, "unknown_method", "Method is not supported."), false);
         }
 
+        private void SubscribeHumanActivity(BridgeRequest request, BridgeConnection connection)
+        {
+            var stockId = request.@params?.stockId ?? string.Empty;
+            if (!_humanActivity.TryCreatePage(stockId, 0, 0L, out var page, out var errorCode, out var errorMessage))
+            {
+                connection.Send(ProtocolJson.Error(request.id, errorCode, errorMessage), false);
+                return;
+            }
+
+            connection.SubscribeHumanActivity(stockId);
+            var snapshot = BridgeJson.SerializeHumanActivityPage(page);
+            if (!_lastHumanActivitySnapshots.ContainsKey(stockId))
+                _lastHumanActivitySnapshots[stockId] = snapshot;
+            connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"subscribed\"}", string.Empty), false);
+            _server?.PublishHumanActivityTo(connection, snapshot);
+        }
+
+        private void UnsubscribeHumanActivity(BridgeRequest request, BridgeConnection connection)
+        {
+            var stockId = request.@params?.stockId ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(stockId) || stockId.Length > 128)
+            {
+                connection.Send(ProtocolJson.Error(request.id, "invalid_stock", "stockId must be a non-empty stock identifier."), false);
+                return;
+            }
+
+            connection.UnsubscribeHumanActivity(stockId);
+            var server = _server;
+            if (server == null || !server.HasHumanActivitySubscriber(stockId))
+                _lastHumanActivitySnapshots.Remove(stockId);
+            connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"unsubscribed\"}", string.Empty), false);
+        }
+
         private void OnDestroy()
         {
+            if (!_humanActivityFocus.RestoreOnShutdown())
+                Logger.LogWarning("Could not restore the game's activity focus while shutting down the plugin.");
             _server?.Dispose();
             _server = null;
+        }
+
+        private static GUIStyle? _humanActivityFocusOverlayStyle;
+
+        private void OnGUI()
+        {
+            var stockId = _humanActivityFocus.ActiveStockId;
+            if (string.IsNullOrEmpty(stockId)) return;
+
+            var content = new GUIContent("Activity focus override: " + stockId);
+            var style = _humanActivityFocusOverlayStyle;
+            if (style == null)
+            {
+                style = new GUIStyle(GUI.skin.label)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    fontSize = 20,
+                    fontStyle = FontStyle.Bold,
+                    wordWrap = false,
+                };
+                style.normal.textColor = Color.white;
+                _humanActivityFocusOverlayStyle = style;
+            }
+
+            var size = style.CalcSize(content);
+            var width = Mathf.Min(Mathf.Max(320f, size.x + 48f), Mathf.Max(64f, Screen.width - 32f));
+            var height = Mathf.Max(64f, size.y + 28f);
+            var rect = new Rect((Screen.width - width) / 2f, (Screen.height - height) / 2f, width, height);
+
+            var previousColor = GUI.color;
+            GUI.color = new Color(0.035f, 0.045f, 0.065f, 1f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture, ScaleMode.StretchToFill, false);
+            GUI.color = previousColor;
+            GUI.Label(rect, content, style);
         }
 
         private static string CreateToken()

@@ -54,6 +54,13 @@ namespace ScreenStocksBridge
     }
 
     [Serializable]
+    public sealed class HumanActivityFocusDto
+    {
+        public bool active;
+        public string stockId = string.Empty;
+    }
+
+    [Serializable]
     public sealed class PositionDto
     {
         public string stockId = string.Empty;

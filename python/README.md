@@ -28,7 +28,10 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     print(bridge.upgrades())
 ```
 
-The client supports state and activity reads, trades, upgrade purchases, and
-auto-action controls. See the
+The client supports state reads, activity reads and subscriptions, explicit
+single-stock activity-focus controls, trades, upgrade purchases, and auto-action
+controls. Activity focus can be set with `set_human_activity_focus(stock_id)`
+and cleared with `clear_human_activity_focus()`; the in-game overlay shows the
+active stock, and bridge-driven focus changes have a five-second minimum. See the
 [bridge usage guide](https://github.com/fuubox/screen-stocks-bridge/blob/main/docs/bridge-usage.md)
 for the full API and its online behavior.

@@ -3,6 +3,27 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [Unreleased]
+
+## [0.3.0] - 2026-10-04
+
+### Added
+
+- Per-stock aggregate human-activity subscriptions with initial and changed
+  activity-page events, including support for multiple stocks per connection.
+- Explicit single-stock human-activity focus override through Python, with an
+  opaque centered in-game overlay, restoration behavior, and a five-second rate
+  limit.
+
+### Verified
+
+- Confirmed live that manual graph selection cancels the override, rapid focus
+  changes are rate-limited with a retry delay, and clearing restores the
+  previous graph selection.
+- Confirmed the centered overlay is clear and readable in the running game.
+- Built and installed the plugin against the demo's Unity and BepInEx
+  assemblies.
+
 ## [0.2.0] - 2026-10-03
 
 ### Added

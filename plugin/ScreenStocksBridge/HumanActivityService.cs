@@ -13,33 +13,64 @@ namespace ScreenStocksBridge
             var args = request.@params;
             var stockId = args?.stockId ?? string.Empty;
             var requestedLimit = args?.limit ?? 0;
+            var beforeTick = args?.beforeTick ?? 0L;
+            if (!TryCreatePage(stockId, requestedLimit, beforeTick, out var page, out var errorCode, out var errorMessage))
+                return ProtocolJson.Error(request.id, errorCode, errorMessage);
+            return ProtocolJson.Response(request.id, true, BridgeJson.SerializeHumanActivityPage(page), string.Empty);
+        }
+
+        internal bool TryCreatePage(string stockId, int requestedLimit, long beforeTick,
+            out HumanActivityPageDto page, out string errorCode, out string errorMessage)
+        {
+            page = new HumanActivityPageDto { stockId = stockId };
+            errorCode = string.Empty;
+            errorMessage = string.Empty;
+
             if (string.IsNullOrWhiteSpace(stockId) || stockId.Length > 128)
-                return ProtocolJson.Error(request.id, "invalid_stock", "stockId must be a non-empty stock identifier.");
+            {
+                errorCode = "invalid_stock";
+                errorMessage = "stockId must be a non-empty stock identifier.";
+                return false;
+            }
             if (requestedLimit < 0 || requestedLimit > MaximumPageSize)
-                return ProtocolJson.Error(request.id, "invalid_limit", "limit must be between 1 and 32 when specified.");
+            {
+                errorCode = "invalid_limit";
+                errorMessage = "limit must be between 1 and 32 when specified.";
+                return false;
+            }
 
             var game = GameManager.I;
             var manager = StockManager.I;
             if (game == null || game.Data == null || manager == null || manager.Source == null || !manager.Source.IsReady)
-                return ProtocolJson.Error(request.id, "not_ready", "The online market is not ready.");
+            {
+                errorCode = "not_ready";
+                errorMessage = "The online market is not ready.";
+                return false;
+            }
             if (!game.IsStockVisibleToPlayer(stockId))
-                return ProtocolJson.Error(request.id, "stock_unavailable", "Stock is not visible in this edition.");
+            {
+                errorCode = "stock_unavailable";
+                errorMessage = "Stock is not visible in this edition.";
+                return false;
+            }
 
             var remoteSource = manager.Source as RemoteMarketDataSource;
             if (remoteSource == null)
-                return ProtocolJson.Error(request.id, "activity_unavailable", "Human activity history is not available from the current market source.");
+            {
+                errorCode = "activity_unavailable";
+                errorMessage = "Human activity history is not available from the current market source.";
+                return false;
+            }
 
             try
             {
                 var activity = manager.GetHumanActivity(stockId);
                 var ticks = remoteSource.GetHistorySampleTicks(stockId);
-                var page = new HumanActivityPageDto { stockId = stockId };
                 if (activity == null || ticks == null)
-                    return ProtocolJson.Response(request.id, true, BridgeJson.SerializeHumanActivityPage(page), string.Empty);
+                    return true;
 
                 var alignedCount = Math.Min(activity.Count, ticks.Count);
                 var end = alignedCount;
-                var beforeTick = args?.beforeTick ?? 0L;
                 if (beforeTick > 0)
                 {
                     while (end > 0 && ticks[end - 1] >= beforeTick) end--;
@@ -65,11 +96,13 @@ namespace ScreenStocksBridge
                 }
                 page.hasMore = start > 0;
                 page.nextBeforeTick = page.hasMore ? ticks[start] : 0L;
-                return ProtocolJson.Response(request.id, true, BridgeJson.SerializeHumanActivityPage(page), string.Empty);
+                return true;
             }
             catch (Exception ex)
             {
-                return ProtocolJson.Error(request.id, "activity_failed", "Could not read human activity: " + ex.Message);
+                errorCode = "activity_failed";
+                errorMessage = "Could not read human activity: " + ex.Message;
+                return false;
             }
         }
     }

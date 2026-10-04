@@ -7,7 +7,7 @@
     <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks Demo</GameDir>
     <AssemblyName>ScreenStocksBridge</AssemblyName>
     <RootNamespace>ScreenStocksBridge</RootNamespace>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,6 +29,14 @@
     </Reference>
     <Reference Include="UnityEngine.JSONSerializeModule">
       <HintPath>$(GameDir)\Screen Stocks_Data\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(GameDir)\Screen Stocks_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(GameDir)\Screen Stocks_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

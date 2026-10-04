@@ -76,7 +76,9 @@ jobs:
             'Screen Stocks_Data\Managed\Assembly-CSharp.dll',
             'Screen Stocks_Data\Managed\UnityEngine.CoreModule.dll',
             'Screen Stocks_Data\Managed\UnityEngine.dll',
-            'Screen Stocks_Data\Managed\UnityEngine.JSONSerializeModule.dll'
+            'Screen Stocks_Data\Managed\UnityEngine.JSONSerializeModule.dll',
+            'Screen Stocks_Data\Managed\UnityEngine.IMGUIModule.dll',
+            'Screen Stocks_Data\Managed\UnityEngine.TextRenderingModule.dll'
           )
           foreach ($relativePath in $requiredReferences) {
             $referencePath = Join-Path $gameDir $relativePath

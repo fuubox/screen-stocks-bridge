@@ -34,7 +34,36 @@ namespace ScreenStocksBridge
         internal int Drain(Action<BridgeRequest, BridgeConnection> handler, int maximum) => _requests.Drain(handler, maximum);
         internal bool HasSubscribers
         {
+            get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.HasSubscriptions) return true; } return false; }
+        }
+        internal bool HasMarketSubscribers
+        {
             get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.IsSubscribed) return true; } return false; }
+        }
+        internal bool HasHumanActivitySubscribers
+        {
+            get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.HasHumanActivitySubscriptions) return true; } return false; }
+        }
+
+        internal List<string> GetSubscribedHumanActivityStockIds()
+        {
+            var stockIds = new HashSet<string>(StringComparer.Ordinal);
+            lock (_gate)
+            {
+                foreach (var client in _clients)
+                    if (!client.IsClosed) client.AddHumanActivitySubscriptionIds(stockIds);
+            }
+            return new List<string>(stockIds);
+        }
+
+        internal bool HasHumanActivitySubscriber(string stockId)
+        {
+            lock (_gate)
+            {
+                foreach (var client in _clients)
+                    if (!client.IsClosed && client.IsSubscribedToHumanActivity(stockId)) return true;
+            }
+            return false;
         }
 
         internal void Publish(string eventName, string rawData)
@@ -44,6 +73,23 @@ namespace ScreenStocksBridge
             BridgeConnection[] clients;
             lock (_gate) clients = _clients.ToArray();
             foreach (var client in clients) if (client.IsSubscribed && !client.IsClosed) client.Send(frame, true);
+        }
+
+        internal void PublishHumanActivity(string stockId, string rawData)
+        {
+            var frame = ProtocolJson.Event("human_activity.updated", rawData);
+            if (Encoding.UTF8.GetByteCount(frame) > MaxFrameBytes) return;
+            BridgeConnection[] clients;
+            lock (_gate) clients = _clients.ToArray();
+            foreach (var client in clients)
+                if (!client.IsClosed && client.IsSubscribedToHumanActivity(stockId)) client.Send(frame, true);
+        }
+
+        internal void PublishHumanActivityTo(BridgeConnection connection, string rawData)
+        {
+            var frame = ProtocolJson.Event("human_activity.updated", rawData);
+            if (Encoding.UTF8.GetByteCount(frame) <= MaxFrameBytes && !connection.IsClosed)
+                connection.Send(frame, true);
         }
 
         private void AcceptLoop()
@@ -245,6 +291,7 @@ namespace ScreenStocksBridge
         private readonly Action<BridgeConnection> _onClosed;
         private readonly object _sendGate = new object();
         private readonly Queue<OutboundFrame> _outbound = new Queue<OutboundFrame>();
+        private readonly HashSet<string> _humanActivitySubscriptions = new HashSet<string>(StringComparer.Ordinal);
         private readonly AutoResetEvent _wake = new AutoResetEvent(false);
         private volatile bool _closed;
         private Thread? _writer;
@@ -252,6 +299,16 @@ namespace ScreenStocksBridge
         internal Stream Stream { get; }
         internal bool IsClosed => _closed;
         internal bool IsSubscribed { get; set; }
+        internal bool HasSubscriptions => IsSubscribed || _humanActivitySubscriptions.Count > 0;
+        internal bool HasHumanActivitySubscriptions => _humanActivitySubscriptions.Count > 0;
+
+        internal void SubscribeHumanActivity(string stockId) { _humanActivitySubscriptions.Add(stockId); }
+        internal void UnsubscribeHumanActivity(string stockId) { _humanActivitySubscriptions.Remove(stockId); }
+        internal bool IsSubscribedToHumanActivity(string stockId) { return _humanActivitySubscriptions.Contains(stockId); }
+        internal void AddHumanActivitySubscriptionIds(HashSet<string> destination)
+        {
+            foreach (var stockId in _humanActivitySubscriptions) destination.Add(stockId);
+        }
 
         internal BridgeConnection(TcpClient tcp, Action<BridgeConnection> onClosed)
         {

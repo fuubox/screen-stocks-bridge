@@ -62,6 +62,11 @@ namespace ScreenStocksBridge
                 .Append('}').ToString();
         }
 
+        internal static string SerializeHumanActivityFocus(HumanActivityFocusDto value)
+        {
+            return "{\"active\":" + Bool(value.active) + ",\"stockId\":" + Quote(value.stockId ?? string.Empty) + "}";
+        }
+
         internal static string SerializeUpgrades(UpgradesSnapshotDto value)
         {
             var json = new StringBuilder(512).Append("{\"ready\":").Append(Bool(value.ready)).Append(",\"upgrades\":[");
