@@ -33,6 +33,15 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
 
 The default host and port are `127.0.0.1:48721`. Calls require the game and plugin to be running and the online market to be ready.
 
+The plugin's listener port is configurable in `BepInEx\config\screenstocks.bridge.cfg`, under `[Bridge]`:
+
+```ini
+[Bridge]
+Port = 48721
+```
+
+Edit `Port` while the game is closed, then restart the game for the setting to take effect. The plugin accepts ports from 1 through 65535 and binds only to `127.0.0.1`. If the selected port is unavailable, the listener fails to start and reports the error in the BepInEx log. When using a non-default port, pass the same value to `BridgeClient`, for example `BridgeClient(host="127.0.0.1", port=49321, token="YOUR_TOKEN")`, or set `SCREENSTOCKS_PORT` when running the example scripts.
+
 ## Discover market status, stocks, and values
 
 `bridge.snapshot()` returns a dictionary assembled from the current in-memory game state:

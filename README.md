@@ -85,6 +85,8 @@ $env:SCREENSTOCKS_PORT = "48721"
 $env:SCREENSTOCKS_TOKEN = "paste-the-token-here"
 ```
 
+To use a different port, close the game and change `Port` under `[Bridge]` in `BepInEx\config\screenstocks.bridge.cfg`, then relaunch the game. The plugin validates the port and binds only to `127.0.0.1`; if the port is already in use, the listener will not start. Set `SCREENSTOCKS_PORT` to the same value for the example scripts, or pass it as the `port` argument when creating `BridgeClient`.
+
 Watch the current snapshot and changed-market events:
 
 ```powershell

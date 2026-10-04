@@ -13,7 +13,7 @@ python -m pip install screenstocks-bridge
 
 Install the matching BepInEx plugin from the
 [GitHub releases](https://github.com/fuubox/screen-stocks-bridge/releases),
-then launch Screen Stocks. The default bridge address is `127.0.0.1:48721`.
+then launch Screen Stocks. The default bridge address is `127.0.0.1:48721`. The plugin port can be changed under `[Bridge]` as `Port` in `BepInEx/config/screenstocks.bridge.cfg`; close and relaunch the game after editing it. Pass the same value to `BridgeClient(port=...)` when it differs from the default. The example scripts also read `SCREENSTOCKS_PORT`.
 Read the token from `BepInEx/config/screenstocks.bridge.cfg` or the BepInEx
 log.
 
