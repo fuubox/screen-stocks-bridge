@@ -34,4 +34,7 @@ controls. Activity focus can be set with `set_human_activity_focus(stock_id)`
 and cleared with `clear_human_activity_focus()`; the in-game overlay shows the
 active stock, and bridge-driven focus changes have a five-second minimum. See the
 [bridge usage guide](https://github.com/fuubox/screen-stocks-bridge/blob/main/docs/bridge-usage.md)
-for the full API and its online behavior.
+for the full API and its online behavior. Activity history reads page through
+only the samples the game currently retains in memory; they do not fetch older
+history from the game's server, and the bridge makes no guarantee about the
+retained history's total depth or time span.
