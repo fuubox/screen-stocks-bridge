@@ -57,12 +57,12 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Check supported game API surface
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File {0}
         env:
           SCREENSTOCKS_GAME_DIR: ${{ vars.SCREENSTOCKS_GAME_DIR }}
         run: .\tools\check-game-compatibility.ps1
       - name: Build plugin against installed game
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File {0}
         env:
           SCREENSTOCKS_GAME_DIR: ${{ vars.SCREENSTOCKS_GAME_DIR }}
         run: |
