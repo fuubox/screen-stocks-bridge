@@ -76,6 +76,8 @@ class BridgeClient:
                 response = waiter.get(timeout=self.timeout)
             except queue.Empty as exc:
                 raise BridgeError("timeout", "The bridge did not answer before the request timeout.") from exc
+            if isinstance(response, BridgeError):
+                raise response
             if isinstance(response, BaseException):
                 raise BridgeError("disconnected", str(response)) from response
             if not response.get("ok"):

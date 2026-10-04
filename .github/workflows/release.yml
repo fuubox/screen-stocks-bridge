@@ -74,6 +74,7 @@ jobs:
           $requiredReferences = @(
             'BepInEx\core\BepInEx.dll',
             'BepInEx\core\0Harmony.dll',
+            'BepInEx\core\Mono.Cecil.dll',
             'Screen Stocks_Data\Managed\Assembly-CSharp.dll',
             'Screen Stocks_Data\Managed\UnityEngine.CoreModule.dll',
             'Screen Stocks_Data\Managed\UnityEngine.dll',
@@ -87,6 +88,8 @@ jobs:
               throw "Required game/BepInEx reference not found: $referencePath"
             }
           }
+
+          & '.\tools\check-game-compatibility.ps1' -GameDir $gameDir
 
           $projectPath = 'plugin/ScreenStocksBridge/ScreenStocksBridge.csproj'
           dotnet build $projectPath -c Release "-p:GameDir=$gameDir"
@@ -105,10 +108,12 @@ jobs:
           $assetsDirectory = Join-Path $runDirectory 'assets'
           New-Item -ItemType Directory -Force -Path $pluginDirectory, $assetsDirectory | Out-Null
           Copy-Item -LiteralPath $dllPath -Destination (Join-Path $pluginDirectory 'ScreenStocksBridge.dll')
+          Copy-Item -LiteralPath (Join-Path (Split-Path $dllPath) 'ScreenStocksBridge.Core.dll') -Destination (Join-Path $pluginDirectory 'ScreenStocksBridge.Core.dll')
           Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $pluginDirectory 'LICENSE')
 
           $expectedFiles = @(
             'BepInEx/plugins/ScreenStocksBridge/ScreenStocksBridge.dll',
+            'BepInEx/plugins/ScreenStocksBridge/ScreenStocksBridge.Core.dll',
             'BepInEx/plugins/ScreenStocksBridge/LICENSE'
           )
           $actualFiles = @(Get-ChildItem -LiteralPath $packageRoot -File -Recurse | ForEach-Object {

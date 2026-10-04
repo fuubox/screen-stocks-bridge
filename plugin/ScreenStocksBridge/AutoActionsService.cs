@@ -137,7 +137,7 @@ namespace ScreenStocksBridge
             { error = "actionType must be Buy, Short, CloseBuy, or CloseShort."; return false; }
             if (!Enum.TryParse(args.condition, true, out condition) || !Enum.IsDefined(typeof(ActionCondition), condition))
             { error = "condition must be Above or Below."; return false; }
-            if (string.IsNullOrWhiteSpace(args.stockId) || args.stockId.Length > 128 || !game.IsStockVisibleToPlayer(args.stockId) || !game.IsStockUnlocked(args.stockId))
+            if (!RequestValidation.IsValidStockId(args.stockId) || !game.IsStockVisibleToPlayer(args.stockId) || !game.IsStockUnlocked(args.stockId))
             { error = "stockId must be visible and unlocked in this edition."; return false; }
             if (float.IsNaN(args.targetPrice) || float.IsInfinity(args.targetPrice) || args.targetPrice <= 0f)
             { error = "targetPrice must be finite and greater than zero."; return false; }

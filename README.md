@@ -12,11 +12,12 @@ The plugin listens on `127.0.0.1` only. It does not enable or use the game's off
 
    ```text
    BepInEx\plugins\ScreenStocksBridge\ScreenStocksBridge.dll
+   BepInEx\plugins\ScreenStocksBridge\ScreenStocksBridge.Core.dll
    ```
 
 4. Keep the game's `modSupport` setting off, then restart the game.
 
-The release ZIP contains the plugin and project license; it does not install or bundle BepInEx.
+The release ZIP contains the plugin, its core library, and project license; it does not install or bundle BepInEx.
 
 ## Install the Python client
 

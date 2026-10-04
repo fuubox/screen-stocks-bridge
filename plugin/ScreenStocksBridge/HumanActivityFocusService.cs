@@ -26,7 +26,7 @@ namespace ScreenStocksBridge
             errorMessage = string.Empty;
             retryAfterMs = 0;
 
-            if (string.IsNullOrWhiteSpace(stockId) || stockId.Length > 128)
+            if (!RequestValidation.IsValidStockId(stockId))
                 return Fail("invalid_stock", "stockId must be a non-empty stock identifier.", out errorCode, out errorMessage);
 
             var game = GameManager.I;

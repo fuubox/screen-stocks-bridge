@@ -22,7 +22,7 @@ namespace ScreenStocksBridge
             var game = GameManager.I;
             var manager = StockManager.I;
             if (!Actions.Contains(action)) return ProtocolJson.Error(request.id, "unknown_action", "Action is not in the trade allowlist.");
-            if (string.IsNullOrWhiteSpace(stockId) || stockId.Length > 128) return ProtocolJson.Error(request.id, "invalid_stock", "stockId must be a non-empty stock identifier.");
+            if (!RequestValidation.IsValidStockId(stockId)) return ProtocolJson.Error(request.id, "invalid_stock", "stockId must be a non-empty stock identifier.");
             if (game == null || manager == null || game.Data == null || manager.Source == null || !manager.Source.IsReady)
                 return ProtocolJson.Error(request.id, "not_ready", "The online market is not ready.");
             if (!game.IsStockVisibleToPlayer(stockId) || !game.IsStockUnlocked(stockId))
@@ -33,7 +33,7 @@ namespace ScreenStocksBridge
             var isPercent = action.EndsWith("_percent", StringComparison.Ordinal);
             var isMax = action.EndsWith("_max", StringComparison.Ordinal);
             var percent = args?.percent ?? 0f;
-            if (isPercent && (float.IsNaN(percent) || float.IsInfinity(percent) || percent <= 0f || percent > 100f))
+            if (isPercent && !RequestValidation.IsValidTradePercent(percent))
                 return ProtocolJson.Error(request.id, "invalid_percent", "percent must be finite and in the range (0, 100].");
             if (!isPercent && !isMax) return ProtocolJson.Error(request.id, "invalid_action", "Trade action is malformed.");
 

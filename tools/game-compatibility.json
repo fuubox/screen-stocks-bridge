@@ -1,0 +1,82 @@
+{
+  "game": "Screen Stocks Demo",
+  "assemblyName": "Assembly-CSharp",
+  "assemblyVersion": "0.0.0.0",
+  "moduleMvid": "0255bb5b-9318-4a10-aa0d-5fc57e67c004",
+  "sha256": "6a5e246ef571e0cee1ad4ee428bddeefb7e1f45f80c9f6cdbf26c4cb8c9051c0",
+  "bepInExVersion": "5.4.23.5",
+  "harmonyVersion": "2.9.0.0",
+  "methods": [
+    {
+      "type": "OfflineProgressView",
+      "name": "Show",
+      "returnType": "System.Void",
+      "parameters": [
+        "BigNumber",
+        "BigNumber",
+        "BigNumber",
+        "BigNumber",
+        "System.Single",
+        "System.Single",
+        "System.Collections.Generic.List`1<PositionChangeResult>",
+        "System.Boolean"
+      ]
+    },
+    {
+      "type": "OfflineProgressView",
+      "name": "Hide",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "StockManager",
+      "name": "SetChartActivityFocus",
+      "returnType": "System.Void",
+      "parameters": ["System.String"]
+    },
+    {
+      "type": "StockManager",
+      "name": "GetHumanActivity",
+      "returnType": "System.Collections.Generic.IReadOnlyList`1<HumanActivitySample>",
+      "parameters": ["System.String"]
+    },
+    {
+      "type": "RemoteMarketDataSource",
+      "name": "GetHistorySampleTicks",
+      "returnType": "System.Collections.Generic.IReadOnlyList`1<System.Int64>",
+      "parameters": ["System.String"]
+    },
+    {
+      "type": "GameManager",
+      "name": "ClaimLevel",
+      "returnType": "System.Boolean",
+      "parameters": ["System.Int32"]
+    }
+  ],
+  "fields": [
+    {
+      "type": "StockManager",
+      "name": "_chartActivityFocus",
+      "fieldType": "System.String",
+      "public": false
+    },
+    {
+      "type": "PositionChangeResult",
+      "name": "StockId",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "PositionChangeResult",
+      "name": "CashChange",
+      "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "PositionChangeResult",
+      "name": "PercentChange",
+      "fieldType": "System.Single",
+      "public": true
+    }
+  ]
+}

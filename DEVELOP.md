@@ -31,10 +31,11 @@ For a non-default game path:
 dotnet build .\plugin\ScreenStocksBridge\ScreenStocksBridge.csproj -c Release -p:GameDir="D:\Games\Screen Stocks Demo"
 ```
 
-The output is `plugin\ScreenStocksBridge\bin\Release\netstandard2.1\ScreenStocksBridge.dll`. To try it in game, close Screen Stocks and copy the DLL into:
+The output directory contains `ScreenStocksBridge.dll` and its dependency `ScreenStocksBridge.Core.dll`. To try it in game, close Screen Stocks and copy both files into:
 
 ```text
 <GameDir>\BepInEx\plugins\ScreenStocksBridge\ScreenStocksBridge.dll
+<GameDir>\BepInEx\plugins\ScreenStocksBridge\ScreenStocksBridge.Core.dll
 ```
 
 Restart the game to load it. Keep the game's official `modSupport` setting off; the bridge uses its own authenticated loopback TCP API.
@@ -46,14 +47,39 @@ Restart the game to load it. Keep the game's official `modSupport` setting off; 
 | `plugin/ScreenStocksBridge/Plugin.cs` | BepInEx entry point, config binding, and Unity update loop |
 | `plugin/ScreenStocksBridge/BridgeServer.cs` | Loopback TCP listener and connection lifecycle |
 | `plugin/ScreenStocksBridge/*Service.cs` | In-memory game state reads and allowlisted game actions |
-| `plugin/ScreenStocksBridge/Protocol*.cs` | JSON-line request and response protocol |
+| `core/ScreenStocksBridge.Core/` | Unity-independent protocol models, JSON serialization, parsing, and pure request validation |
+| `tests/ScreenStocksBridge.Core.Tests/` | .NET tests for protocol and request validation |
+| `tests/python/` | Python client tests against a fake JSON-lines bridge |
+| `tools/game-compatibility.json` | Supported local game/BepInEx fingerprint and required API signatures |
+| `tools/check-game-compatibility.ps1` | Binary fingerprint and compatibility-surface checker |
 | `python/src/screenstocks_bridge/` | Python client, protocol errors, and optional typed views |
 | `examples/` | Small scripts that use the installed Python client |
 | `docs/bridge-usage.md` | User-facing API, market data, trades, upgrades, actions, and cooldown reference |
+| `docs/testing-and-game-compatibility.md` | Automated checks and game-patch review procedure |
+| `.github/workflows/ci.yml` | PR-safe Python/core checks and trusted game-runner compatibility build |
 | `.github/workflows/release.yml` | Tagged Windows plugin build and GitHub Release publication |
 | `.github/workflows/publish-python.yml` | PyPI package build and Trusted Publisher upload |
 
 The plugin accepts socket requests on background threads but queues game work for the Unity main thread. Keep Unity and game-manager access on that thread. Python state snapshots are read from live in-process game objects; the plugin does not implement the game's backend protocol.
+
+## Run automated checks
+
+From the repository root:
+
+```powershell
+$env:PYTHONPATH = 'python/src'
+python -m unittest discover -s tests/python -v
+dotnet test .\tests\ScreenStocksBridge.Core.Tests\ScreenStocksBridge.Core.Tests.csproj -c Release
+```
+
+The test projects cover the Python JSON-lines client and Unity-independent C# protocol/validation code. To check the installed game surface and build against its assemblies:
+
+```powershell
+.\tools\check-game-compatibility.ps1
+dotnet build .\plugin\ScreenStocksBridge\ScreenStocksBridge.csproj -c Release
+```
+
+See [the compatibility and testing guide](docs/testing-and-game-compatibility.md) for the patch-review process and in-game smoke checks.
 
 ## Develop the Python client
 

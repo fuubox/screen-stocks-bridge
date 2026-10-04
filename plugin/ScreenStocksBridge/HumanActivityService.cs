@@ -26,7 +26,7 @@ namespace ScreenStocksBridge
             errorCode = string.Empty;
             errorMessage = string.Empty;
 
-            if (string.IsNullOrWhiteSpace(stockId) || stockId.Length > 128)
+            if (!RequestValidation.IsValidStockId(stockId))
             {
                 errorCode = "invalid_stock";
                 errorMessage = "stockId must be a non-empty stock identifier.";

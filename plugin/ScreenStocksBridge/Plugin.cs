@@ -90,7 +90,7 @@ namespace ScreenStocksBridge
         {
             _humanActivityFocus.Update();
             var server = _server;
-            server?.Drain(HandleRequest, 32);
+            server?.Drain(HandleRequestSafely, 32);
             _trades.Update();
             TryAutoClaimLevelReward();
             if (server == null || !server.HasSubscribers || Time.unscaledTime < _nextSnapshotAt) return;
@@ -236,6 +236,20 @@ namespace ScreenStocksBridge
             connection.Send(ProtocolJson.Error(request.id, "unknown_method", "Method is not supported."), false);
         }
 
+        private void HandleRequestSafely(BridgeRequest request, BridgeConnection connection)
+        {
+            try
+            {
+                HandleRequest(request, connection);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("Request '" + request.method + "' failed unexpectedly: " + ex);
+                connection.Send(ProtocolJson.Error(request.id, "internal_error",
+                    "The request failed because an unexpected game API error occurred."), false);
+            }
+        }
+
         private void SubscribeHumanActivity(BridgeRequest request, BridgeConnection connection)
         {
             var stockId = request.@params?.stockId ?? string.Empty;
@@ -256,7 +270,7 @@ namespace ScreenStocksBridge
         private void UnsubscribeHumanActivity(BridgeRequest request, BridgeConnection connection)
         {
             var stockId = request.@params?.stockId ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(stockId) || stockId.Length > 128)
+            if (!RequestValidation.IsValidStockId(stockId))
             {
                 connection.Send(ProtocolJson.Error(request.id, "invalid_stock", "stockId must be a non-empty stock identifier."), false);
                 return;

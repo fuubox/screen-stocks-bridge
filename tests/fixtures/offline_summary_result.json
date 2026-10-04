@@ -1,0 +1,20 @@
+{
+  "available": true,
+  "summary": {
+    "total": "1024.5",
+    "generators": "120",
+    "dividends": "30.5",
+    "autoActions": "874",
+    "secondsAway": 3600,
+    "cappedEarningsSeconds": 7200,
+    "showEarnings": true,
+    "positionChanges": [
+      {
+        "stockId": "$TECH",
+        "isLong": true,
+        "cashChange": "-500.25",
+        "percentChange": -10.5
+      }
+    ]
+  }
+}
