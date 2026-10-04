@@ -9,7 +9,7 @@ on:
       tag:
         description: Git tag whose Python package should be published
         required: true
-        default: v0.4.0
+        default: v0.5.0
         type: string
 
 permissions:

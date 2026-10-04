@@ -28,9 +28,13 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     print(bridge.upgrades())
 ```
 
-The client supports state reads, activity reads and subscriptions, explicit
-single-stock activity-focus controls, trades, upgrade purchases, and auto-action
-controls. Activity focus can be set with `set_human_activity_focus(stock_id)`
+The client supports state reads, leaderboard requests, activity reads and subscriptions,
+explicit single-stock activity-focus controls, trades, upgrade purchases, and auto-action
+controls. Request a game-supported leaderboard with `leaderboard("current")`,
+`leaderboard("all_time")`, `leaderboard("ipo")`, `leaderboard("current_top")`,
+`leaderboard("clan_net_worth")`, or `leaderboard("clan_player_share")`. Leaderboard
+requests use the game's in-process client, with one live request every 30 seconds;
+identical requests are served from a 30-second cache. Activity focus can be set with `set_human_activity_focus(stock_id)`
 and cleared with `clear_human_activity_focus()`; the in-game overlay shows the
 active stock, and bridge-driven focus changes have a five-second minimum. See the
 [bridge usage guide](https://github.com/fuubox/screen-stocks-bridge/blob/main/docs/bridge-usage.md)

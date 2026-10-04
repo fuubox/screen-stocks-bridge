@@ -116,6 +116,44 @@ namespace ScreenStocksBridge
             return json.Append("]}").ToString();
         }
 
+        internal static string SerializeLeaderboardSnapshot(LeaderboardSnapshotDto value, bool cached)
+        {
+            var json = new StringBuilder(512).Append("{\"mode\":").Append(Quote(value.mode))
+                .Append(",\"cached\":").Append(Bool(cached))
+                .Append(",\"fetchedAtUnixSeconds\":").Append(value.fetchedAtUnixSeconds.ToString(CultureInfo.InvariantCulture));
+            if (value.isClan)
+            {
+                json.Append(",\"entries\":[");
+                for (var i = 0; i < value.clans.Count; i++)
+                {
+                    if (i > 0) json.Append(',');
+                    var entry = value.clans[i];
+                    json.Append("{\"rank\":").Append(entry.rank.ToString(CultureInfo.InvariantCulture))
+                        .Append(",\"clan\":").Append(Quote(entry.clan))
+                        .Append(",\"netWorth\":").Append(Quote(entry.netWorth))
+                        .Append(",\"playerPercentage\":").Append(Number(entry.playerPercentage)).Append('}');
+                }
+            }
+            else
+            {
+                json.Append(",\"totalRanked\":").Append(value.totalRanked.ToString(CultureInfo.InvariantCulture))
+                    .Append(",\"selfRank\":").Append(value.selfRank.ToString(CultureInfo.InvariantCulture))
+                    .Append(",\"entries\":[");
+                for (var i = 0; i < value.players.Count; i++)
+                {
+                    if (i > 0) json.Append(',');
+                    var entry = value.players[i];
+                    json.Append("{\"rank\":").Append(entry.rank.ToString(CultureInfo.InvariantCulture))
+                        .Append(",\"steamId\":").Append(Quote(entry.steamId))
+                        .Append(",\"displayName\":").Append(Quote(entry.displayName))
+                        .Append(",\"clan\":").Append(Quote(entry.clan))
+                        .Append(",\"netWorth\":").Append(Quote(entry.netWorth))
+                        .Append(",\"ipoCount\":").Append(entry.ipoCount.ToString(CultureInfo.InvariantCulture)).Append('}');
+                }
+            }
+            return json.Append("]}").ToString();
+        }
+
         internal static string SerializeTradeCompleted(string requestId, string action, string stockId, string status, string reason)
         {
             return "{\"requestId\":" + Quote(requestId) + ",\"action\":" + Quote(action) +

@@ -169,4 +169,36 @@ namespace ScreenStocksBridge
         public float? nextValue;
         public string? nextPrice;
     }
+
+    [Serializable]
+    internal sealed class LeaderboardSnapshotDto
+    {
+        public string mode = string.Empty;
+        public long fetchedAtUnixSeconds;
+        public long totalRanked;
+        public int selfRank;
+        public bool isClan;
+        public List<LeaderboardPlayerEntryDto> players = new List<LeaderboardPlayerEntryDto>();
+        public List<LeaderboardClanEntryDto> clans = new List<LeaderboardClanEntryDto>();
+    }
+
+    [Serializable]
+    internal sealed class LeaderboardPlayerEntryDto
+    {
+        public int rank;
+        public string steamId = string.Empty;
+        public string displayName = string.Empty;
+        public string clan = string.Empty;
+        public string netWorth = "0";
+        public int ipoCount;
+    }
+
+    [Serializable]
+    internal sealed class LeaderboardClanEntryDto
+    {
+        public int rank;
+        public string clan = string.Empty;
+        public string netWorth = "0";
+        public double playerPercentage;
+    }
 }

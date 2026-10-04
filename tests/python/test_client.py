@@ -105,6 +105,24 @@ class BridgeClientTests(unittest.TestCase):
         self.assertEqual("test-token", sent["token"])
         self.assertEqual({}, sent["params"])
 
+    def test_leaderboard_method_sends_mode_and_explicit_query_limits(self) -> None:
+        client = self._client()
+
+        result = client.leaderboard("current", radius=25)
+        sent = self.server.requests.get(timeout=1)
+
+        self.assertEqual({"status": "subscribed"}, result)
+        self.assertEqual("leaderboard.snapshot", sent["method"])
+        self.assertEqual({"mode": "current", "radius": 25}, sent["params"])
+
+    def test_leaderboard_method_omits_unspecified_query_limits(self) -> None:
+        client = self._client()
+
+        client.leaderboard("clan_net_worth")
+        sent = self.server.requests.get(timeout=1)
+
+        self.assertEqual({"mode": "clan_net_worth"}, sent["params"])
+
     def test_remote_errors_preserve_code_message_and_retry_delay(self) -> None:
         client = self._client()
 

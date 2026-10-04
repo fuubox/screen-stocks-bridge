@@ -28,6 +28,9 @@ namespace ScreenStocksBridge
         public bool active = false;
         public int limit = 0;
         public long beforeTick = 0;
+        public string mode = string.Empty;
+        public int radius = 0;
+        public int count = 0;
     }
 
     [Serializable]

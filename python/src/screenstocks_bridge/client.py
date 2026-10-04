@@ -100,6 +100,23 @@ class BridgeClient:
         """Return the current in-memory player and visible-market snapshot."""
         return self.request("state.snapshot")
 
+    def leaderboard(self, mode: str, *, radius: int | None = None,
+                    count: int | None = None) -> dict[str, Any]:
+        """Request a leaderboard through the game's in-process leaderboard client.
+
+        Modes are ``current``, ``all_time``, ``ipo``, ``current_top``,
+        ``clan_net_worth``, and ``clan_player_share``. Player modes accept a
+        radius (default 10); ``current_top`` accepts a count (default 100).
+        Real requests share a 30-second cooldown. Repeating an identical query
+        during that window returns the cached result.
+        """
+        params: dict[str, Any] = {"mode": mode}
+        if radius is not None:
+            params["radius"] = radius
+        if count is not None:
+            params["count"] = count
+        return self.request("leaderboard.snapshot", params)
+
     def offline_summary(self) -> dict[str, Any]:
         """Return the latest captured welcome-back summary, if one has appeared this session."""
         return self.request("offline_summary.snapshot")

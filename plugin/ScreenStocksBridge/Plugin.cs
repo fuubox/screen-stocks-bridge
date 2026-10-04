@@ -13,7 +13,7 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.5.0";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
@@ -28,6 +28,7 @@ namespace ScreenStocksBridge
         private readonly AutoActionsService _autoActions = new AutoActionsService();
         private readonly TradeService _trades = new TradeService();
         private readonly UpgradeService _upgrades = new UpgradeService();
+        private LeaderboardService _leaderboards = null!;
         private float _nextSnapshotAt;
         private float _nextLevelClaimAt;
         private string _lastSnapshot = string.Empty;
@@ -35,6 +36,7 @@ namespace ScreenStocksBridge
 
         private void Awake()
         {
+            _leaderboards = new LeaderboardService(this);
             BridgePort = Config.Bind("Bridge", "Port", 48721, "Loopback TCP port used by the Python bridge.");
             BridgeToken = Config.Bind("Bridge", "Token", string.Empty, "Secret required by local Python clients.");
             AutoClaimLevelRewards = Config.Bind("QualityOfLife", "AutoClaimLevelRewards", true,
@@ -91,6 +93,7 @@ namespace ScreenStocksBridge
             _humanActivityFocus.Update();
             var server = _server;
             server?.Drain(HandleRequestSafely, 32);
+            _leaderboards.Update();
             _trades.Update();
             TryAutoClaimLevelReward();
             if (server == null || !server.HasSubscribers || Time.unscaledTime < _nextSnapshotAt) return;
@@ -127,6 +130,8 @@ namespace ScreenStocksBridge
                 if (!activeStockIds.Contains(stockId)) staleStockIds.Add(stockId);
             foreach (var stockId in staleStockIds) _lastHumanActivitySnapshots.Remove(stockId);
         }
+
+        internal void LogWarning(string message) => Logger.LogWarning(message);
 
         private void TryAutoClaimLevelReward()
         {
@@ -168,6 +173,11 @@ namespace ScreenStocksBridge
                 var snapshot = _state.CreateSnapshot();
                 if (!snapshot.ready) connection.Send(ProtocolJson.Error(request.id, "not_ready", "The online market is not ready."), false);
                 else connection.Send(ProtocolJson.Response(request.id, true, BridgeJson.SerializeSnapshot(snapshot), string.Empty), false);
+                return;
+            }
+            if (request.method == "leaderboard.snapshot")
+            {
+                _leaderboards.Handle(request, connection);
                 return;
             }
             if (request.method == "state.subscribe")

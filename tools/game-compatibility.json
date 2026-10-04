@@ -8,6 +8,30 @@
   "harmonyVersion": "2.9.0.0",
   "methods": [
     {
+      "type": "ScreenStocks.Net.ScreenStocksAuthManager",
+      "name": "get_Leaderboard",
+      "returnType": "ScreenStocks.Net.LeaderboardClient",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.LeaderboardClient",
+      "name": "GetTopAsync",
+      "returnType": "System.Threading.Tasks.Task`1<ScreenStocks.Net.WireLeaderboardResponse>",
+      "parameters": ["System.Int32"]
+    },
+    {
+      "type": "ScreenStocks.Net.LeaderboardClient",
+      "name": "GetAroundMeAsync",
+      "returnType": "System.Threading.Tasks.Task`1<ScreenStocks.Net.WireLeaderboardResponse>",
+      "parameters": ["System.Int32", "ScreenStocks.Net.LeaderboardMode"]
+    },
+    {
+      "type": "ScreenStocks.Net.LeaderboardClient",
+      "name": "GetClansAsync",
+      "returnType": "System.Threading.Tasks.Task`1<ScreenStocks.Net.WireClanLeaderboardResponse>",
+      "parameters": ["ScreenStocks.Net.LeaderboardMode"]
+    },
+    {
       "type": "OfflineProgressView",
       "name": "Show",
       "returnType": "System.Void",
@@ -54,6 +78,90 @@
     }
   ],
   "fields": [
+    {
+      "type": "ScreenStocks.Net.WireLeaderboardResponse",
+      "name": "totalRanked",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireLeaderboardResponse",
+      "name": "entries",
+      "fieldType": "System.Collections.Generic.List`1<ScreenStocks.Net.WireLeaderboardEntry>",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireLeaderboardResponse",
+      "name": "selfRank",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireLeaderboardEntry",
+      "name": "rank",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireLeaderboardEntry",
+      "name": "steamId",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireLeaderboardEntry",
+      "name": "displayName",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireLeaderboardEntry",
+      "name": "clan",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireLeaderboardEntry",
+      "name": "netWorth",
+      "fieldType": "ScreenStocks.Net.BigNumberWire",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireLeaderboardEntry",
+      "name": "ipoCount",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireClanLeaderboardResponse",
+      "name": "entries",
+      "fieldType": "System.Collections.Generic.List`1<ScreenStocks.Net.WireClanLeaderboardEntry>",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireClanLeaderboardEntry",
+      "name": "rank",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireClanLeaderboardEntry",
+      "name": "clan",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireClanLeaderboardEntry",
+      "name": "netWorth",
+      "fieldType": "ScreenStocks.Net.BigNumberWire",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.WireClanLeaderboardEntry",
+      "name": "playerPercentage",
+      "fieldType": "System.Double",
+      "public": true
+    },
     {
       "type": "StockManager",
       "name": "_chartActivityFocus",

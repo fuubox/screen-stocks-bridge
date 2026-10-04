@@ -3,6 +3,24 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [0.5.0] - 2026-10-04
+
+### Added
+
+- Player and clan leaderboard reads through the game's in-process leaderboard
+  client, with per-query caching and a global 30-second bridge request limit.
+- Python `leaderboard()` convenience method and documentation for all six
+  supported game modes, result fields, caching, and request behavior.
+
+### Verified
+
+- Confirmed live responses for all six modes: current, all-time, IPO, current
+  top, clan net worth, and clan player share.
+- Confirmed repeated queries use the cache and a different mode is rejected
+  during the 30-second cooldown.
+- Built against the installed demo, passed the game compatibility check, and
+  passed the C# and Python client test suites.
+
 ## [0.4.0] - 2026-10-04
 
 ### Added

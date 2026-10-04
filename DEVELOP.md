@@ -95,6 +95,7 @@ The client has no third-party runtime dependencies. Use the scripts under `examp
 
 Before preparing a release, keep these version values identical:
 
+- `<Version>` in `core/ScreenStocksBridge.Core/ScreenStocksBridge.Core.csproj`
 - `<Version>` in `plugin/ScreenStocksBridge/ScreenStocksBridge.csproj`
 - `PluginVersion` in `plugin/ScreenStocksBridge/Plugin.cs`
 - `version` in `python/pyproject.toml`

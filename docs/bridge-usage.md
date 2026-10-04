@@ -91,6 +91,34 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
 
 For change notifications, `bridge.subscribe_market(callback)` delivers `market.updated` events containing a new snapshot. Updates are sampled up to four times per second and sent when the snapshot changes.
 
+## Request a leaderboard
+
+`bridge.leaderboard(mode, radius=None, count=None)` asks the running game to use its own in-process leaderboard client. The bridge does not implement leaderboard endpoints or connect to the game's backend itself; in online mode, the game may make its normal online request. These results are requested data, not a dump of leaderboard history already stored in the bridge.
+
+Supported modes match the game's leaderboard screens:
+
+| Mode | Result | Query size |
+| --- | --- | --- |
+| `current` | Player rankings around the current player | `radius`, default 10, maximum 100 |
+| `all_time` | All-time player rankings around the current player | `radius`, default 10, maximum 100 |
+| `ipo` | IPO player rankings around the current player | `radius`, default 10, maximum 100 |
+| `current_top` | Current top players | `count`, default 100, maximum 100 |
+| `clan_net_worth` | Clans ranked by net worth | No limit parameter |
+| `clan_player_share` | Clans ranked by player share | No limit parameter |
+
+Player results contain `totalRanked`, `selfRank`, and `entries`; each entry includes `rank`, `steamId`, `displayName`, `clan`, exact `netWorth` as a string, and `ipoCount`. Clan results contain `entries` with `rank`, `clan`, exact `netWorth` as a string, and `playerPercentage`. Both shapes include `mode`, `cached`, and `fetchedAtUnixSeconds`. `fetchedAtUnixSeconds` is when the bridge received the response, not a game server timestamp.
+
+There can be only one leaderboard request in flight, and starting a live request begins a global 30-second cooldown shared by all modes. Identical queries are cached for 30 seconds; cached responses include `cached: true` and do not use another game request. A concurrent query returns `leaderboard_busy`; a different uncached query during the cooldown returns `rate_limited` with `retryAfterMs`. Invalid modes or limits return `invalid_mode`, `invalid_radius`, or `invalid_count`.
+
+This 30-second limit is a bridge safeguard, not a game UI rule. In the inspected demo build, opening the leaderboard and switching its mode each start a refresh, with no client-side cooldown or in-flight lock. The UI uses a refresh token to ignore stale results; that does not cancel requests already sent. The game's server may apply its own limits, which are not established by this client-side behavior.
+
+```python
+with BridgeClient(token="YOUR_TOKEN") as bridge:
+    around_me = bridge.leaderboard("current", radius=10)
+    top_players = bridge.leaderboard("current_top")
+    clans = bridge.leaderboard("clan_net_worth")
+```
+
 ## Read and subscribe to graph activity
 
 The game has one active human-activity focus. Set it explicitly with `bridge.set_human_activity_focus(stock_id)`; this changes the game's activity feed without changing the visible graph stock. While active, the game displays a centered, opaque `Activity focus override: STOCK_ID` overlay.
@@ -219,6 +247,7 @@ Live verification on the demo build confirmed that `upgrades.snapshot` returned 
 | --- | --- |
 | `state.snapshot` | Read current market/player state, cooldowns, and auto actions |
 | `state.subscribe` | Subscribe to `market.updated` events |
+| `leaderboard.snapshot` | Request one game-supported player or clan leaderboard, subject to cache and cooldown |
 | `offline_summary.snapshot` | Read the latest in-memory welcome-back summary |
 | `market.human_activity` | Read one page of graph activity for a visible stock |
 | `market.human_activity.subscribe` | Subscribe this connection to updates for one visible stock |
