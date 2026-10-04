@@ -8,6 +8,60 @@
   "harmonyVersion": "2.9.0.0",
   "methods": [
     {
+      "type": "GameManager",
+      "name": "get_Data",
+      "returnType": "GameData",
+      "parameters": []
+    },
+    {
+      "type": "GameManager",
+      "name": "get_Data",
+      "returnType": "GameData",
+      "parameters": []
+    },
+    {
+      "type": "GameManager",
+      "name": "IsIPOCatalogReady",
+      "returnType": "System.Boolean",
+      "parameters": []
+    },
+    {
+      "type": "GameManager",
+      "name": "IsGoingPublicUnlocked",
+      "returnType": "System.Boolean",
+      "parameters": []
+    },
+    {
+      "type": "GameManager",
+      "name": "CanIPO",
+      "returnType": "System.Boolean",
+      "parameters": []
+    },
+    {
+      "type": "GameManager",
+      "name": "GetRequiredNetWorthForIPO",
+      "returnType": "BigNumber",
+      "parameters": []
+    },
+    {
+      "type": "GameManager",
+      "name": "TriggerIPO",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "GameManager",
+      "name": "get_RawIPOCount",
+      "returnType": "System.Int32",
+      "parameters": []
+    },
+    {
+      "type": "GameManager",
+      "name": "get_EffectiveIPOCount",
+      "returnType": "System.Int32",
+      "parameters": []
+    },
+    {
       "type": "ScreenStocks.Net.ScreenStocksAuthManager",
       "name": "get_Leaderboard",
       "returnType": "ScreenStocks.Net.LeaderboardClient",
@@ -78,6 +132,12 @@
     }
   ],
   "fields": [
+    {
+      "type": "GameData",
+      "name": "roundPeakNetWorth",
+      "fieldType": "BigNumber",
+      "public": true
+    },
     {
       "type": "ScreenStocks.Net.WireLeaderboardResponse",
       "name": "totalRanked",

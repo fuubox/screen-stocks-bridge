@@ -121,6 +121,19 @@ class BridgeClient:
         """Return the latest captured welcome-back summary, if one has appeared this session."""
         return self.request("offline_summary.snapshot")
 
+    def ipo_snapshot(self) -> dict[str, Any]:
+        """Return the game's current IPO unlock, eligibility, and net-worth state."""
+        return self.request("ipo.snapshot")
+
+    def trigger_ipo(self) -> dict[str, Any]:
+        """Ask the game to trigger an IPO if its own eligibility check passes.
+
+        This resets the current IPO run according to the game's rules. A
+        ``submitted`` result means the in-process game method was invoked; call
+        :meth:`ipo_snapshot` afterward to observe updated state.
+        """
+        return self.request("ipo.trigger")
+
     def human_activity(self, stock_id: str, limit: int = 32,
                        before_tick: int | None = None) -> dict[str, Any]:
         """Return one page of aggregate graph activity for a visible stock."""

@@ -29,6 +29,7 @@ namespace ScreenStocksBridge
         private readonly TradeService _trades = new TradeService();
         private readonly UpgradeService _upgrades = new UpgradeService();
         private LeaderboardService _leaderboards = null!;
+        private readonly IpoService _ipo = new IpoService();
         private float _nextSnapshotAt;
         private float _nextLevelClaimAt;
         private string _lastSnapshot = string.Empty;
@@ -178,6 +179,16 @@ namespace ScreenStocksBridge
             if (request.method == "leaderboard.snapshot")
             {
                 _leaderboards.Handle(request, connection);
+                return;
+            }
+            if (request.method == "ipo.snapshot")
+            {
+                connection.Send(_ipo.Snapshot(request.id), false);
+                return;
+            }
+            if (request.method == "ipo.trigger")
+            {
+                connection.Send(_ipo.Trigger(request.id), false);
                 return;
             }
             if (request.method == "state.subscribe")

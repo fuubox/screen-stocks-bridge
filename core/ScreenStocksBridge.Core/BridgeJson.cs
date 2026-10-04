@@ -154,6 +154,18 @@ namespace ScreenStocksBridge
             return json.Append("]}").ToString();
         }
 
+        internal static string SerializeIpoSnapshot(IpoSnapshotDto value)
+        {
+            return new StringBuilder(192).Append("{\"ready\":").Append(Bool(value.ready))
+                .Append(",\"unlocked\":").Append(Bool(value.unlocked))
+                .Append(",\"eligible\":").Append(Bool(value.eligible))
+                .Append(",\"ipoCount\":").Append(value.ipoCount.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"effectiveIpoCount\":").Append(value.effectiveIpoCount.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"roundPeakNetWorth\":").Append(Quote(value.roundPeakNetWorth))
+                .Append(",\"requiredNetWorth\":").Append(Quote(value.requiredNetWorth)).Append('}')
+                .ToString();
+        }
+
         internal static string SerializeTradeCompleted(string requestId, string action, string stockId, string status, string reason)
         {
             return "{\"requestId\":" + Quote(requestId) + ",\"action\":" + Quote(action) +

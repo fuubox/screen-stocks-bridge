@@ -3,6 +3,13 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## Unreleased
+
+### Added
+
+- IPO state snapshots and a guarded Python trigger that delegates to the game's
+  own IPO method after its readiness, unlock, and eligibility checks.
+
 ## [0.5.0] - 2026-10-04
 
 ### Added

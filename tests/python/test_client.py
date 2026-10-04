@@ -123,6 +123,21 @@ class BridgeClientTests(unittest.TestCase):
 
         self.assertEqual({"mode": "clan_net_worth"}, sent["params"])
 
+    def test_ipo_snapshot_and_trigger_use_distinct_authenticated_methods(self) -> None:
+        client = self._client()
+
+        client.ipo_snapshot()
+        snapshot_request = self.server.requests.get(timeout=1)
+        client.trigger_ipo()
+        trigger_request = self.server.requests.get(timeout=1)
+
+        self.assertEqual("ipo.snapshot", snapshot_request["method"])
+        self.assertEqual({}, snapshot_request["params"])
+        self.assertEqual("test-token", snapshot_request["token"])
+        self.assertEqual("ipo.trigger", trigger_request["method"])
+        self.assertEqual({}, trigger_request["params"])
+        self.assertEqual("test-token", trigger_request["token"])
+
     def test_remote_errors_preserve_code_message_and_retry_delay(self) -> None:
         client = self._client()
 

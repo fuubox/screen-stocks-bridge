@@ -28,9 +28,11 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     print(bridge.upgrades())
 ```
 
-The client supports state reads, leaderboard requests, activity reads and subscriptions,
-explicit single-stock activity-focus controls, trades, upgrade purchases, and auto-action
-controls. Request a game-supported leaderboard with `leaderboard("current")`,
+The client supports state and IPO reads, an eligibility-gated IPO request, leaderboard
+requests, activity reads and subscriptions, explicit single-stock activity-focus controls,
+trades, upgrade purchases, and auto-action controls. Use `ipo_snapshot()` to check the
+dynamic requirement and `trigger_ipo()` to ask the game to perform an eligible IPO. Request
+a game-supported leaderboard with `leaderboard("current")`,
 `leaderboard("all_time")`, `leaderboard("ipo")`, `leaderboard("current_top")`,
 `leaderboard("clan_net_worth")`, or `leaderboard("clan_player_share")`. Leaderboard
 requests use the game's in-process client, with one live request every 30 seconds;
