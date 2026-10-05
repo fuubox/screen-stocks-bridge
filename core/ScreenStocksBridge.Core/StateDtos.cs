@@ -54,6 +54,28 @@ namespace ScreenStocksBridge
     }
 
     [Serializable]
+    public sealed class NewsTickerItemDto
+    {
+        public string type = string.Empty;
+        public string text = string.Empty;
+        public string id = string.Empty;
+        public string cursor = string.Empty;
+        public long createdAtMs;
+        public string stockId = string.Empty;
+        public float price;
+        public string kind = string.Empty;
+        public float lookbackMinutes;
+        public bool debug;
+        public string occurrenceId = string.Empty;
+        public string revision = string.Empty;
+        public float targetPrice;
+        public long scheduledAtMs;
+        public long reminderOffsetMs;
+        public long publishedAtMs;
+        public string direction = string.Empty;
+    }
+
+    [Serializable]
     public sealed class HumanActivityFocusDto
     {
         public bool active;

@@ -21,8 +21,10 @@ namespace ScreenStocksBridge
         internal ConfigEntry<bool> AutoCloseOfflineSummary { get; private set; } = null!;
         private BridgeServer? _server;
         private Harmony? _harmony;
+        private Harmony? _newsTickerHarmony;
         private readonly StateService _state = new StateService();
         private readonly OfflineProgressCaptureService _offlineProgress = new OfflineProgressCaptureService();
+        private readonly NewsTickerService _newsTicker = new NewsTickerService();
         private readonly HumanActivityService _humanActivity = new HumanActivityService();
         private readonly HumanActivityFocusService _humanActivityFocus = new HumanActivityFocusService();
         private readonly AutoActionsService _autoActions = new AutoActionsService();
@@ -78,6 +80,7 @@ namespace ScreenStocksBridge
             {
                 _server = new BridgeServer(BridgePort.Value, BridgeToken.Value);
                 _server.Start();
+                _newsTicker.SetServer(_server);
                 Logger.LogInfo("Loopback API listening on 127.0.0.1:" + BridgePort.Value + ".");
             }
             catch (Exception ex)
@@ -85,6 +88,25 @@ namespace ScreenStocksBridge
                 Logger.LogError("Could not start the loopback API: " + ex.Message);
                 _server?.Dispose();
                 _server = null;
+            }
+
+            if (_server != null)
+            {
+                try
+                {
+                    _newsTickerHarmony = new Harmony(PluginGuid + ".news-ticker");
+                    NewsTickerHarmonyPatch.CaptureService = _newsTicker;
+                    NewsTickerHarmonyPatch.Install(_newsTickerHarmony);
+                    _newsTicker.SetAvailable(true);
+                }
+                catch (Exception ex)
+                {
+                    NewsTickerHarmonyPatch.CaptureService = null;
+                    _newsTickerHarmony?.UnpatchSelf();
+                    _newsTickerHarmony = null;
+                    _newsTicker.SetAvailable(false);
+                    Logger.LogWarning("Could not hook the news ticker: " + ex.Message);
+                }
             }
         }
 
@@ -96,7 +118,8 @@ namespace ScreenStocksBridge
             _leaderboards.Update();
             _trades.Update();
             TryAutoClaimLevelReward();
-            if (server == null || !server.HasSubscribers || Time.unscaledTime < _nextSnapshotAt) return;
+            if (server == null || (!server.HasMarketSubscribers && !server.HasHumanActivitySubscribers) ||
+                Time.unscaledTime < _nextSnapshotAt) return;
             _nextSnapshotAt = Time.unscaledTime + 0.25f;
 
             if (server.HasMarketSubscribers)
@@ -186,6 +209,24 @@ namespace ScreenStocksBridge
                 connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"subscribed\"}", string.Empty), false);
                 var snapshot = _state.CreateSnapshot();
                 if (snapshot.ready) connection.Send(ProtocolJson.Event("market.updated", BridgeJson.SerializeSnapshot(snapshot)), true);
+                return;
+            }
+            if (request.method == "news.subscribe")
+            {
+                if (!_newsTicker.Available)
+                {
+                    connection.Send(ProtocolJson.Error(request.id, "news_unavailable",
+                        "The game news ticker could not be hooked in this build."), false);
+                    return;
+                }
+                connection.IsNewsSubscribed = true;
+                connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"subscribed\"}", string.Empty), false);
+                return;
+            }
+            if (request.method == "news.unsubscribe")
+            {
+                connection.IsNewsSubscribed = false;
+                connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"unsubscribed\"}", string.Empty), false);
                 return;
             }
             if (request.method == "market.human_activity")
@@ -299,6 +340,10 @@ namespace ScreenStocksBridge
             OfflineProgressHarmonyPatch.AutoClose = false;
             _harmony?.UnpatchSelf();
             _harmony = null;
+            NewsTickerHarmonyPatch.CaptureService = null;
+            _newsTickerHarmony?.UnpatchSelf();
+            _newsTickerHarmony = null;
+            _newsTicker.SetServer(null);
             if (!_humanActivityFocus.RestoreOnShutdown())
                 Logger.LogWarning("Could not restore the game's activity focus while shutting down the plugin.");
             _server?.Dispose();

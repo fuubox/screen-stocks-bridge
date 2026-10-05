@@ -3,6 +3,15 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [Unreleased]
+
+### Added
+
+- Python news ticker subscriptions that deliver the game's localized rendered
+  headlines and structured market or scheduled-price announcement fields.
+- Ticker capture reuses the game's in-memory rendering path without making
+  additional backend requests or polling for news.
+
 ## [0.5.0] - 2026-10-04
 
 ### Added

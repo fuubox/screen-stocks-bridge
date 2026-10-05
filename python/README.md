@@ -28,9 +28,9 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     print(bridge.upgrades())
 ```
 
-The client supports state reads, leaderboard requests, activity reads and subscriptions,
-explicit single-stock activity-focus controls, trades, upgrade purchases, and auto-action
-controls. Request a game-supported leaderboard with `leaderboard("current")`,
+The client supports state reads, market and ticker-news subscriptions, leaderboard requests,
+activity reads and subscriptions, explicit single-stock activity-focus controls, trades,
+upgrade purchases, and auto-action controls. Request a game-supported leaderboard with `leaderboard("current")`,
 `leaderboard("all_time")`, `leaderboard("ipo")`, `leaderboard("current_top")`,
 `leaderboard("clan_net_worth")`, or `leaderboard("clan_player_share")`. Leaderboard
 requests use the game's in-process client, with one live request every 30 seconds;

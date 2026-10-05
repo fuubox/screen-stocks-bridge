@@ -53,6 +53,24 @@
       "parameters": []
     },
     {
+      "type": "MarketNewsTickerUI",
+      "name": "OrdinaryMessage",
+      "returnType": "System.String",
+      "parameters": ["ScreenStocks.Net.MarketNewsEventDto"]
+    },
+    {
+      "type": "MarketNewsTickerUI",
+      "name": "ScheduledMessage",
+      "returnType": "System.String",
+      "parameters": ["ScreenStocks.Net.ScheduledPriceAnnouncementDto"]
+    },
+    {
+      "type": "MarketNewsTickerUI",
+      "name": "SpawnText",
+      "returnType": "UnityEngine.RectTransform",
+      "parameters": ["System.String", "System.String"]
+    },
+    {
       "type": "StockManager",
       "name": "SetChartActivityFocus",
       "returnType": "System.Void",
@@ -184,6 +202,114 @@
       "type": "PositionChangeResult",
       "name": "PercentChange",
       "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.MarketNewsEventDto",
+      "name": "id",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.MarketNewsEventDto",
+      "name": "cursor",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.MarketNewsEventDto",
+      "name": "createdAtMs",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.MarketNewsEventDto",
+      "name": "stockId",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.MarketNewsEventDto",
+      "name": "price",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.MarketNewsEventDto",
+      "name": "kind",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.MarketNewsEventDto",
+      "name": "lookbackMinutes",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.MarketNewsEventDto",
+      "name": "debug",
+      "fieldType": "System.Boolean",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceAnnouncementDto",
+      "name": "id",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceAnnouncementDto",
+      "name": "cursor",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceAnnouncementDto",
+      "name": "reminderOffsetMs",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceAnnouncementDto",
+      "name": "publishedAtMs",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceAnnouncementDto",
+      "name": "direction",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceOccurrenceDto",
+      "name": "occurrenceId",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceOccurrenceDto",
+      "name": "revision",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceOccurrenceDto",
+      "name": "stockId",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceOccurrenceDto",
+      "name": "targetPrice",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScheduledPriceOccurrenceDto",
+      "name": "scheduledAtMs",
+      "fieldType": "System.Int64",
       "public": true
     }
   ]
