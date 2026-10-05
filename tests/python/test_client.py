@@ -41,7 +41,7 @@ class BridgeClientTests(unittest.TestCase):
             if request["method"] == "forced.oversized":
                 stream.write(
                     json.dumps(
-                        {"id": request["id"], "ok": True, "result": {"payload": "x" * 17000}, "error": None}
+                        {"id": request["id"], "ok": True, "result": {"payload": "x" * (128 * 1024 + 1)}, "error": None}
                     ).encode("utf-8")
                     + b"\n"
                 )
