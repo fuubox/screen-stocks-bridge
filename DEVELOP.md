@@ -123,6 +123,8 @@ The Python workflow can also be started manually with a tag input. It validates 
 
 The plugin build requires one Windows x64 self-hosted GitHub Actions runner on a machine with the game and BepInEx installed. Configure it with the custom `screenstocks` label in addition to GitHub's standard `self-hosted`, `Windows`, and `X64` labels. The workflow uses the Windows PowerShell shell and installs .NET 8. If the game is not at the default Steam path, set the repository Actions variable `SCREENSTOCKS_GAME_DIR` to its installation directory.
 
+Transaction-history cache and request pacing are configured in `BepInEx/config/screenstocks.bridge.cfg` under `[TransactionHistory]`. `CacheSeconds` (default and hard minimum `60`) controls how long results are considered fresh. `MinimumRequestIntervalSeconds` (default and hard minimum `30`) sets the minimum gap before the bridge starts another request after any observed game transaction-history request. Higher values are allowed; lower values are raised to the minimum and saved back to the config. Restart the game after editing the file. The Transactions screen's own successful responses also seed the in-memory cache and start this bridge cooldown. The plugin does not suppress requests made by the game UI itself.
+
 Keep the runner online for release tags and its software current (the Node 24 actions require runner version 2.327.1 or later). Restrict write access and protect `v*` tags. The workflow is tag-triggered; do not enable untrusted pull-request code on this runner. GitHub's [secure use guidance](https://docs.github.com/en/actions/reference/security/secure-use) explains the risks of self-hosted runners in public repositories.
 
 ### PyPI Trusted Publisher

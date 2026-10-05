@@ -1,6 +1,6 @@
 """Protocol constants and errors shared by the Python bridge client."""
 
-MAX_FRAME_BYTES = 16 * 1024
+MAX_FRAME_BYTES = 128 * 1024
 
 
 class BridgeError(RuntimeError):

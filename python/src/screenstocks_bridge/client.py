@@ -67,7 +67,7 @@ class BridgeClient:
         try:
             encoded = (json.dumps(frame, separators=(",", ":"), allow_nan=False) + "\n").encode("utf-8")
             if len(encoded) - 1 > MAX_FRAME_BYTES:
-                raise BridgeError("frame_too_large", "Request exceeds the 16 KiB frame limit.")
+                raise BridgeError("frame_too_large", "Request exceeds the 128 KiB frame limit.")
             with self._send_lock:
                 if self._closed.is_set() or self._socket is None:
                     raise BridgeError("not_connected", "The bridge connection is closed.")
@@ -116,6 +116,15 @@ class BridgeClient:
         if count is not None:
             params["count"] = count
         return self.request("leaderboard.snapshot", params)
+
+    def transaction_history(self, filter: str = "both", limit: int = 100) -> dict[str, Any]:
+        """Read recent game transactions, refreshing through the game's own client when needed.
+
+        Filters are ``manual``, ``both``, and ``auto_action``. The game supplies at
+        most 100 entries. Results are cached in memory; stale cached results include
+        their age and the retry delay while refresh is rate-limited.
+        """
+        return self.request("transactions.snapshot", {"filter": filter, "limit": limit})
 
     def offline_summary(self) -> dict[str, Any]:
         """Return the latest captured welcome-back summary, if one has appeared this session."""
@@ -259,10 +268,10 @@ class BridgeClient:
                     newline = buffer.find(b"\n")
                     if newline < 0:
                         if len(buffer) > MAX_FRAME_BYTES:
-                            raise BridgeError("frame_too_large", "Bridge response exceeds the 16 KiB frame limit.")
+                            raise BridgeError("frame_too_large", "Bridge response exceeds the 128 KiB frame limit.")
                         break
                     if newline > MAX_FRAME_BYTES:
-                        raise BridgeError("frame_too_large", "Bridge response exceeds the 16 KiB frame limit.")
+                        raise BridgeError("frame_too_large", "Bridge response exceeds the 128 KiB frame limit.")
                     raw = bytes(buffer[:newline]).rstrip(b"\r")
                     del buffer[:newline + 1]
                     message = json.loads(raw.decode("utf-8"))

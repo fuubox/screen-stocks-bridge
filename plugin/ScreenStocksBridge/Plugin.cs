@@ -13,14 +13,17 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.5.0";
+        public const string PluginVersion = "0.6.0";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
         internal ConfigEntry<bool> AutoClaimLevelRewards { get; private set; } = null!;
         internal ConfigEntry<bool> AutoCloseOfflineSummary { get; private set; } = null!;
+        internal ConfigEntry<int> TransactionHistoryCacheSeconds { get; private set; } = null!;
+        internal ConfigEntry<int> TransactionHistoryMinimumRequestIntervalSeconds { get; private set; } = null!;
         private BridgeServer? _server;
         private Harmony? _harmony;
+        private Harmony? _transactionHistoryHarmony;
         private readonly StateService _state = new StateService();
         private readonly OfflineProgressCaptureService _offlineProgress = new OfflineProgressCaptureService();
         private readonly HumanActivityService _humanActivity = new HumanActivityService();
@@ -28,6 +31,7 @@ namespace ScreenStocksBridge
         private readonly AutoActionsService _autoActions = new AutoActionsService();
         private readonly TradeService _trades = new TradeService();
         private readonly UpgradeService _upgrades = new UpgradeService();
+        private TransactionHistoryService _transactionHistory = null!;
         private LeaderboardService _leaderboards = null!;
         private float _nextSnapshotAt;
         private float _nextLevelClaimAt;
@@ -37,6 +41,25 @@ namespace ScreenStocksBridge
         private void Awake()
         {
             _leaderboards = new LeaderboardService(this);
+            TransactionHistoryCacheSeconds = Config.Bind("TransactionHistory", "CacheSeconds", 60,
+                "How long transaction-history results stay fresh in memory. Values below 60 are raised to 60; larger values are allowed.");
+            TransactionHistoryMinimumRequestIntervalSeconds = Config.Bind("TransactionHistory", "MinimumRequestIntervalSeconds", 30,
+                "Minimum gap before the bridge starts a transaction-history request after any observed game request. Values below 30 are raised to 30; larger values are allowed.");
+            var normalizedTransactionHistoryConfig = false;
+            if (TransactionHistoryCacheSeconds.Value < TransactionHistoryService.MinimumCacheSeconds)
+            {
+                TransactionHistoryCacheSeconds.Value = TransactionHistoryService.MinimumCacheSeconds;
+                normalizedTransactionHistoryConfig = true;
+                Logger.LogWarning("TransactionHistory.CacheSeconds cannot be lower than 60; using 60 seconds.");
+            }
+            if (TransactionHistoryMinimumRequestIntervalSeconds.Value < TransactionHistoryService.MinimumRequestIntervalSeconds)
+            {
+                TransactionHistoryMinimumRequestIntervalSeconds.Value = TransactionHistoryService.MinimumRequestIntervalSeconds;
+                normalizedTransactionHistoryConfig = true;
+                Logger.LogWarning("TransactionHistory.MinimumRequestIntervalSeconds cannot be lower than 30; using 30 seconds.");
+            }
+            if (normalizedTransactionHistoryConfig) Config.Save();
+            _transactionHistory = new TransactionHistoryService(this);
             BridgePort = Config.Bind("Bridge", "Port", 48721, "Loopback TCP port used by the Python bridge.");
             BridgeToken = Config.Bind("Bridge", "Token", string.Empty, "Secret required by local Python clients.");
             AutoClaimLevelRewards = Config.Bind("QualityOfLife", "AutoClaimLevelRewards", true,
@@ -69,6 +92,20 @@ namespace ScreenStocksBridge
                 Logger.LogWarning("Could not hook the welcome-back summary: " + ex.Message);
             }
 
+            try
+            {
+                _transactionHistoryHarmony = new Harmony(PluginGuid + ".transaction-history");
+                TransactionHistoryHarmonyPatch.CaptureService = _transactionHistory;
+                TransactionHistoryHarmonyPatch.Install(_transactionHistoryHarmony);
+            }
+            catch (Exception ex)
+            {
+                TransactionHistoryHarmonyPatch.CaptureService = null;
+                _transactionHistoryHarmony?.UnpatchSelf();
+                _transactionHistoryHarmony = null;
+                Logger.LogWarning("Could not observe the game's Transactions screen requests: " + ex.Message);
+            }
+
             if (BridgePort.Value < 1 || BridgePort.Value > 65535)
             {
                 Logger.LogError("Bridge.Port must be between 1 and 65535; listener was not started.");
@@ -94,6 +131,7 @@ namespace ScreenStocksBridge
             var server = _server;
             server?.Drain(HandleRequestSafely, 32);
             _leaderboards.Update();
+            _transactionHistory.Update();
             _trades.Update();
             TryAutoClaimLevelReward();
             if (server == null || !server.HasSubscribers || Time.unscaledTime < _nextSnapshotAt) return;
@@ -178,6 +216,11 @@ namespace ScreenStocksBridge
             if (request.method == "leaderboard.snapshot")
             {
                 _leaderboards.Handle(request, connection);
+                return;
+            }
+            if (request.method == "transactions.snapshot")
+            {
+                _transactionHistory.Handle(request, connection);
                 return;
             }
             if (request.method == "state.subscribe")
@@ -297,6 +340,9 @@ namespace ScreenStocksBridge
         {
             OfflineProgressHarmonyPatch.CaptureService = null;
             OfflineProgressHarmonyPatch.AutoClose = false;
+            TransactionHistoryHarmonyPatch.CaptureService = null;
+            _transactionHistoryHarmony?.UnpatchSelf();
+            _transactionHistoryHarmony = null;
             _harmony?.UnpatchSelf();
             _harmony = null;
             if (!_humanActivityFocus.RestoreOnShutdown())

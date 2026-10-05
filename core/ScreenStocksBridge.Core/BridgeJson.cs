@@ -93,6 +93,31 @@ namespace ScreenStocksBridge
             return json.Append("]}}").ToString();
         }
 
+        internal static string SerializeTransactionHistory(TransactionHistorySnapshotDto value)
+        {
+            var json = new StringBuilder(512).Append("{\"filter\":").Append(Quote(value.filter))
+                .Append(",\"limit\":").Append(value.limit.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"cached\":").Append(Bool(value.cached))
+                .Append(",\"stale\":").Append(Bool(value.stale))
+                .Append(",\"ageSeconds\":").Append(value.ageSeconds.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"fetchedAtUnixSeconds\":").Append(value.fetchedAtUnixSeconds.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"retryAfterMs\":").Append(value.retryAfterMs.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"entries\":[");
+            for (var i = 0; i < value.entries.Count; i++)
+            {
+                if (i > 0) json.Append(',');
+                var entry = value.entries[i];
+                json.Append("{\"id\":").Append(Quote(entry.id))
+                    .Append(",\"occurredAt\":").Append(Quote(entry.occurredAt))
+                    .Append(",\"stockId\":").Append(Quote(entry.stockId))
+                    .Append(",\"side\":").Append(Quote(entry.side))
+                    .Append(",\"source\":").Append(Quote(entry.source))
+                    .Append(",\"realizedReturn\":").Append(Quote(entry.realizedReturn))
+                    .Append(",\"realizedPercent\":").Append(Number(entry.realizedPercent)).Append('}');
+            }
+            return json.Append("]}").ToString();
+        }
+
         internal static string SerializeUpgrades(UpgradesSnapshotDto value)
         {
             var json = new StringBuilder(512).Append("{\"ready\":").Append(Bool(value.ready)).Append(",\"upgrades\":[");

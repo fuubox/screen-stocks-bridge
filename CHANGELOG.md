@@ -3,6 +3,24 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [0.6.0] - 2026-10-05
+
+### Added
+
+- Transaction history snapshots through the Python bridge, with both, manual,
+  and auto_action filters and a configurable result limit up to 100.
+- Cached transaction reads with stale-state reporting and minimum-enforced cache
+  and backend-request intervals to prevent configuration from hammering the game.
+- Larger bridge frames to carry complete transaction snapshots.
+
+### Verified
+
+- Live API read returned 100 transaction entries; a repeated query returned the
+  cached snapshot, and the cross-filter request limit was reported.
+- Built the plugin against the installed demo assemblies and confirmed the
+  installed plugin/core DLL hashes.
+- Live testing does not establish whether the first read reused a completed UI
+  cache or joined a fresh in-flight game request.
 ## [0.5.0] - 2026-10-04
 
 ### Added

@@ -26,9 +26,11 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     state = bridge.snapshot()
     print(state["ready"], state["cash"])
     print(bridge.upgrades())
+    recent = bridge.transaction_history(filter="both", limit=100)
+    print(recent["entries"])
 ```
 
-The client supports state reads, leaderboard requests, activity reads and subscriptions,
+The client supports state reads, leaderboard requests, transaction-history reads, activity reads and subscriptions,
 explicit single-stock activity-focus controls, trades, upgrade purchases, and auto-action
 controls. Request a game-supported leaderboard with `leaderboard("current")`,
 `leaderboard("all_time")`, `leaderboard("ipo")`, `leaderboard("current_top")`,
@@ -42,6 +44,12 @@ for the full API and its online behavior. Activity history reads page through
 only the samples the game currently retains in memory; they do not fetch older
 history from the game's server, and the bridge makes no guarantee about the
 retained history's total depth or time span.
+
+Use `transaction_history(filter="both", limit=100)` to read recent transactions.
+Filters are `manual`, `both`, and `auto_action`. The game screen can seed the
+in-memory cache; successful screen requests also start the bridge cooldown. The
+BepInEx cache lifetime and request interval can be increased from their 60-second
+and 30-second minimums, as described in the usage guide.
 
 Use `offline_summary()` to read the latest welcome-back summary captured during
 the current game session. The plugin captures it in memory before automatically

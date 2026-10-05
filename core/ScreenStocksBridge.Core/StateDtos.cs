@@ -83,6 +83,31 @@ namespace ScreenStocksBridge
     }
 
     [Serializable]
+    public sealed class TransactionHistorySnapshotDto
+    {
+        public string filter = string.Empty;
+        public int limit;
+        public bool cached;
+        public bool stale;
+        public long ageSeconds;
+        public long fetchedAtUnixSeconds;
+        public int retryAfterMs;
+        public List<TransactionHistoryEntryDto> entries = new List<TransactionHistoryEntryDto>();
+    }
+
+    [Serializable]
+    public sealed class TransactionHistoryEntryDto
+    {
+        public string id = string.Empty;
+        public string occurredAt = string.Empty;
+        public string stockId = string.Empty;
+        public string side = string.Empty;
+        public string source = string.Empty;
+        public string realizedReturn = string.Empty;
+        public double realizedPercent;
+    }
+
+    [Serializable]
     public sealed class OfflineProgressSnapshotDto
     {
         public bool available;

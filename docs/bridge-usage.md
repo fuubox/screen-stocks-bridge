@@ -119,6 +119,24 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     clans = bridge.leaderboard("clan_net_worth")
 ```
 
+## Read transaction history
+
+`bridge.transaction_history(filter="both", limit=100)` asks the game's in-process transaction-history client for up to 100 recent entries. Filters are `manual`, `both`, and `auto_action`. Each entry includes `id`, `occurredAt`, `stockId`, `side`, `source`, `realizedReturn`, and `realizedPercent`. `realizedReturn` is returned as the game's raw `BigNumberWire` mantissa/exponent string (for example, `{m=8.086,e=8}`), not converted to a decimal string. This is the game's bounded recent-history response, not a complete archive.
+
+The bridge does not connect to the backend itself. The game may make its normal online request through its own client. A successful request from the Transactions screen also seeds the bridge's in-memory cache, so a Python read can reuse it. Otherwise the bridge requests data when its cache is missing or older than the configured freshness period. Results stay in memory only.
+
+`cached` indicates a cached response; `stale` indicates it is older than the configured freshness period. A stale result is returned while a request is already in flight or the bridge request interval has not elapsed. `ageSeconds` reports its age, `fetchedAtUnixSeconds` records when the game response reached the bridge, and `retryAfterMs` is zero unless a refresh must wait. If no cached result exists while requests are being paced, the call raises `BridgeError` with `retry_after_ms` when available.
+
+`CacheSeconds` (default and minimum `60`) and `MinimumRequestIntervalSeconds` (default and minimum `30`) can be increased under `[TransactionHistory]` in `BepInEx/config/screenstocks.bridge.cfg`. Values below those minimums are raised and saved at startup. Restart the game after editing the config. Successful game UI requests seed the same cache and start the bridge cooldown. Opening or changing the Transactions screen can still cause the game UI to request data on its own; the bridge does not suppress those native screen requests.
+
+```python
+with BridgeClient(token="YOUR_TOKEN") as bridge:
+    history = bridge.transaction_history(filter="both", limit=100)
+    for transaction in history["entries"]:
+        print(transaction["occurredAt"], transaction["stockId"],
+              transaction["side"], transaction["realizedReturn"])
+```
+
 ## Read and subscribe to graph activity
 
 The game has one active human-activity focus. Set it explicitly with `bridge.set_human_activity_focus(stock_id)`; this changes the game's activity feed without changing the visible graph stock. While active, the game displays a centered, opaque `Activity focus override: STOCK_ID` overlay.

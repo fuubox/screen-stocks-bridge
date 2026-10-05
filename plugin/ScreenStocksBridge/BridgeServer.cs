@@ -11,7 +11,7 @@ namespace ScreenStocksBridge
 {
     internal sealed class BridgeServer : IDisposable
     {
-        internal const int MaxFrameBytes = 16 * 1024;
+        internal const int MaxFrameBytes = 128 * 1024;
         private readonly int _port;
         private readonly string _token;
         private readonly MainThreadQueue _requests = new MainThreadQueue(128);
@@ -148,7 +148,7 @@ namespace ScreenStocksBridge
                     }
                 }
             }
-            catch (InvalidDataException) { connection.Send(ProtocolJson.Error(string.Empty, "frame_too_large", "Request exceeds the 16 KiB frame limit."), false); }
+            catch (InvalidDataException) { connection.Send(ProtocolJson.Error(string.Empty, "frame_too_large", "Request exceeds the 128 KiB frame limit."), false); }
             catch (IOException) { }
             catch (SocketException) { }
             finally { connection.Close(); }
