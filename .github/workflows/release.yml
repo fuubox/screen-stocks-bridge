@@ -49,6 +49,12 @@ jobs:
             throw "Tag '$env:RELEASE_TAG' does not match project version '$projectVersion'."
           }
 
+          [xml]$coreProject = Get-Content -Raw 'core/ScreenStocksBridge.Core/ScreenStocksBridge.Core.csproj'
+          $coreVersionNodes = @($coreProject.SelectNodes('/Project/PropertyGroup/Version'))
+          if ($coreVersionNodes.Count -ne 1 -or $coreVersionNodes[0].InnerText.Trim() -cne $projectVersion) {
+            throw "Core project version must be defined once and match plugin version '$projectVersion'."
+          }
+
           $pluginSource = Get-Content -Raw 'plugin/ScreenStocksBridge/Plugin.cs'
           $pluginVersions = [regex]::Matches($pluginSource, 'public\s+const\s+string\s+PluginVersion\s*=\s*"([^"]+)"\s*;')
           if ($pluginVersions.Count -ne 1 -or $pluginVersions[0].Groups[1].Value -cne $projectVersion) {
