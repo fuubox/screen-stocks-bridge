@@ -1,6 +1,6 @@
 # Screen Stocks Bridge
 
-Screen Stocks Bridge is a BepInEx plugin and Python client for reading live game state and using the game's normal trade and upgrade actions from Python. It also provides market and ticker-news updates, aggregate graph activity, and auto-action controls.
+Screen Stocks Bridge is a BepInEx plugin and Python client for reading live game state and using the game's normal trade and upgrade actions from Python. It also provides market, ticker-news, and auto-action toast updates, aggregate graph activity, and auto-action controls.
 
 The plugin listens on `127.0.0.1` only. It does not enable or use the game's official `modSupport` file API, and it does not write bridge snapshots, trade requests, results, or market exports to disk. BepInEx still writes its normal config and log files, and the game can save its own settings. In online mode, the game remains responsible for processing and validating actions submitted through its normal methods. Trades and auto actions can change the shared online market.
 
@@ -56,7 +56,7 @@ with BridgeClient(
 
 ## API guide
 
-See the [bridge usage guide](docs/bridge-usage.md) for market and stock discovery, ticker-news subscriptions, the captured welcome-back summary, graph activity, cooldowns, trades, upgrades, auto actions, and complete examples. The plugin automatically claims available level rewards and captures then closes the welcome-back screen by default. To change either behavior, set `AutoClaimLevelRewards` or `AutoCloseOfflineSummary` under `[QualityOfLife]` in `BepInEx\config\screenstocks.bridge.cfg`, then restart the game.
+See the [bridge usage guide](docs/bridge-usage.md) for market and stock discovery, ticker-news and auto-action toast subscriptions, the captured welcome-back summary, graph activity, cooldowns, trades, upgrades, auto actions, and complete examples. The plugin automatically claims available level rewards and captures then closes the welcome-back screen by default. To change either behavior, set `AutoClaimLevelRewards` or `AutoCloseOfflineSummary` under `[QualityOfLife]` in `BepInEx\config\screenstocks.bridge.cfg`, then restart the game.
 
 ## Troubleshooting
 

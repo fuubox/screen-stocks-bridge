@@ -60,12 +60,24 @@ class BridgeClientTests(unittest.TestCase):
             message = {
                 "id": request["id"],
                 "ok": True,
-                "result": self.fixture if request["method"] == "offline_summary.snapshot" else {"status": "subscribed"},
+                "result": self.fixture if request["method"] == "offline_summary.snapshot" else
+                    ({"status": "unsubscribed"} if request["method"] == "auto_actions.unsubscribe_toasts" else {"status": "subscribed"}),
                 "error": None,
             }
             frame = json.dumps(message, separators=(",", ":")) + "\n"
             if request["method"] == "state.subscribe":
                 frame += json.dumps({"event": "market.updated", "data": {"ready": True}}) + "\n"
+            elif request["method"] == "auto_actions.subscribe_toasts":
+                frame += json.dumps({
+                    "event": "auto_action.toast",
+                    "data": {
+                        "text": "Executed Buy for $TECH",
+                        "stockId": "$TECH",
+                        "actionType": "Buy",
+                        "condition": "Above",
+                        "targetPrice": 125.5,
+                    },
+                }) + "\n"
             self._write_fragmented(stream, frame)
 
         self.server = _FakeBridge(responder)
@@ -157,5 +169,37 @@ class BridgeClientTests(unittest.TestCase):
         self.assertEqual({"ready": True}, events[0]["data"])
 
 
+    def test_auto_action_toast_subscription_delivers_details_and_unsubscribes(self) -> None:
+        client = self._client()
+        received = threading.Event()
+        events: list[dict[str, Any]] = []
+
+        def callback(event: dict[str, Any]) -> None:
+            events.append(event)
+            received.set()
+
+        result = client.subscribe_auto_action_toasts(callback)
+        subscribe_request = self.server.requests.get(timeout=1)
+
+        self.assertEqual({"status": "subscribed"}, result)
+        self.assertEqual("auto_actions.subscribe_toasts", subscribe_request["method"])
+        self.assertTrue(received.wait(timeout=2))
+        self.assertEqual(
+            {
+                "event": "auto_action.toast",
+                "data": {
+                    "text": "Executed Buy for $TECH",
+                    "stockId": "$TECH",
+                    "actionType": "Buy",
+                    "condition": "Above",
+                    "targetPrice": 125.5,
+                },
+            },
+            events[0],
+        )
+
+        self.assertEqual({"status": "unsubscribed"}, client.unsubscribe_auto_action_toasts())
+        unsubscribe_request = self.server.requests.get(timeout=1)
+        self.assertEqual("auto_actions.unsubscribe_toasts", unsubscribe_request["method"])
 if __name__ == "__main__":
     unittest.main()

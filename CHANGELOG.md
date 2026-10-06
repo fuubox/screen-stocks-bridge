@@ -3,6 +3,27 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [0.8.0] - 2026-10-06
+
+### Added
+
+- Python subscription to newly initialized auto-action completion toasts via
+  `subscribe_auto_action_toasts()` and `auto_action.toast` events.
+- Toast text and structured action context: stock ID, action type, condition,
+  and target price. The bridge forwards the game's localized TextMeshPro text
+  without polling or making backend requests.
+- End-user documentation with a complete listener example, event schema,
+  callback-thread guidance, cleanup, and compatibility troubleshooting.
+
+### Verified
+
+- Captured a live toast and confirmed its event fields and raw rich-text text.
+- Observed the displayed ticker `$BASE` differ from the structured stock ID
+  `$PLAIN`; the guide explains this distinction and advises mapping through the
+  live stock catalog rather than parsing localized text.
+- Confirmed an authenticated `state.snapshot` succeeds when no subscription
+  event is being sent and reports `ready: true`.
+
 ## [0.7.0] - 2026-10-05
 
 ### Added

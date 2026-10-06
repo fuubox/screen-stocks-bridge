@@ -120,4 +120,19 @@ public sealed class ProtocolSerializationTests
     {
         Assert.Equal(expected, RequestValidation.IsValidUpgradeQuantity(quantity));
     }
+    [Fact]
+    public void AutoActionToastSerializerPreservesDisplayedTextAndActionContext()
+    {
+        const string expected = "{\"text\":\"Executed Buy for $TECH\",\"stockId\":\"$TECH\",\"actionType\":\"Buy\",\"condition\":\"Above\",\"targetPrice\":125.5}";
+        var actual = BridgeJson.SerializeAutoActionToast(new AutoActionToastDto
+        {
+            text = "Executed Buy for $TECH",
+            stockId = "$TECH",
+            actionType = "Buy",
+            condition = "Above",
+            targetPrice = 125.5f
+        });
+
+        Assert.Equal(expected, actual);
+    }
 }

@@ -93,9 +93,57 @@
       "name": "ClaimLevel",
       "returnType": "System.Boolean",
       "parameters": ["System.Int32"]
+    },
+    {
+      "type": "AutoActionToastController",
+      "name": "Init",
+      "returnType": "System.Void",
+      "parameters": ["AutoAction"]
     }
   ],
   "fields": [
+    {
+      "type": "AutoActionToastController",
+      "name": "actionText",
+      "fieldType": "TMPro.TMP_Text",
+      "public": false
+    },
+    {
+      "type": "AutoAction",
+      "name": "slotIndex",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "AutoAction",
+      "name": "stockId",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "AutoAction",
+      "name": "actionType",
+      "fieldType": "AutoActionType",
+      "public": true
+    },
+    {
+      "type": "AutoAction",
+      "name": "condition",
+      "fieldType": "ActionCondition",
+      "public": true
+    },
+    {
+      "type": "AutoAction",
+      "name": "targetPrice",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "AutoAction",
+      "name": "amountPercentage",
+      "fieldType": "System.Int32",
+      "public": true
+    },
     {
       "type": "ScreenStocks.Net.WireLeaderboardResponse",
       "name": "totalRanked",

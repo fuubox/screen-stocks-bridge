@@ -99,6 +99,17 @@ namespace ScreenStocksBridge
             return json.Append('}').ToString();
         }
 
+        internal static string SerializeAutoActionToast(AutoActionToastDto value)
+        {
+            var json = new StringBuilder(256);
+            return json.Append("{\"text\":").Append(Quote(value.text ?? string.Empty))
+                .Append(",\"stockId\":").Append(Quote(value.stockId ?? string.Empty))
+                .Append(",\"actionType\":").Append(Quote(value.actionType ?? string.Empty))
+                .Append(",\"condition\":").Append(Quote(value.condition ?? string.Empty))
+                .Append(",\"targetPrice\":").Append(Number(value.targetPrice))
+                .Append('}').ToString();
+        }
+
         internal static string SerializeOfflineProgressSnapshot(OfflineProgressSnapshotDto value)
         {
             if (!value.available || value.summary == null) return "{\"available\":false,\"summary\":null}";

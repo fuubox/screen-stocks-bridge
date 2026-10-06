@@ -191,6 +191,17 @@ class BridgeClient:
         """Stop receiving ticker headline events on this connection."""
         return self.request("news.unsubscribe")
 
+    def subscribe_auto_action_toasts(self, callback: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
+        """Subscribe to auto_action.toast events for newly displayed game toasts."""
+        with self._callbacks_lock:
+            if callback not in self._callbacks:
+                self._callbacks.append(callback)
+        return self.request("auto_actions.subscribe_toasts")
+
+    def unsubscribe_auto_action_toasts(self) -> dict[str, Any]:
+        """Stop receiving auto-action completion toast events on this connection."""
+        return self.request("auto_actions.unsubscribe_toasts")
+
     def trade(self, action: str, stock_id: str, percent: float | None = None) -> dict[str, Any]:
         """Submit one explicit allowlisted trade; completion arrives as an event."""
         params: dict[str, Any] = {"action": action, "stockId": stock_id}

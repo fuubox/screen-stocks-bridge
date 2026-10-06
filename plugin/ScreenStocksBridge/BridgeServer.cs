@@ -44,6 +44,10 @@ namespace ScreenStocksBridge
         {
             get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.IsNewsSubscribed) return true; } return false; }
         }
+        internal bool HasAutoActionToastSubscribers
+        {
+            get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.IsAutoActionToastSubscribed) return true; } return false; }
+        }
 
         internal List<string> GetSubscribedHumanActivityStockIds()
         {
@@ -100,6 +104,16 @@ namespace ScreenStocksBridge
             lock (_gate) clients = _clients.ToArray();
             foreach (var client in clients)
                 if (!client.IsClosed && client.IsNewsSubscribed) client.Send(frame, true);
+        }
+
+        internal void PublishAutoActionToast(string rawData)
+        {
+            var frame = ProtocolJson.Event("auto_action.toast", rawData);
+            if (Encoding.UTF8.GetByteCount(frame) > MaxFrameBytes) return;
+            BridgeConnection[] clients;
+            lock (_gate) clients = _clients.ToArray();
+            foreach (var client in clients)
+                if (!client.IsClosed && client.IsAutoActionToastSubscribed) client.Send(frame, true);
         }
 
         private void AcceptLoop()
@@ -218,6 +232,7 @@ namespace ScreenStocksBridge
         internal bool IsClosed => _closed;
         internal bool IsSubscribed { get; set; }
         internal bool IsNewsSubscribed { get; set; }
+        internal bool IsAutoActionToastSubscribed { get; set; }
         internal bool HasHumanActivitySubscriptions => _humanActivitySubscriptions.Count > 0;
 
         internal void SubscribeHumanActivity(string stockId) { _humanActivitySubscriptions.Add(stockId); }

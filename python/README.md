@@ -30,10 +30,10 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     print(recent["entries"])
 ```
 
-The client supports state reads, market and ticker-news subscriptions, leaderboard
-requests, transaction-history reads, activity reads and subscriptions, explicit
-single-stock activity-focus controls, trades, upgrade purchases, and auto-action
-controls. Request a game-supported leaderboard with `leaderboard("current")`,
+The client supports state reads, market, ticker-news, and auto-action toast
+subscriptions, leaderboard requests, transaction-history reads, activity reads
+and subscriptions, explicit single-stock activity-focus controls, trades,
+upgrade purchases, and auto-action controls. Request a game-supported leaderboard with `leaderboard("current")`,
 `leaderboard("all_time")`, `leaderboard("ipo")`, `leaderboard("current_top")`,
 `leaderboard("clan_net_worth")`, or `leaderboard("clan_player_share")`. Leaderboard
 requests use the game's in-process client, with one live request every 30 seconds;
@@ -45,6 +45,10 @@ for the full API and its online behavior. Activity history reads page through
 only the samples the game currently retains in memory; they do not fetch older
 history from the game's server, and the bridge makes no guarantee about the
 retained history's total depth or time span.
+
+For a complete, runnable auto-action toast listener—including the event schema,
+callback threading, cleanup, and error handling—see [Subscribe to auto-action
+completion toasts](../docs/bridge-usage.md#subscribe-to-auto-action-completion-toasts).
 
 Use `transaction_history(filter="both", limit=100)` to read recent transactions.
 Filters are `manual`, `both`, and `auto_action`. The game screen can seed the

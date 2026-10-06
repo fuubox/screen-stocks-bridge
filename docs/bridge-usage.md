@@ -236,6 +236,111 @@ Action types are `Buy`, `Short`, `CloseBuy`, and `CloseShort`; conditions are `A
 
 Configuring an action does not by itself enable global auto actions. Enabling an action or turning on the global switch can cause the game to submit trades later according to its normal rules. Only activate auto actions when you intend to let the game trade automatically.
 
+## Subscribe to auto-action completion toasts
+
+`bridge.subscribe_auto_action_toasts(callback)` subscribes the current connection to `auto_action.toast` events. The plugin observes the game's `AutoActionToastController.Init(AutoAction)` UI path: when the game initializes a toast, the bridge forwards the text and action details represented by that toast. It does not poll the game or request anything from the backend. Each client connection has its own subscription; subscribe and unsubscribe on the same `BridgeClient` instance.
+
+The callback receives the normal event envelope. A representative event is:
+
+```json
+{
+  "event": "auto_action.toast",
+  "data": {
+    "text": "If <color=#FF4D4D>$BASE</color> ≥ <color=#0FBA82>$644.28</color> → <color=#CCCC33>short</color> using <color=#0FBA82>100%</color>",
+    "stockId": "$PLAIN",
+    "actionType": "Short",
+    "condition": "Above",
+    "targetPrice": 644.28
+  }
+}
+```
+
+| Field | JSON type | Meaning and use |
+| --- | --- | --- |
+| `event` | string | Event name. Filter for `auto_action.toast`. |
+| `data.text` | string | Localized TextMeshPro text rendered by the game, including its raw rich-text tags. Display it or strip tags for plain text; do not use it as a stable parser input. |
+| `data.stockId` | string | `stockId` copied from the toast's `AutoAction` object, such as `$PLAIN`. It may differ from the ticker text shown in `data.text`. |
+| `data.actionType` | string | Action kind: `Buy`, `Short`, `CloseBuy`, or `CloseShort`. |
+| `data.condition` | string | Trigger comparison: `Above` or `Below`. |
+| `data.targetPrice` | number | The trigger price stored on the toast's action object. |
+
+`text` is the localized TextMeshPro string supplied by the game, including raw rich-text tags such as `<color=#...>` and `</color>`. It may change with the game's language or wording. Use the structured fields for program logic, but note that the visible ticker in `text` is not guaranteed to match `stockId`: in the live capture above, the toast text displayed `$BASE` while `data.stockId` was `$PLAIN`. The structured field is copied from the toast's `AutoAction` object; if your application needs to map that to a market instrument, cross-check the live market catalog instead of parsing the localized text. The toast's reduced action object does not retain the configured slot index or amount percentage, so the event intentionally has no `slotIndex` or `amountPercentage`. Do not parse those values out of the text. If you need current slot configuration, call `auto_actions()` separately; that is a snapshot and is not a historical link to a particular toast.
+
+The Python client delivers callbacks on its background event-dispatch thread, not the thread that called `subscribe_auto_action_toasts`. Keep the callback short; enqueue work for a worker if processing could take time. The client suppresses exceptions raised by callbacks, so catch and log errors inside your callback. The following complete example listens until Ctrl+C, validates the expected fields, and unsubscribes cleanly:
+
+```python
+import logging
+import os
+import threading
+
+from screenstocks_bridge import BridgeClient, BridgeError
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+token = os.environ.get("SCREENSTOCKS_TOKEN")
+if not token:
+    raise SystemExit("Set SCREENSTOCKS_TOKEN to the token in screenstocks.bridge.cfg.")
+
+host = os.environ.get("SCREENSTOCKS_HOST", "127.0.0.1")
+port = int(os.environ.get("SCREENSTOCKS_PORT", "48721"))
+
+
+def on_event(event: dict) -> None:
+    if event.get("event") != "auto_action.toast":
+        return  # The connection may carry other subscribed event types too.
+
+    try:
+        toast = event["data"]
+        stock_id = toast["stockId"]
+        action_type = toast["actionType"]
+        condition = toast["condition"]
+        target_price = toast["targetPrice"]
+        logging.info("Game toast: %s", toast["text"])
+        logging.info("Action %s %s; condition %s %.4f", action_type, stock_id,
+                     condition, target_price)
+    except (KeyError, TypeError, ValueError):
+        logging.exception("Received an auto-action toast with an unexpected shape: %r", event)
+
+
+try:
+    with BridgeClient(host=host, port=port, token=token) as bridge:
+        subscribed = False
+        try:
+            result = bridge.subscribe_auto_action_toasts(on_event)
+            subscribed = True
+            logging.info("Toast subscription: %s", result["status"])
+            logging.info("Listening for new auto-action toasts; press Ctrl+C to stop.")
+            threading.Event().wait()  # The callback runs on the client's event worker thread.
+        except KeyboardInterrupt:
+            logging.info("Stopping toast listener.")
+        except BridgeError as exc:
+            logging.error("Bridge error %s: %s", exc.code, exc.message)
+            if exc.code == "auto_action_toasts_unavailable":
+                logging.error("This game build does not expose the toast UI hook required by the plugin.")
+        finally:
+            if subscribed:
+                try:
+                    result = bridge.unsubscribe_auto_action_toasts()
+                    logging.info("Toast subscription: %s", result["status"])
+                except BridgeError:
+                    logging.exception("Could not confirm unsubscribe; closing the connection will end its subscription.")
+except (OSError, ValueError) as exc:
+    logging.error("Could not connect; check that the game is running and the host, port, and token are correct: %s", exc)
+```
+
+Save the Python example as `listen_for_auto_action_toasts.py` in your current directory and install the `screenstocks-bridge` package first. Set the connection values before running the script. In PowerShell, for example:
+
+```powershell
+$env:SCREENSTOCKS_HOST = "127.0.0.1"
+$env:SCREENSTOCKS_PORT = "48721"
+$env:SCREENSTOCKS_TOKEN = "paste-the-token-here"
+python .\listen_for_auto_action_toasts.py
+```
+
+The default port is `48721`; use the `Port` value from `BepInEx/config/screenstocks.bridge.cfg` if you changed it. `subscribe_auto_action_toasts` returns `{"status": "subscribed"}` when accepted, while `unsubscribe_auto_action_toasts` returns `{"status": "unsubscribed"}`. An `auto_action_toasts_unavailable` error means the plugin could not attach to the toast UI method in this game build; check the BepInEx log for plugin startup and compatibility errors.
+
+Only toasts initialized after subscription are sent. There is no history, replay, or guarantee that a missed/disconnected event can be recovered. Unsubscribing stops delivery to that connection; closing the client also ends its subscription. The event reports that the game's toast UI was initialized; it is not a trade receipt and does not independently confirm a trade's final server-side outcome. A live capture on the current demo build confirmed the event envelope, all five data fields, and the raw rich-text string shown above; stock label and structured `stockId` differed in that capture.
+
 ## Automatically claim level rewards
 
 The plugin can claim available per-level rewards directly, without Python or a bridge request. The `QualityOfLife.AutoClaimLevelRewards` setting in `BepInEx\config\screenstocks.bridge.cfg` defaults to `true`. The plugin checks the game's claimable level entries and calls the same public `GameManager.ClaimLevel(index)` method used by the game UI, with at most one claim request per second. Entry count and claim eligibility come from the game at runtime; the plugin does not assume a fixed number of levels.
@@ -301,5 +406,7 @@ Live verification on the demo build confirmed that `upgrades.snapshot` returned 
 | `auto_actions.remove` | Remove an action by `slotIndex` |
 | `auto_actions.set_enabled` | Enable or disable an action |
 | `auto_actions.set_active` | Turn global auto-action execution on or off |
+| `auto_actions.subscribe_toasts` | Subscribe to newly initialized auto-action completion toasts |
+| `auto_actions.unsubscribe_toasts` | Stop this connection's auto-action toast events |
 
 For setup, protocol limits, and troubleshooting, see the [project README](../README.md).

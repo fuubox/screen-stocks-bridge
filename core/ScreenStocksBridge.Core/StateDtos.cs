@@ -76,6 +76,16 @@ namespace ScreenStocksBridge
     }
 
     [Serializable]
+    public sealed class AutoActionToastDto
+    {
+        public string text = string.Empty;
+        public string stockId = string.Empty;
+        public string actionType = string.Empty;
+        public string condition = string.Empty;
+        public float targetPrice;
+    }
+
+    [Serializable]
     public sealed class HumanActivityFocusDto
     {
         public bool active;

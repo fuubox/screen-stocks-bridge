@@ -13,7 +13,7 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.7.0";
+        public const string PluginVersion = "0.8.0";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
@@ -25,9 +25,11 @@ namespace ScreenStocksBridge
         private Harmony? _harmony;
         private Harmony? _transactionHistoryHarmony;
         private Harmony? _newsTickerHarmony;
+        private Harmony? _autoActionToastHarmony;
         private readonly StateService _state = new StateService();
         private readonly OfflineProgressCaptureService _offlineProgress = new OfflineProgressCaptureService();
         private readonly NewsTickerService _newsTicker = new NewsTickerService();
+        private readonly AutoActionToastService _autoActionToasts = new AutoActionToastService();
         private readonly HumanActivityService _humanActivity = new HumanActivityService();
         private readonly HumanActivityFocusService _humanActivityFocus = new HumanActivityFocusService();
         private readonly AutoActionsService _autoActions = new AutoActionsService();
@@ -118,6 +120,7 @@ namespace ScreenStocksBridge
                 _server = new BridgeServer(BridgePort.Value, BridgeToken.Value);
                 _server.Start();
                 _newsTicker.SetServer(_server);
+                _autoActionToasts.SetServer(_server);
                 Logger.LogInfo("Loopback API listening on 127.0.0.1:" + BridgePort.Value + ".");
             }
             catch (Exception ex)
@@ -143,6 +146,22 @@ namespace ScreenStocksBridge
                     _newsTickerHarmony = null;
                     _newsTicker.SetAvailable(false);
                     Logger.LogWarning("Could not hook the news ticker: " + ex.Message);
+                }
+
+                try
+                {
+                    _autoActionToastHarmony = new Harmony(PluginGuid + ".auto-action-toasts");
+                    AutoActionToastHarmonyPatch.CaptureService = _autoActionToasts;
+                    AutoActionToastHarmonyPatch.Install(_autoActionToastHarmony);
+                    _autoActionToasts.SetAvailable(true);
+                }
+                catch (Exception ex)
+                {
+                    AutoActionToastHarmonyPatch.CaptureService = null;
+                    _autoActionToastHarmony?.UnpatchSelf();
+                    _autoActionToastHarmony = null;
+                    _autoActionToasts.SetAvailable(false);
+                    Logger.LogWarning("Could not hook auto-action completion toasts: " + ex.Message);
                 }
             }
         }
@@ -272,6 +291,24 @@ namespace ScreenStocksBridge
                 connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"unsubscribed\"}", string.Empty), false);
                 return;
             }
+            if (request.method == "auto_actions.subscribe_toasts")
+            {
+                if (!_autoActionToasts.Available)
+                {
+                    connection.Send(ProtocolJson.Error(request.id, "auto_action_toasts_unavailable",
+                        "Auto-action completion toasts could not be hooked in this build."), false);
+                    return;
+                }
+                connection.IsAutoActionToastSubscribed = true;
+                connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"subscribed\"}", string.Empty), false);
+                return;
+            }
+            if (request.method == "auto_actions.unsubscribe_toasts")
+            {
+                connection.IsAutoActionToastSubscribed = false;
+                connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"unsubscribed\"}", string.Empty), false);
+                return;
+            }
             if (request.method == "market.human_activity")
             {
                 connection.Send(_humanActivity.Handle(request), false);
@@ -390,6 +427,10 @@ namespace ScreenStocksBridge
             _newsTickerHarmony?.UnpatchSelf();
             _newsTickerHarmony = null;
             _newsTicker.SetServer(null);
+            AutoActionToastHarmonyPatch.CaptureService = null;
+            _autoActionToastHarmony?.UnpatchSelf();
+            _autoActionToastHarmony = null;
+            _autoActionToasts.SetServer(null);
             if (!_humanActivityFocus.RestoreOnShutdown())
                 Logger.LogWarning("Could not restore the game's activity focus while shutting down the plugin.");
             _server?.Dispose();
