@@ -101,20 +101,102 @@ For change notifications, `bridge.subscribe_market(callback)` delivers `market.u
 
 ## Subscribe to ticker news
 
-`bridge.subscribe_news(callback)` receives `news.updated` events as new headlines are rendered by the game's ticker. Each event includes `text`, the exact localized string passed to the game's text renderer (including any Unity rich-text color tags), and structured fields for the source item. `type` is `market` for market price news or `scheduled_price` for scheduled-price announcements. Market items include `id`, `cursor`, `createdAtMs`, `stockId`, `price`, `kind`, `lookbackMinutes`, and `debug`; scheduled-price items include `id`, `cursor`, `occurrenceId`, `revision`, `stockId`, `targetPrice`, `scheduledAtMs`, `reminderOffsetMs`, `publishedAtMs`, and `direction`.
+`bridge.subscribe_news(callback)` subscribes this connection to `news.updated` events. The current game hook covers two ticker formatter paths:
 
-This is an event subscription to the ticker the game is already rendering. The bridge makes no additional backend requests and does not poll for news. It emits new ticker items while subscribed; it does not replay headlines rendered before subscription. The event feed reflects the game's current in-memory session and is not a historical news archive. Under event backpressure, an update may be dropped. Call `unsubscribe_news()` to stop this connection's news events. Callbacks run on the Python event worker thread and receive the usual event dictionary.
+| `data.type` | Game path | Event fields specific to this type |
+| --- | --- | --- |
+| `market` | `MarketNewsTickerUI.OrdinaryMessage(MarketNewsEventDto)` | `id`, `cursor`, `createdAtMs`, `stockId`, `price`, `kind`, `lookbackMinutes`, `debug` |
+| `scheduled_price` | `MarketNewsTickerUI.ScheduledMessage(ScheduledPriceAnnouncementDto)` | `id`, `cursor`, `occurrenceId`, `revision`, `stockId`, `targetPrice`, `scheduledAtMs`, `reminderOffsetMs`, `publishedAtMs`, `direction` |
+
+The plugin captures the formatter's returned string and forwards an item only after the ticker calls `SpawnText` with that same text and stock ID. This confirms the item reached the ticker's text-spawn path. It does not capture every news object the game may receive, other UI messages, or ticker types outside those two formatter paths. The compatibility check pins all three game methods and the source DTO fields used by the bridge.
+
+Every event has the standard envelope `{"event":"news.updated","data":{...}}`. `data.type` is the discriminator; `data.text` and the game-provided `data.stockId` are common to both types. Type-specific fields are present only for their matching type; other fields are omitted, not set to `null`.
+
+For a matching type, the bridge serializes every listed field. Source string fields that are absent/null are normalized to `""`; numeric and boolean source fields are serialized with their game-provided value or default (`0`/`false`). Timestamp values are passed through as integers in milliseconds without timezone conversion; the bridge does not reinterpret them as local time.
+
+| Field | JSON type | Meaning and use |
+| --- | --- | --- |
+| `data.type` | string | `market` or `scheduled_price` in the current bridge implementation. Handle unknown values defensively in case a future version adds another ticker type. |
+| `data.text` | string | Exact localized string returned by the game's formatter and sent to the ticker, including Unity rich-text tags such as `<color=...>`. Useful for display; wording, localization, and tags can change, so don't parse it for program logic. |
+| `data.stockId` | string | Stock ID forwarded from the game's source item. Use this structured ID instead of extracting a symbol from localized `text`. |
+| `data.id`, `data.cursor` | string | Source identifiers copied from the item. Treat them as opaque; the bridge does not define ordering, lifetime, or deduplication semantics for them. |
+| `data.createdAtMs` | integer | Game-provided creation-time value for an ordinary market-news item, in milliseconds. |
+| `data.price` | number | Game-provided price associated with an ordinary market-news item. |
+| `data.kind` | string | Game-provided market-news category. Pass it through rather than assuming a fixed set of values. |
+| `data.lookbackMinutes` | number | Game-provided lookback interval for an ordinary market-news item, in minutes. |
+| `data.debug` | boolean | Game-provided debug flag for an ordinary market-news item. |
+| `data.occurrenceId`, `data.revision` | string | Source occurrence and revision identifiers for a scheduled-price item. The bridge forwards them without interpreting them. |
+| `data.targetPrice` | number | Announced target price for a scheduled-price item. It is the value supplied to the announcement formatter. |
+| `data.scheduledAtMs`, `data.publishedAtMs` | integer | Game-provided scheduled and publication time values, in milliseconds. |
+| `data.reminderOffsetMs` | integer | Game-provided reminder offset, in milliseconds; this is an offset, not a timestamp. |
+| `data.direction` | string | Game-provided direction for a scheduled-price item. Treat it as a source string; the bridge does not constrain its values. |
+
+The event is emitted only if a client is subscribed when the ticker text is spawned. The plugin does not retain items when nobody is listening, replay headlines from before subscription, or provide a history query. It also does not poll or make backend requests to obtain news; the feed reflects only the game's in-memory session and normal ticker rendering. Headlines may be sparse, and scheduled announcements are included only when the game naturally renders them. Do not create extra game/backend activity just to make this feed produce an event.
+
+If the plugin cannot install the ticker hooks for the current game build, `subscribe_news()` raises `BridgeError` with code `news_unavailable`. The manifest protects the known method signatures and DTO fields, but a successful signature check cannot prove the game's behavior is unchanged after a patch.
+
+The Python client has no news-specific typed model; callback `event` and `event["data"]` are dictionaries. It returns `{"status":"subscribed"}` or `{"status":"unsubscribed"}` from the corresponding calls. Each bridge connection has an independent subscription; subscribe and unsubscribe on the same `BridgeClient`. Closing that connection also ends its subscription. The client callback runs on its background event-dispatch thread, receives all event types subscribed on that connection, and has exceptions suppressed by the dispatcher. Filter on `event`, keep the callback short, and catch/log exceptions yourself. Under load, the plugin's outbound queue (64 frames per connection) and the Python event queue (128 events shared across event types) can drop queued events; bridge event frames over 128 KiB are discarded. This is a best-effort event feed, not a durable log.
 
 ```python
+import logging
+import os
+import threading
+
+from screenstocks_bridge import BridgeClient, BridgeError
+
+
 def on_event(event):
     if event.get("event") != "news.updated":
         return
-    headline = event["data"]
-    print(headline["type"], headline["text"], headline["stockId"])
+    try:
+        item = event["data"]
+        item_type = item["type"]
+        logging.info("Ticker text: %s", item["text"])
+        if item_type == "market":
+            logging.info("Market news for %s: %s at %s (%s)",
+                         item["stockId"], item["kind"], item["price"], item["id"])
+        elif item_type == "scheduled_price":
+            logging.info("Scheduled price for %s: %s (%s; occurrence %s revision %s)",
+                         item["stockId"], item["targetPrice"], item["direction"],
+                         item["occurrenceId"], item["revision"])
+        else:
+            logging.warning("Unknown ticker item type %r: %r", item_type, item)
+    except (KeyError, TypeError, ValueError):
+        logging.exception("Unexpected news event shape: %r", event)
 
-bridge.subscribe_news(on_event)
-# Later:
-bridge.unsubscribe_news()
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+token = os.environ.get("SCREENSTOCKS_TOKEN")
+if not token:
+    raise SystemExit("Set SCREENSTOCKS_TOKEN to the token in screenstocks.bridge.cfg.")
+
+host = os.environ.get("SCREENSTOCKS_HOST", "127.0.0.1")
+port = int(os.environ.get("SCREENSTOCKS_PORT", "48721"))
+bridge = BridgeClient(host=host, port=port, token=token)
+try:
+    bridge.connect()
+    subscribed = False
+    try:
+        result = bridge.subscribe_news(on_event)
+        subscribed = True
+        logging.info("News subscription: %s; waiting for newly rendered ticker items", result["status"])
+        threading.Event().wait()  # Ctrl+C stops this example.
+    except BridgeError as exc:
+        logging.error("Bridge error %s: %s", exc.code, exc.message)
+        if exc.code == "news_unavailable":
+            logging.error("This game build did not expose the required ticker hooks.")
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if subscribed:
+            try:
+                bridge.unsubscribe_news()
+            except BridgeError:
+                logging.exception("Unsubscribe was not confirmed; closing the connection ends it.")
+except (OSError, ValueError) as exc:
+    logging.error("Could not connect; check host, port, and token: %s", exc)
+finally:
+    bridge.close()
 ```
 
 ## Request a leaderboard

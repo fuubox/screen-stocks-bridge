@@ -137,6 +137,74 @@ public sealed class ProtocolSerializationTests
     }
 
     [Fact]
+    public void NewsTickerSerializerPreservesMarketHeadlineTextAndSourceFields()
+    {
+        var actual = BridgeJson.SerializeNewsTickerItem(new NewsTickerItemDto
+        {
+            type = "market",
+            text = "<color=#fff>$TECH rose</color>",
+            id = "news-id",
+            cursor = "news-cursor",
+            createdAtMs = 1700000000123,
+            stockId = "$TECH",
+            price = 12.5f,
+            kind = "price-change",
+            lookbackMinutes = 15,
+            debug = true
+        });
+        using var document = JsonDocument.Parse(actual);
+        var item = document.RootElement;
+
+        Assert.Equal("market", item.GetProperty("type").GetString());
+        Assert.Equal("<color=#fff>$TECH rose</color>", item.GetProperty("text").GetString());
+        Assert.Equal("news-id", item.GetProperty("id").GetString());
+        Assert.Equal("news-cursor", item.GetProperty("cursor").GetString());
+        Assert.Equal(1700000000123, item.GetProperty("createdAtMs").GetInt64());
+        Assert.Equal("$TECH", item.GetProperty("stockId").GetString());
+        Assert.Equal(12.5, item.GetProperty("price").GetDouble());
+        Assert.Equal("price-change", item.GetProperty("kind").GetString());
+        Assert.Equal(15, item.GetProperty("lookbackMinutes").GetDouble());
+        Assert.True(item.GetProperty("debug").GetBoolean());
+        Assert.False(item.TryGetProperty("targetPrice", out _));
+    }
+
+    [Fact]
+    public void NewsTickerSerializerPreservesScheduledPriceHeadlineFields()
+    {
+        var actual = BridgeJson.SerializeNewsTickerItem(new NewsTickerItemDto
+        {
+            type = "scheduled_price",
+            text = "Scheduled price update",
+            id = "announcement-id",
+            cursor = "announcement-cursor",
+            occurrenceId = "occurrence-id",
+            revision = "revision-2",
+            stockId = "$TECH",
+            targetPrice = 14.25f,
+            scheduledAtMs = 1700000001000,
+            reminderOffsetMs = 300000,
+            publishedAtMs = 1699999700000,
+            direction = "up"
+        });
+        using var document = JsonDocument.Parse(actual);
+        var item = document.RootElement;
+
+        Assert.Equal("scheduled_price", item.GetProperty("type").GetString());
+        Assert.Equal("Scheduled price update", item.GetProperty("text").GetString());
+        Assert.Equal("announcement-id", item.GetProperty("id").GetString());
+        Assert.Equal("announcement-cursor", item.GetProperty("cursor").GetString());
+        Assert.Equal("occurrence-id", item.GetProperty("occurrenceId").GetString());
+        Assert.Equal("revision-2", item.GetProperty("revision").GetString());
+        Assert.Equal("$TECH", item.GetProperty("stockId").GetString());
+        Assert.Equal(14.25, item.GetProperty("targetPrice").GetDouble());
+        Assert.Equal(1700000001000, item.GetProperty("scheduledAtMs").GetInt64());
+        Assert.Equal(300000, item.GetProperty("reminderOffsetMs").GetInt64());
+        Assert.Equal(1699999700000, item.GetProperty("publishedAtMs").GetInt64());
+        Assert.Equal("up", item.GetProperty("direction").GetString());
+        Assert.False(item.TryGetProperty("price", out _));
+    }
+
+    [Fact]
     public void SnapshotPreservesEffectiveMaxVolumeSeparatelyAndExactly()
     {
         var stock = new StockDto

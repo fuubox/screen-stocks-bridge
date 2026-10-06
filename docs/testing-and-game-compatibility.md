@@ -31,6 +31,7 @@ Use a development installation with the game open. These checks are manual becau
 
 - Plugin loads and binds only to `127.0.0.1` on the configured port.
 - `state.snapshot` reports readiness and visible stock IDs/values on the market screen.
+- `news.subscribe` succeeds; while subscribed, verify an ordinary `market` ticker event when one naturally renders. Verify a `scheduled_price` event only if the game naturally renders one during the check; it can be rare or time-dependent, so do not force backend requests or delay routine smoke tests waiting for it. Confirm event text and structured stock ID come from the rendered item, then unsubscribe and confirm that connection stops receiving ticker events. A later subscription does not replay earlier items.
 - `market.human_activity` reads current graph activity; the focus override changes the observed stock, shows its overlay, respects the five-second change limit, and restores the previous focus when cleared.
 - `offline_summary.snapshot` returns unavailable before a welcome-back summary has been captured, and returns the captured values after a session displays it. Verify the auto-close setting separately when testing the Harmony hook.
 - `upgrades.snapshot` reports available/maxed upgrades; only submit a purchase when intentionally testing against the running game.

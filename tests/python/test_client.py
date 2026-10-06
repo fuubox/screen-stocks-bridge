@@ -61,12 +61,32 @@ class BridgeClientTests(unittest.TestCase):
                 "id": request["id"],
                 "ok": True,
                 "result": self.fixture if request["method"] == "offline_summary.snapshot" else
-                    ({"status": "unsubscribed"} if request["method"] == "auto_actions.unsubscribe_toasts" else {"status": "subscribed"}),
+                    ({"status": "unsubscribed"} if request["method"] in {"news.unsubscribe", "auto_actions.unsubscribe_toasts"} else {"status": "subscribed"}),
                 "error": None,
             }
             frame = json.dumps(message, separators=(",", ":")) + "\n"
             if request["method"] == "state.subscribe":
                 frame += json.dumps({"event": "market.updated", "data": {"ready": True}}) + "\n"
+            elif request["method"] == "news.subscribe":
+                frame += json.dumps({
+                    "event": "news.updated",
+                    "data": {
+                        "type": "market",
+                        "text": "<color=#fff>$TECH rose</color>",
+                        "stockId": "$TECH",
+                        "price": 12.5,
+                    },
+                }) + "\n"
+                frame += json.dumps({
+                    "event": "news.updated",
+                    "data": {
+                        "type": "scheduled_price",
+                        "text": "Scheduled price update",
+                        "stockId": "$TECH",
+                        "targetPrice": 14.25,
+                        "scheduledAtMs": 1700000001000,
+                    },
+                }) + "\n"
             elif request["method"] == "auto_actions.subscribe_toasts":
                 frame += json.dumps({
                     "event": "auto_action.toast",
@@ -167,6 +187,30 @@ class BridgeClientTests(unittest.TestCase):
         self.assertTrue(received.wait(timeout=2))
         self.assertEqual("market.updated", events[0]["event"])
         self.assertEqual({"ready": True}, events[0]["data"])
+
+    def test_news_subscription_delivers_both_headline_types_and_unsubscribes(self) -> None:
+        client = self._client()
+        events: queue.Queue[dict[str, Any]] = queue.Queue()
+
+        result = client.subscribe_news(events.put)
+        subscribe_request = self.server.requests.get(timeout=1)
+        market_event = events.get(timeout=2)
+        scheduled_event = events.get(timeout=2)
+
+        self.assertEqual({"status": "subscribed"}, result)
+        self.assertEqual("news.subscribe", subscribe_request["method"])
+        self.assertEqual("test-token", subscribe_request["token"])
+        self.assertEqual("news.updated", market_event["event"])
+        self.assertEqual("market", market_event["data"]["type"])
+        self.assertEqual("<color=#fff>$TECH rose</color>", market_event["data"]["text"])
+        self.assertEqual("news.updated", scheduled_event["event"])
+        self.assertEqual("scheduled_price", scheduled_event["data"]["type"])
+        self.assertEqual(1700000001000, scheduled_event["data"]["scheduledAtMs"])
+
+        result = client.unsubscribe_news()
+        unsubscribe_request = self.server.requests.get(timeout=1)
+        self.assertEqual({"status": "unsubscribed"}, result)
+        self.assertEqual("news.unsubscribe", unsubscribe_request["method"])
 
 
     def test_auto_action_toast_subscription_delivers_details_and_unsubscribes(self) -> None:
