@@ -3,6 +3,27 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [0.9.0] - 2026-10-06
+
+### Added
+
+- Added `effectiveMaxVolume` to stock snapshots, sourced from the game's own
+  calculated cap. It includes purchased Stock Volume upgrades, level rewards,
+  IPO/ascension bonuses, and authoritative remote market caps.
+- Added exact-string access to the effective cap in the Python `Stock` model,
+  alongside the distinct base `maxVolume` and current `availableShares` fields.
+- Documented the meanings, progression behavior, precision, and Python access
+  for all three volume fields.
+
+### Verified
+
+- Confirmed the installed game exposes the required accessor and the plugin
+  builds against it.
+- Confirmed a live bridge snapshot and typed Python model return the effective
+  cap distinctly from base volume and available shares.
+- The live player could not level up or IPO during verification, so a change in
+  the calculated cap after those progression events was not directly tested.
+
 ## [0.8.0] - 2026-10-06
 
 ### Added

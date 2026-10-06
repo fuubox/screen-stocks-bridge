@@ -46,6 +46,21 @@ class Stock:
                    float(value.get("price", 0)), bool(value.get("unlocked", False)),
                    value)
 
+    @property
+    def max_volume(self) -> int:
+        """Base stock volume cap, before player progression bonuses."""
+        return int(self.raw.get("maxVolume", 0))
+
+    @property
+    def effective_max_volume(self) -> str:
+        """Game-calculated cap including purchased upgrades, levels, and IPOs."""
+        return str(self.raw.get("effectiveMaxVolume", "0"))
+
+    @property
+    def available_shares(self) -> int:
+        """Shares currently available from market supply; not the player's cap."""
+        return int(self.raw.get("availableShares", 0))
+
 
 @dataclass(frozen=True)
 class HumanActivityPage:

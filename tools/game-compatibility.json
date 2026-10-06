@@ -78,6 +78,12 @@
     },
     {
       "type": "StockManager",
+      "name": "GetEffectiveMaxVolume",
+      "returnType": "BigNumber",
+      "parameters": ["System.String"]
+    },
+    {
+      "type": "StockManager",
       "name": "GetHumanActivity",
       "returnType": "System.Collections.Generic.IReadOnlyList`1<HumanActivitySample>",
       "parameters": ["System.String"]

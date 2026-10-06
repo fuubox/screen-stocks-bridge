@@ -73,7 +73,7 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 
 - `ready`: whether the online market data source is ready.
 - `serverTick`: the current market tick.
-- `stocks`: stocks visible to the current player and edition. Each record includes `stockId`, `name`, current `price`, `unlocked`, `basePrice`, `priceCap`, `dividendRate`, `maxVolume`, and `availableShares`.
+- `stocks`: stocks visible to the current player and edition. Each record includes `stockId`, `name`, current `price`, `unlocked`, `basePrice`, `priceCap`, `dividendRate`, `maxVolume`, `effectiveMaxVolume`, and `availableShares`.
 - `positions`: the player's long and short holdings and average prices.
 - `cooldowns` and `autoActions`: trade cooldown and auto-action state described below.
 
@@ -86,8 +86,16 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
         print("Market is not ready")
     else:
         for stock in state["stocks"]:
-            print(stock["stockId"], stock["name"], stock["price"], stock["availableShares"])
+            print(stock["stockId"], stock["name"], stock["price"], stock["effectiveMaxVolume"], stock["availableShares"])
 ```
+
+The three volume fields describe different values:
+
+- `maxVolume` is the stock definition's base cap.
+- `effectiveMaxVolume` is the cap calculated by the game for the current player. It includes purchased Stock Volume upgrades, level rewards, and IPO/ascension bonuses. The bridge calls the game's own `StockManager.GetEffectiveMaxVolume` accessor, so it also reflects an authoritative cap when the game is using remote market state. It is serialized as an exact decimal string because `BigNumber` caps can exceed normal integer precision.
+- `availableShares` is the market supply currently available for trading. It is independent of the player's cap and can be lower than either cap.
+
+With the typed Python model, `stock.effective_max_volume` is a string; convert to `int` when integer arithmetic is appropriate. The raw snapshot dictionary exposes the same exact string at `stock["effectiveMaxVolume"]`.
 
 For change notifications, `bridge.subscribe_market(callback)` delivers `market.updated` events containing a new snapshot. Updates are sampled up to four times per second and sent when the snapshot changes.
 
