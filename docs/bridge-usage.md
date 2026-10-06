@@ -91,6 +91,24 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
 
 For change notifications, `bridge.subscribe_market(callback)` delivers `market.updated` events containing a new snapshot. Updates are sampled up to four times per second and sent when the snapshot changes.
 
+## Subscribe to ticker news
+
+`bridge.subscribe_news(callback)` receives `news.updated` events as new headlines are rendered by the game's ticker. Each event includes `text`, the exact localized string passed to the game's text renderer (including any Unity rich-text color tags), and structured fields for the source item. `type` is `market` for market price news or `scheduled_price` for scheduled-price announcements. Market items include `id`, `cursor`, `createdAtMs`, `stockId`, `price`, `kind`, `lookbackMinutes`, and `debug`; scheduled-price items include `id`, `cursor`, `occurrenceId`, `revision`, `stockId`, `targetPrice`, `scheduledAtMs`, `reminderOffsetMs`, `publishedAtMs`, and `direction`.
+
+This is an event subscription to the ticker the game is already rendering. The bridge makes no additional backend requests and does not poll for news. It emits new ticker items while subscribed; it does not replay headlines rendered before subscription. The event feed reflects the game's current in-memory session and is not a historical news archive. Under event backpressure, an update may be dropped. Call `unsubscribe_news()` to stop this connection's news events. Callbacks run on the Python event worker thread and receive the usual event dictionary.
+
+```python
+def on_event(event):
+    if event.get("event") != "news.updated":
+        return
+    headline = event["data"]
+    print(headline["type"], headline["text"], headline["stockId"])
+
+bridge.subscribe_news(on_event)
+# Later:
+bridge.unsubscribe_news()
+```
+
 ## Request a leaderboard
 
 `bridge.leaderboard(mode, radius=None, count=None)` asks the running game to use its own in-process leaderboard client. The bridge does not implement leaderboard endpoints or connect to the game's backend itself; in online mode, the game may make its normal online request. These results are requested data, not a dump of leaderboard history already stored in the bridge.
@@ -265,6 +283,8 @@ Live verification on the demo build confirmed that `upgrades.snapshot` returned 
 | --- | --- |
 | `state.snapshot` | Read current market/player state, cooldowns, and auto actions |
 | `state.subscribe` | Subscribe to `market.updated` events |
+| `news.subscribe` | Subscribe to newly rendered ticker headlines |
+| `news.unsubscribe` | Stop this connection's ticker headline events |
 | `leaderboard.snapshot` | Request one game-supported player or clan leaderboard, subject to cache and cooldown |
 | `offline_summary.snapshot` | Read the latest in-memory welcome-back summary |
 | `market.human_activity` | Read one page of graph activity for a visible stock |

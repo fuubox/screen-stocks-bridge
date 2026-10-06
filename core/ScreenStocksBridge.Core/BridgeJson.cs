@@ -67,6 +67,38 @@ namespace ScreenStocksBridge
             return "{\"active\":" + Bool(value.active) + ",\"stockId\":" + Quote(value.stockId ?? string.Empty) + "}";
         }
 
+        internal static string SerializeNewsTickerItem(NewsTickerItemDto value)
+        {
+            var json = new StringBuilder(384);
+            json.Append("{\"type\":").Append(Quote(value.type ?? string.Empty))
+                .Append(",\"text\":").Append(Quote(value.text ?? string.Empty));
+            if (value.type == "market")
+            {
+                json.Append(",\"id\":").Append(Quote(value.id ?? string.Empty))
+                    .Append(",\"cursor\":").Append(Quote(value.cursor ?? string.Empty))
+                    .Append(",\"createdAtMs\":").Append(value.createdAtMs.ToString(CultureInfo.InvariantCulture))
+                    .Append(",\"stockId\":").Append(Quote(value.stockId ?? string.Empty))
+                    .Append(",\"price\":").Append(Number(value.price))
+                    .Append(",\"kind\":").Append(Quote(value.kind ?? string.Empty))
+                    .Append(",\"lookbackMinutes\":").Append(Number(value.lookbackMinutes))
+                    .Append(",\"debug\":").Append(Bool(value.debug));
+            }
+            else if (value.type == "scheduled_price")
+            {
+                json.Append(",\"id\":").Append(Quote(value.id ?? string.Empty))
+                    .Append(",\"cursor\":").Append(Quote(value.cursor ?? string.Empty))
+                    .Append(",\"occurrenceId\":").Append(Quote(value.occurrenceId ?? string.Empty))
+                    .Append(",\"revision\":").Append(Quote(value.revision ?? string.Empty))
+                    .Append(",\"stockId\":").Append(Quote(value.stockId ?? string.Empty))
+                    .Append(",\"targetPrice\":").Append(Number(value.targetPrice))
+                    .Append(",\"scheduledAtMs\":").Append(value.scheduledAtMs.ToString(CultureInfo.InvariantCulture))
+                    .Append(",\"reminderOffsetMs\":").Append(value.reminderOffsetMs.ToString(CultureInfo.InvariantCulture))
+                    .Append(",\"publishedAtMs\":").Append(value.publishedAtMs.ToString(CultureInfo.InvariantCulture))
+                    .Append(",\"direction\":").Append(Quote(value.direction ?? string.Empty));
+            }
+            return json.Append('}').ToString();
+        }
+
         internal static string SerializeOfflineProgressSnapshot(OfflineProgressSnapshotDto value)
         {
             if (!value.available || value.summary == null) return "{\"available\":false,\"summary\":null}";

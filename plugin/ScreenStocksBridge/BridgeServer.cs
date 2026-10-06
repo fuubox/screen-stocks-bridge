@@ -32,10 +32,6 @@ namespace ScreenStocksBridge
         }
 
         internal int Drain(Action<BridgeRequest, BridgeConnection> handler, int maximum) => _requests.Drain(handler, maximum);
-        internal bool HasSubscribers
-        {
-            get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.HasSubscriptions) return true; } return false; }
-        }
         internal bool HasMarketSubscribers
         {
             get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.IsSubscribed) return true; } return false; }
@@ -43,6 +39,10 @@ namespace ScreenStocksBridge
         internal bool HasHumanActivitySubscribers
         {
             get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.HasHumanActivitySubscriptions) return true; } return false; }
+        }
+        internal bool HasNewsSubscribers
+        {
+            get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.IsNewsSubscribed) return true; } return false; }
         }
 
         internal List<string> GetSubscribedHumanActivityStockIds()
@@ -90,6 +90,16 @@ namespace ScreenStocksBridge
             var frame = ProtocolJson.Event("human_activity.updated", rawData);
             if (Encoding.UTF8.GetByteCount(frame) <= MaxFrameBytes && !connection.IsClosed)
                 connection.Send(frame, true);
+        }
+
+        internal void PublishNewsTicker(string rawData)
+        {
+            var frame = ProtocolJson.Event("news.updated", rawData);
+            if (Encoding.UTF8.GetByteCount(frame) > MaxFrameBytes) return;
+            BridgeConnection[] clients;
+            lock (_gate) clients = _clients.ToArray();
+            foreach (var client in clients)
+                if (!client.IsClosed && client.IsNewsSubscribed) client.Send(frame, true);
         }
 
         private void AcceptLoop()
@@ -207,7 +217,7 @@ namespace ScreenStocksBridge
         internal Stream Stream { get; }
         internal bool IsClosed => _closed;
         internal bool IsSubscribed { get; set; }
-        internal bool HasSubscriptions => IsSubscribed || _humanActivitySubscriptions.Count > 0;
+        internal bool IsNewsSubscribed { get; set; }
         internal bool HasHumanActivitySubscriptions => _humanActivitySubscriptions.Count > 0;
 
         internal void SubscribeHumanActivity(string stockId) { _humanActivitySubscriptions.Add(stockId); }

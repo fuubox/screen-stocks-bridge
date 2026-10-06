@@ -175,6 +175,22 @@ class BridgeClient:
                 self._callbacks.append(callback)
         self.request("state.subscribe")
 
+    def subscribe_news(self, callback: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
+        """Subscribe to newly rendered in-game ticker headlines.
+
+        The callback receives ``news.updated`` events with localized headline
+        text and structured market-news or scheduled-price fields. Items that
+        appeared before the subscription are not replayed.
+        """
+        with self._callbacks_lock:
+            if callback not in self._callbacks:
+                self._callbacks.append(callback)
+        return self.request("news.subscribe")
+
+    def unsubscribe_news(self) -> dict[str, Any]:
+        """Stop receiving ticker headline events on this connection."""
+        return self.request("news.unsubscribe")
+
     def trade(self, action: str, stock_id: str, percent: float | None = None) -> dict[str, Any]:
         """Submit one explicit allowlisted trade; completion arrives as an event."""
         params: dict[str, Any] = {"action": action, "stockId": stock_id}

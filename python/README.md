@@ -30,8 +30,9 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     print(recent["entries"])
 ```
 
-The client supports state reads, leaderboard requests, transaction-history reads, activity reads and subscriptions,
-explicit single-stock activity-focus controls, trades, upgrade purchases, and auto-action
+The client supports state reads, market and ticker-news subscriptions, leaderboard
+requests, transaction-history reads, activity reads and subscriptions, explicit
+single-stock activity-focus controls, trades, upgrade purchases, and auto-action
 controls. Request a game-supported leaderboard with `leaderboard("current")`,
 `leaderboard("all_time")`, `leaderboard("ipo")`, `leaderboard("current_top")`,
 `leaderboard("clan_net_worth")`, or `leaderboard("clan_player_share")`. Leaderboard
