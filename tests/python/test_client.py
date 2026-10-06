@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from screenstocks_bridge import BridgeClient, BridgeError
+from screenstocks_bridge import BridgeClient, BridgeError, Stock
 
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "offline_summary_result.json"
@@ -201,5 +201,25 @@ class BridgeClientTests(unittest.TestCase):
         self.assertEqual({"status": "unsubscribed"}, client.unsubscribe_auto_action_toasts())
         unsubscribe_request = self.server.requests.get(timeout=1)
         self.assertEqual("auto_actions.unsubscribe_toasts", unsubscribe_request["method"])
+
+
+class StockModelTests(unittest.TestCase):
+    def test_effective_max_volume_is_exact_and_distinct_from_other_volumes(self) -> None:
+        stock = Stock.from_dict({
+            "stockId": "$TECH",
+            "name": "Tech",
+            "price": 12.5,
+            "unlocked": True,
+            "maxVolume": 30000,
+            "effectiveMaxVolume": "12345678901234567890",
+            "availableShares": 120,
+        })
+
+        self.assertTrue(hasattr(stock, "effective_max_volume"))
+        self.assertEqual(30000, stock.max_volume)
+        self.assertEqual("12345678901234567890", stock.effective_max_volume)
+        self.assertEqual(120, stock.available_shares)
+
+
 if __name__ == "__main__":
     unittest.main()

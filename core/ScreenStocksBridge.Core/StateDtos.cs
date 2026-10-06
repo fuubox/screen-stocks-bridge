@@ -27,6 +27,7 @@ namespace ScreenStocksBridge
         public float priceCap;
         public float dividendRate;
         public int maxVolume;
+        public string effectiveMaxVolume = "0";
         public int availableShares;
     }
 

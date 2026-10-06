@@ -239,6 +239,7 @@ namespace ScreenStocksBridge
                 .Append(",\"priceCap\":").Append(Number(value.priceCap))
                 .Append(",\"dividendRate\":").Append(Number(value.dividendRate))
                 .Append(",\"maxVolume\":").Append(value.maxVolume.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"effectiveMaxVolume\":").Append(Quote(value.effectiveMaxVolume))
                 .Append(",\"availableShares\":").Append(value.availableShares.ToString(CultureInfo.InvariantCulture)).Append('}');
         }
 

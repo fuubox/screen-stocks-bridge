@@ -40,6 +40,7 @@ namespace ScreenStocksBridge
                         priceCap = stock.EffectivePriceCap,
                         dividendRate = stock.dividendRate,
                         maxVolume = stock.maxVolume,
+                        effectiveMaxVolume = FormatBigNumber(manager.GetEffectiveMaxVolume(stockId)),
                         availableShares = (int)Math.Max(0, Math.Min(int.MaxValue, manager.GetAvailableShares(stockId).ToDouble()))
                     };
                     snapshot.stocks.Add(stockDto);

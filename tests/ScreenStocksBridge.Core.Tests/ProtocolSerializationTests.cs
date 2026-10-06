@@ -135,4 +135,27 @@ public sealed class ProtocolSerializationTests
 
         Assert.Equal(expected, actual);
     }
+
+    [Fact]
+    public void SnapshotPreservesEffectiveMaxVolumeSeparatelyAndExactly()
+    {
+        var stock = new StockDto
+        {
+            stockId = "$TECH",
+            maxVolume = 30000,
+            availableShares = 120
+        };
+        var effectiveVolumeField = typeof(StockDto).GetField("effectiveMaxVolume");
+        Assert.NotNull(effectiveVolumeField);
+        effectiveVolumeField!.SetValue(stock, "12345678901234567890");
+
+        var snapshot = new StateSnapshotDto();
+        snapshot.stocks.Add(stock);
+        using var document = JsonDocument.Parse(BridgeJson.SerializeSnapshot(snapshot));
+        var serializedStock = document.RootElement.GetProperty("stocks")[0];
+
+        Assert.Equal(30000, serializedStock.GetProperty("maxVolume").GetInt32());
+        Assert.Equal("12345678901234567890", serializedStock.GetProperty("effectiveMaxVolume").GetString());
+        Assert.Equal(120, serializedStock.GetProperty("availableShares").GetInt32());
+    }
 }
