@@ -69,6 +69,9 @@ namespace ScreenStocksBridge
                 if (activity == null || ticks == null)
                     return true;
 
+                if (activity.Count > 0)
+                    page.fullScaleImpact = manager.GetHumanActivityFullScaleImpact();
+
                 var alignedCount = Math.Min(activity.Count, ticks.Count);
                 var end = alignedCount;
                 if (beforeTick > 0)

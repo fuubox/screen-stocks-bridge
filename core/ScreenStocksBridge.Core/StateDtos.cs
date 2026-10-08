@@ -49,6 +49,7 @@ namespace ScreenStocksBridge
     public sealed class HumanActivityPageDto
     {
         public string stockId = string.Empty;
+        public double? fullScaleImpact;
         public List<HumanActivityDto> samples = new List<HumanActivityDto>();
         public bool hasMore;
         public long nextBeforeTick;

@@ -3,6 +3,22 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [0.10.0] - 2026-10-07
+
+### Added
+
+- Added page-level `fullScaleImpact` to human-activity queries and subscription
+  events, with typed Python access through `HumanActivityPage.full_scale_impact`.
+- Documented the source and processing of activity values, including bucket
+  validation and alignment, derived totals, sample aggregation, and chart scaling.
+
+### Verified
+
+- Built the plugin and verified a live `$TECH` page returned
+  `fullScaleImpact: 0.35`; the typed Python model returned the same value.
+- Confirmed the latest eight `$TECH` samples in that live response had zero
+  activity counts and impacts.
+
 ## [0.9.0] - 2026-10-06
 
 ### Added

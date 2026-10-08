@@ -42,7 +42,10 @@ namespace ScreenStocksBridge
         internal static string SerializeHumanActivityPage(HumanActivityPageDto value)
         {
             var json = new StringBuilder(512);
-            json.Append("{\"stockId\":").Append(Quote(value.stockId)).Append(",\"samples\":[");
+            json.Append("{\"stockId\":").Append(Quote(value.stockId))
+                .Append(",\"fullScaleImpact\":")
+                .Append(value.fullScaleImpact.HasValue ? Number(value.fullScaleImpact.Value) : "null")
+                .Append(",\"samples\":[");
             for (var i = 0; i < value.samples.Count; i++)
             {
                 if (i > 0) json.Append(',');

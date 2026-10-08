@@ -64,17 +64,22 @@ class Stock:
 
 @dataclass(frozen=True)
 class HumanActivityPage:
+    """One graph-aligned page and its backend-provided chart scale reference."""
+
     stock_id: str
     samples: list[HumanActivity]
     has_more: bool
     next_before_tick: int
     raw: dict[str, Any] = field(repr=False)
+    full_scale_impact: float | None = None
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> HumanActivityPage:
+        full_scale_impact = value.get("fullScaleImpact")
         return cls(str(value.get("stockId", "")),
                    [HumanActivity.from_dict(item) for item in value.get("samples", [])],
-                   bool(value.get("hasMore", False)), int(value.get("nextBeforeTick", 0)), value)
+                   bool(value.get("hasMore", False)), int(value.get("nextBeforeTick", 0)), value,
+                   None if full_scale_impact is None else float(full_scale_impact))
 
 
 @dataclass(frozen=True)
