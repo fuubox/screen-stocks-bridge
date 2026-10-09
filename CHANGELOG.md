@@ -5,6 +5,14 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-09
+
+### Changed
+
+- Pace bridge-submitted trades with a 10-token bucket that refills at one token
+  per second, matching the game's file-command trade pacing and returning a
+  retry delay when bridge capacity is exhausted.
+
 ## [0.12.0] - 2026-10-09
 
 ### Added

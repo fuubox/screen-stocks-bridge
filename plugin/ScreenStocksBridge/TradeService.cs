@@ -8,6 +8,7 @@ namespace ScreenStocksBridge
     internal sealed class TradeService
     {
         private readonly Dictionary<string, PendingTrade> _pending = new Dictionary<string, PendingTrade>();
+        private readonly TradeRateLimiter _rateLimiter = new TradeRateLimiter();
         private static readonly HashSet<string> Actions = new HashSet<string>(StringComparer.Ordinal)
         {
             "buy_max", "buy_percent", "short_max", "short_percent", "close_max", "close_percent",
@@ -49,6 +50,14 @@ namespace ScreenStocksBridge
                 return ProtocolJson.Error(request.id, "no_position", "No long or short shares are available to close.");
             if (action.StartsWith("short_", StringComparison.Ordinal) && manager.GetAvailableShares(stockId).CompareTo(BigNumber.Zero) <= 0)
                 return ProtocolJson.Error(request.id, "no_short_volume", "No shares are currently available to short.");
+
+            var hasLongPosition = position != null && position.sharesOwned.CompareTo(BigNumber.Zero) > 0;
+            var hasShortPosition = position != null && position.sharesShorted.CompareTo(BigNumber.Zero) > 0;
+            if (!TradeRatePolicy.TryGetTokenCost(action, hasLongPosition, hasShortPosition, out var tokenCost))
+                return ProtocolJson.Error(request.id, "invalid_action", "Action is not valid for the current position.");
+            if (!_rateLimiter.TryConsume(tokenCost, Time.realtimeSinceStartup, out var retryAfterMs))
+                return ProtocolJson.Error(request.id, "rate_limited",
+                    "Trade command rate limit exhausted.", retryAfterMs);
 
             Task<bool> task;
             try { task = Dispatch(action, stockId, percent, position); }

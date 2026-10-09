@@ -343,6 +343,8 @@ print(response)  # submitted means accepted for game processing, not completed
 
 Trades affect the shared online market. Completion or rejection arrives asynchronously as a `trade.completed` event with the request ID, action, stock ID, status, and, when available, a reason. The bridge checks that a manual trade can start, the stock is visible/unlocked, and the stock is not held before handing the call to the game. The game applies its own affordability, volume, cooldown, and final server checks.
 
+Bridge trade submissions use a token bucket matching the game's file-command rate: it starts with 10 tokens, refills at 1 token per second, and caps at 10. Buy and short actions cost 1 token, or 2 when they open against an existing opposite-side position; sell and cover cost 1; close costs 1 per open side. A token is charged when a command passes bridge validation and is handed to the game; an asynchronous game rejection does not refund it. When depleted, the bridge returns `rate_limited` with `error.retryAfterMs`. This bucket paces bridge trade requests; it does not count manual UI trades or commands sent through the game's separate file API.
+
 ### Multiple submissions and cooldowns
 
 The bridge has no batch-trade endpoint. You can send several individual calls, but each is checked against the game's current manual-trade queue availability and per-stock hold. The bridge does not expose a queue depth or promise that every submitted call will execute.
