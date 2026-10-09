@@ -6,6 +6,6 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>ScreenStocksBridge.Core</AssemblyName>
     <RootNamespace>ScreenStocksBridge</RootNamespace>
-    <Version>0.11.2</Version>
+    <Version>0.12.0</Version>
   </PropertyGroup>
 </Project>

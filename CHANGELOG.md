@@ -5,10 +5,18 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-09
+
 ### Added
 
 - IPO state snapshots and a guarded Python trigger that delegates to the game's
   own IPO method after its readiness, unlock, and eligibility checks.
+
+### Verified
+
+- Built against the installed demo and checked the required IPO method and data
+  signatures against the current game assembly.
+- IPO execution was not tested in-game because the demo save is still IPO-locked.
 
 ## [0.11.2] - 2026-10-09
 
