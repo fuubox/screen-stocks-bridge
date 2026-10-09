@@ -2,8 +2,8 @@
   "game": "Screen Stocks Demo",
   "assemblyName": "Assembly-CSharp",
   "assemblyVersion": "0.0.0.0",
-  "moduleMvid": "0255bb5b-9318-4a10-aa0d-5fc57e67c004",
-  "sha256": "6a5e246ef571e0cee1ad4ee428bddeefb7e1f45f80c9f6cdbf26c4cb8c9051c0",
+  "moduleMvid": "9f5e8586-9d18-432e-b099-16a71321721a",
+  "sha256": "68795c3d9f3206ef5eff02ad4112788c7c4c1aff249fdbe51b94eab2452791a4",
   "bepInExVersion": "5.4.23.5",
   "harmonyVersion": "2.9.0.0",
   "methods": [
@@ -99,6 +99,24 @@
       "name": "ClaimLevel",
       "returnType": "System.Boolean",
       "parameters": ["System.Int32"]
+    },
+    {
+      "type": "GameManager",
+      "name": "SyncClaimedLevelsFromServer",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "AutoActionUnlockUI",
+      "name": "Check",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteLevelsClient",
+      "name": "FetchAsync",
+      "returnType": "System.Threading.Tasks.Task`1<System.Boolean>",
+      "parameters": ["System.Boolean"]
     },
     {
       "type": "AutoActionToastController",

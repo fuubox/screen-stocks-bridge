@@ -13,7 +13,7 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.11.0";
+        public const string PluginVersion = "0.11.2";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
@@ -26,6 +26,7 @@ namespace ScreenStocksBridge
         private BridgeServer? _server;
         private Harmony? _harmony;
         private Harmony? _autoActionUnlockHarmony;
+        private Harmony? _levelUnlockRefreshHarmony;
         private Harmony? _transactionHistoryHarmony;
         private Harmony? _netWorthHistoryHarmony;
         private Harmony? _newsTickerHarmony;
@@ -43,6 +44,7 @@ namespace ScreenStocksBridge
         private NetWorthHistoryService _netWorthHistory = null!;
         private LeaderboardService _leaderboards = null!;
         private float _nextSnapshotAt;
+        private float _nextAutoActionUiRefreshAt;
         private float _nextLevelClaimAt;
         private string _lastSnapshot = string.Empty;
         private readonly Dictionary<string, string> _lastHumanActivitySnapshots = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -134,6 +136,19 @@ namespace ScreenStocksBridge
 
             try
             {
+                _levelUnlockRefreshHarmony = new Harmony(PluginGuid + ".auto-action-level-refresh");
+                AutoActionUnlockHarmonyPatch.InstallLevelDataRefresh(_levelUnlockRefreshHarmony);
+                Logger.LogInfo("Installed the auto-action refresh after remote level data loads.");
+            }
+            catch (Exception ex)
+            {
+                _levelUnlockRefreshHarmony?.UnpatchSelf();
+                _levelUnlockRefreshHarmony = null;
+                Logger.LogWarning("Could not hook remote level-data refresh for auto actions: " + ex.Message);
+            }
+
+            try
+            {
                 _transactionHistoryHarmony = new Harmony(PluginGuid + ".transaction-history");
                 TransactionHistoryHarmonyPatch.CaptureService = _transactionHistory;
                 TransactionHistoryHarmonyPatch.Install(_transactionHistoryHarmony);
@@ -219,6 +234,34 @@ namespace ScreenStocksBridge
         private void Update()
         {
             _humanActivityFocus.Update();
+            if (GameManager.I != null && GameManager.I.Data != null &&
+                AutoActionUnlockHarmonyPatch.TryConsumeLevelDataRefresh())
+            {
+                try
+                {
+                    AutoActionUnlockHarmonyPatch.SyncClaimedRewardsFromRemoteLevels();
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning("Could not refresh the auto-action unlock after level data loaded: " + ex.Message);
+                }
+            }
+            if (AutoActionUnlockHarmonyPatch.HasPendingUnlockUiRefresh &&
+                Time.unscaledTime >= _nextAutoActionUiRefreshAt)
+            {
+                _nextAutoActionUiRefreshAt = Time.unscaledTime + 0.5f;
+                try
+                {
+                    var refreshed = AutoActionUnlockHarmonyPatch.RefreshUnlockUiInstances();
+                    if (refreshed > 0)
+                        Logger.LogInfo("Refreshed " + refreshed + " auto-action unlock UI instance(s) after level data loaded.");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning("Could not refresh the auto-action unlock UI: " + ex.Message);
+                    _nextAutoActionUiRefreshAt = Time.unscaledTime + 5f;
+                }
+            }
             var server = _server;
             server?.Drain(HandleRequestSafely, 32);
             _leaderboards.Update();
@@ -479,6 +522,8 @@ namespace ScreenStocksBridge
             _transactionHistoryHarmony = null;
             _autoActionUnlockHarmony?.UnpatchSelf();
             _autoActionUnlockHarmony = null;
+            _levelUnlockRefreshHarmony?.UnpatchSelf();
+            _levelUnlockRefreshHarmony = null;
             NetWorthHistoryHarmonyPatch.CaptureService = null;
             _netWorthHistoryHarmony?.UnpatchSelf();
             _netWorthHistoryHarmony = null;

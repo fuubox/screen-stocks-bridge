@@ -5,6 +5,19 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-10-09
+
+### Fixed
+
+- Refresh the game's claimed-level reward state after remote level data finishes
+  loading, so the auto-actions unlock UI updates without requiring the player to
+  close the level screen.
+- Refresh inactive auto-action unlock UI components directly after that state
+  sync, since their normal event subscription is disabled while their view is
+  inactive.
+- Update the pinned game compatibility fingerprint and check the level-refresh
+  APIs used by the auto-actions unlock fix against the latest game patch.
+
 ## [0.11.0] - 2026-10-09
 
 ### Added
