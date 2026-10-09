@@ -73,6 +73,8 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 
 - `ready`: whether the online market data source is ready.
 - `serverTick`: the current market tick.
+- `cash`: the player's available cash as an exact decimal string.
+- `netWorth`: the game's current net-worth calculation as an exact decimal string. This comes from the running game's in-memory `CalculateNetWorth()` value, so it is part of the ordinary snapshot and does not request chart history.
 - `stocks`: stocks visible to the current player and edition. Each record includes `stockId`, `name`, current `price`, `unlocked`, `basePrice`, `priceCap`, `dividendRate`, `maxVolume`, `effectiveMaxVolume`, and `availableShares`.
 - `positions`: the player's long and short holdings and average prices.
 - `cooldowns` and `autoActions`: trade cooldown and auto-action state described below.
@@ -87,7 +89,34 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
     else:
         for stock in state["stocks"]:
             print(stock["stockId"], stock["name"], stock["price"], stock["effectiveMaxVolume"], stock["availableShares"])
+    print("cash:", state["cash"], "net worth:", state["netWorth"])
 ```
+
+## Read the net-worth chart
+
+`bridge.net_worth_history(range="last_24_hours")` returns the samples used by the game's saved net-worth chart. Supported ranges are `last_24_hours`, `last_7_days`, and `last_14_days` (short forms `24h`, `7d`, and `14d` are accepted). Each sample has `at` (the timestamp string supplied by the game) and `netWorth` (a numeric chart value); the response also includes `intervalMinutes` so callers know the chart's sampling interval.
+
+Unlike `snapshot().netWorth`, chart history is not already part of the live player snapshot. On a cache miss or stale cache, the bridge asks the game's own `NetWorthHistoryClient` for the selected range. The plugin does not implement or connect to a backend endpoint itself. The game may make its normal online request through that client.
+
+The bridge keeps results in memory for 60 seconds by default and enforces a shared minimum 30-second gap between chart requests, across ranges. Both values can be raised, but not lowered below those safeguards, under `[NetWorthHistory]` in `BepInEx/config/screenstocks.bridge.cfg`:
+
+```ini
+[NetWorthHistory]
+CacheSeconds = 60
+MinimumRequestIntervalSeconds = 30
+```
+
+Opening or refreshing the in-game Net Worth screen uses the same client. The bridge observes those requests, caches their successful responses, and starts the same cooldown, so a Python call can reuse a recent chart response. These safeguards govern bridge-started requests and report observed game requests; they do not block requests initiated by the game UI itself. If the chart cache is stale while the interval is active or another request is in flight, the response includes the stale samples plus `retryAfterMs`; if there is no cached response, the API returns `rate_limited` or `net_worth_history_busy`. `cached`, `stale`, `ageSeconds`, and `fetchedAtUnixSeconds` describe the returned cache state. The fetched time is when the plugin received the response, not a timestamp provided by the game server.
+
+```python
+with BridgeClient(token="YOUR_TOKEN") as bridge:
+    chart = bridge.net_worth_history("last_7_days")
+    print(chart["intervalMinutes"], chart["cached"], chart["stale"])
+    for sample in chart["samples"]:
+        print(sample["at"], sample["netWorth"])
+```
+
+For typed access, use `Snapshot.from_dict(data).net_worth` for the exact current value and `NetWorthHistory.from_dict(data)` for the chart. `NetWorthHistory.samples` contains `NetWorthHistorySample` records.
 
 The three volume fields describe different values:
 
@@ -318,6 +347,8 @@ Auto-action cooldown duration is reported even when no action is on cooldown. Ea
 
 Call `bridge.auto_actions()` for the current auto-action snapshot. Slot capacity and add availability are queried dynamically from the game manager; do not assume a fixed slot count. The result includes `slotLimit`, `configuredCount`, `canAddAction`, the global `active` state, whether auto actions are `unlocked`, and all configured actions keyed by their game-provided `slotIndex`.
 
+The game controls the unlock gate. In remote mode, the plugin preserves the game's `serverAutoActionsUnlocked` flag and pending claimed-reward prediction. It also handles a stale or missing server flag after the authoritative level catalog has loaded: if that catalog confirms a claimed reward whose definition unlocks auto actions, the gate reports unlocked. Until level data is available, the fallback is not used. `auto_actions().unlocked` reports this in-memory gate; it does not make a request to the game's backend.
+
 The Python client provides:
 
 - `add_auto_action(stock_id, action_type, condition, target_price, amount_percentage)`
@@ -485,6 +516,8 @@ Live verification on the demo build confirmed that `upgrades.snapshot` returned 
 | `news.subscribe` | Subscribe to newly rendered ticker headlines |
 | `news.unsubscribe` | Stop this connection's ticker headline events |
 | `leaderboard.snapshot` | Request one game-supported player or clan leaderboard, subject to cache and cooldown |
+| `transactions.snapshot` | Request recent transaction history through the game's client, subject to cache and cooldown |
+| `net_worth_history.snapshot` | Request the game's saved net-worth chart through its client, subject to cache and cooldown |
 | `offline_summary.snapshot` | Read the latest in-memory welcome-back summary |
 | `market.human_activity` | Read one page of graph activity for a visible stock |
 | `market.human_activity.subscribe` | Subscribe this connection to updates for one visible stock |

@@ -51,12 +51,12 @@ with BridgeClient(
     token=os.environ["SCREENSTOCKS_TOKEN"],
 ) as bridge:
     state = bridge.snapshot()
-    print(state["cash"], state["stocks"])
+    print(state["cash"], state["netWorth"], state["stocks"])
 ```
 
 ## API guide
 
-See the [bridge usage guide](docs/bridge-usage.md) for market and stock discovery, ticker-news and auto-action toast subscriptions, the captured welcome-back summary, graph activity, cooldowns, trades, upgrades, auto actions, and complete examples. The plugin automatically claims available level rewards and captures then closes the welcome-back screen by default. To change either behavior, set `AutoClaimLevelRewards` or `AutoCloseOfflineSummary` under `[QualityOfLife]` in `BepInEx\config\screenstocks.bridge.cfg`, then restart the game.
+See the [bridge usage guide](docs/bridge-usage.md) for market and stock discovery, current net worth and the saved net-worth chart, ticker-news and auto-action toast subscriptions, the captured welcome-back summary, graph activity, cooldowns, trades, upgrades, auto actions, and complete examples. The plugin automatically claims available level rewards and captures then closes the welcome-back screen by default. To change either behavior, set `AutoClaimLevelRewards` or `AutoCloseOfflineSummary` under `[QualityOfLife]` in `BepInEx\config\screenstocks.bridge.cfg`, then restart the game.
 
 ## Troubleshooting
 

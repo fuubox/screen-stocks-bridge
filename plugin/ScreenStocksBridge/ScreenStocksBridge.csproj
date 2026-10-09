@@ -7,7 +7,7 @@
     <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks Demo</GameDir>
     <AssemblyName>ScreenStocksBridge</AssemblyName>
     <RootNamespace>ScreenStocksBridge</RootNamespace>
-    <Version>0.10.0</Version>
+    <Version>0.11.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

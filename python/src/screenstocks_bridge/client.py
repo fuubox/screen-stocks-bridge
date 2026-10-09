@@ -126,6 +126,16 @@ class BridgeClient:
         """
         return self.request("transactions.snapshot", {"filter": filter, "limit": limit})
 
+    def net_worth_history(self, range: str = "last_24_hours") -> dict[str, Any]:
+        """Read the game's saved net-worth chart through its in-process client.
+
+        Supported ranges are ``last_24_hours``, ``last_7_days``, and
+        ``last_14_days`` (also ``24h``, ``7d``, and ``14d``). Responses are
+        cached in memory; live game and bridge requests share a minimum
+        30-second request interval.
+        """
+        return self.request("net_worth_history.snapshot", {"range": range})
+
     def offline_summary(self) -> dict[str, Any]:
         """Return the latest captured welcome-back summary, if one has appeared this session."""
         return self.request("offline_summary.snapshot")

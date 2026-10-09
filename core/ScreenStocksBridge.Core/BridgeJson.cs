@@ -12,6 +12,7 @@ namespace ScreenStocksBridge
             json.Append("{\"ready\":").Append(Bool(value.ready))
                 .Append(",\"serverTick\":").Append(value.serverTick.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"cash\":").Append(Quote(value.cash))
+                .Append(",\"netWorth\":").Append(Quote(value.netWorth))
                 .Append(",\"level\":").Append(value.level.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"stocks\":[");
             for (var i = 0; i < value.stocks.Count; i++)
@@ -160,6 +161,26 @@ namespace ScreenStocksBridge
                     .Append(",\"source\":").Append(Quote(entry.source))
                     .Append(",\"realizedReturn\":").Append(Quote(entry.realizedReturn))
                     .Append(",\"realizedPercent\":").Append(Number(entry.realizedPercent)).Append('}');
+            }
+            return json.Append("]}").ToString();
+        }
+
+        internal static string SerializeNetWorthHistory(NetWorthHistorySnapshotDto value)
+        {
+            var json = new StringBuilder(512).Append("{\"range\":").Append(Quote(value.range))
+                .Append(",\"intervalMinutes\":").Append(value.intervalMinutes.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"cached\":").Append(Bool(value.cached))
+                .Append(",\"stale\":").Append(Bool(value.stale))
+                .Append(",\"ageSeconds\":").Append(value.ageSeconds.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"fetchedAtUnixSeconds\":").Append(value.fetchedAtUnixSeconds.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"retryAfterMs\":").Append(value.retryAfterMs.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"samples\":[");
+            for (var i = 0; i < value.samples.Count; i++)
+            {
+                if (i > 0) json.Append(',');
+                var sample = value.samples[i];
+                json.Append("{\"at\":").Append(Quote(sample.at))
+                    .Append(",\"netWorth\":").Append(Number(sample.netWorth)).Append('}');
             }
             return json.Append("]}").ToString();
         }

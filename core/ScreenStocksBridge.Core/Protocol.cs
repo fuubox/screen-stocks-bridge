@@ -30,6 +30,7 @@ namespace ScreenStocksBridge
         public long beforeTick = 0;
         public string mode = string.Empty;
         public string filter = string.Empty;
+        public string range = string.Empty;
         public int radius = 0;
         public int count = 0;
     }

@@ -13,7 +13,7 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.10.0";
+        public const string PluginVersion = "0.11.0";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
@@ -21,9 +21,13 @@ namespace ScreenStocksBridge
         internal ConfigEntry<bool> AutoCloseOfflineSummary { get; private set; } = null!;
         internal ConfigEntry<int> TransactionHistoryCacheSeconds { get; private set; } = null!;
         internal ConfigEntry<int> TransactionHistoryMinimumRequestIntervalSeconds { get; private set; } = null!;
+        internal ConfigEntry<int> NetWorthHistoryCacheSeconds { get; private set; } = null!;
+        internal ConfigEntry<int> NetWorthHistoryMinimumRequestIntervalSeconds { get; private set; } = null!;
         private BridgeServer? _server;
         private Harmony? _harmony;
+        private Harmony? _autoActionUnlockHarmony;
         private Harmony? _transactionHistoryHarmony;
+        private Harmony? _netWorthHistoryHarmony;
         private Harmony? _newsTickerHarmony;
         private Harmony? _autoActionToastHarmony;
         private readonly StateService _state = new StateService();
@@ -36,6 +40,7 @@ namespace ScreenStocksBridge
         private readonly TradeService _trades = new TradeService();
         private readonly UpgradeService _upgrades = new UpgradeService();
         private TransactionHistoryService _transactionHistory = null!;
+        private NetWorthHistoryService _netWorthHistory = null!;
         private LeaderboardService _leaderboards = null!;
         private float _nextSnapshotAt;
         private float _nextLevelClaimAt;
@@ -64,6 +69,25 @@ namespace ScreenStocksBridge
             }
             if (normalizedTransactionHistoryConfig) Config.Save();
             _transactionHistory = new TransactionHistoryService(this);
+            NetWorthHistoryCacheSeconds = Config.Bind("NetWorthHistory", "CacheSeconds", 60,
+                "How long net-worth chart results stay fresh in memory. Values below 60 are raised to 60; larger values are allowed.");
+            NetWorthHistoryMinimumRequestIntervalSeconds = Config.Bind("NetWorthHistory", "MinimumRequestIntervalSeconds", 30,
+                "Minimum gap before the bridge starts a net-worth chart request after any observed game request. Values below 30 are raised to 30; larger values are allowed.");
+            var normalizedNetWorthHistoryConfig = false;
+            if (NetWorthHistoryCacheSeconds.Value < NetWorthHistoryService.MinimumCacheSeconds)
+            {
+                NetWorthHistoryCacheSeconds.Value = NetWorthHistoryService.MinimumCacheSeconds;
+                normalizedNetWorthHistoryConfig = true;
+                Logger.LogWarning("NetWorthHistory.CacheSeconds cannot be lower than 60; using 60 seconds.");
+            }
+            if (NetWorthHistoryMinimumRequestIntervalSeconds.Value < NetWorthHistoryService.MinimumRequestIntervalSeconds)
+            {
+                NetWorthHistoryMinimumRequestIntervalSeconds.Value = NetWorthHistoryService.MinimumRequestIntervalSeconds;
+                normalizedNetWorthHistoryConfig = true;
+                Logger.LogWarning("NetWorthHistory.MinimumRequestIntervalSeconds cannot be lower than 30; using 30 seconds.");
+            }
+            if (normalizedNetWorthHistoryConfig) Config.Save();
+            _netWorthHistory = new NetWorthHistoryService(this);
             BridgePort = Config.Bind("Bridge", "Port", 48721, "Loopback TCP port used by the Python bridge.");
             BridgeToken = Config.Bind("Bridge", "Token", string.Empty, "Secret required by local Python clients.");
             AutoClaimLevelRewards = Config.Bind("QualityOfLife", "AutoClaimLevelRewards", true,
@@ -98,6 +122,18 @@ namespace ScreenStocksBridge
 
             try
             {
+                _autoActionUnlockHarmony = new Harmony(PluginGuid + ".auto-action-unlock");
+                AutoActionUnlockHarmonyPatch.Install(_autoActionUnlockHarmony);
+            }
+            catch (Exception ex)
+            {
+                _autoActionUnlockHarmony?.UnpatchSelf();
+                _autoActionUnlockHarmony = null;
+                Logger.LogWarning("Could not hook the remote auto-action unlock check: " + ex.Message);
+            }
+
+            try
+            {
                 _transactionHistoryHarmony = new Harmony(PluginGuid + ".transaction-history");
                 TransactionHistoryHarmonyPatch.CaptureService = _transactionHistory;
                 TransactionHistoryHarmonyPatch.Install(_transactionHistoryHarmony);
@@ -108,6 +144,20 @@ namespace ScreenStocksBridge
                 _transactionHistoryHarmony?.UnpatchSelf();
                 _transactionHistoryHarmony = null;
                 Logger.LogWarning("Could not observe the game's Transactions screen requests: " + ex.Message);
+            }
+
+            try
+            {
+                _netWorthHistoryHarmony = new Harmony(PluginGuid + ".net-worth-history");
+                NetWorthHistoryHarmonyPatch.CaptureService = _netWorthHistory;
+                NetWorthHistoryHarmonyPatch.Install(_netWorthHistoryHarmony);
+            }
+            catch (Exception ex)
+            {
+                NetWorthHistoryHarmonyPatch.CaptureService = null;
+                _netWorthHistoryHarmony?.UnpatchSelf();
+                _netWorthHistoryHarmony = null;
+                Logger.LogWarning("Could not observe the game's Net Worth screen requests: " + ex.Message);
             }
 
             if (BridgePort.Value < 1 || BridgePort.Value > 65535)
@@ -173,6 +223,7 @@ namespace ScreenStocksBridge
             server?.Drain(HandleRequestSafely, 32);
             _leaderboards.Update();
             _transactionHistory.Update();
+            _netWorthHistory.Update();
             _trades.Update();
             TryAutoClaimLevelReward();
             if (server == null || (!server.HasMarketSubscribers && !server.HasHumanActivitySubscribers) ||
@@ -263,6 +314,11 @@ namespace ScreenStocksBridge
             if (request.method == "transactions.snapshot")
             {
                 _transactionHistory.Handle(request, connection);
+                return;
+            }
+            if (request.method == "net_worth_history.snapshot")
+            {
+                _netWorthHistory.Handle(request, connection);
                 return;
             }
             if (request.method == "state.subscribe")
@@ -421,6 +477,11 @@ namespace ScreenStocksBridge
             TransactionHistoryHarmonyPatch.CaptureService = null;
             _transactionHistoryHarmony?.UnpatchSelf();
             _transactionHistoryHarmony = null;
+            _autoActionUnlockHarmony?.UnpatchSelf();
+            _autoActionUnlockHarmony = null;
+            NetWorthHistoryHarmonyPatch.CaptureService = null;
+            _netWorthHistoryHarmony?.UnpatchSelf();
+            _netWorthHistoryHarmony = null;
             _harmony?.UnpatchSelf();
             _harmony = null;
             NewsTickerHarmonyPatch.CaptureService = null;

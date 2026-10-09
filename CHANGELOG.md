@@ -3,6 +3,26 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [Unreleased]
+
+## [0.11.0] - 2026-10-09
+
+### Added
+
+- Added current exact-string player net worth to the market snapshot and a
+  throttled, cached API for the game's saved net-worth chart.
+
+### Fixed
+
+- Fixed the remote auto-action unlock check to honor a claimed unlock reward
+  once the authoritative level catalog is available, even if the player-state
+  entitlement flag is stale or false.
+
+### Documentation
+
+- Documented the net-worth history request behavior and remote auto-action
+  unlock fallback.
+
 ## [0.10.0] - 2026-10-07
 
 ### Added

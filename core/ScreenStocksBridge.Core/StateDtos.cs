@@ -9,6 +9,7 @@ namespace ScreenStocksBridge
         public bool ready;
         public long serverTick;
         public string cash = "0";
+        public string netWorth = "0";
         public int level;
         public List<StockDto> stocks = new List<StockDto>();
         public List<PositionDto> positions = new List<PositionDto>();
@@ -139,6 +140,26 @@ namespace ScreenStocksBridge
         public string source = string.Empty;
         public string realizedReturn = string.Empty;
         public double realizedPercent;
+    }
+
+    [Serializable]
+    public sealed class NetWorthHistorySnapshotDto
+    {
+        public string range = string.Empty;
+        public int intervalMinutes;
+        public bool cached;
+        public bool stale;
+        public long ageSeconds;
+        public long fetchedAtUnixSeconds;
+        public int retryAfterMs;
+        public List<NetWorthHistorySampleDto> samples = new List<NetWorthHistorySampleDto>();
+    }
+
+    [Serializable]
+    public sealed class NetWorthHistorySampleDto
+    {
+        public string at = string.Empty;
+        public double netWorth;
     }
 
     [Serializable]

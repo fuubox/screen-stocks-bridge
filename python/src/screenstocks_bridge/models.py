@@ -83,6 +83,38 @@ class HumanActivityPage:
 
 
 @dataclass(frozen=True)
+class NetWorthHistorySample:
+    at: str
+    net_worth: float
+    raw: dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> NetWorthHistorySample:
+        return cls(str(value.get("at", "")), float(value.get("netWorth", 0)), value)
+
+
+@dataclass(frozen=True)
+class NetWorthHistory:
+    range: str
+    interval_minutes: int
+    samples: list[NetWorthHistorySample]
+    cached: bool
+    stale: bool
+    age_seconds: int
+    fetched_at_unix_seconds: int
+    retry_after_ms: int
+    raw: dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> NetWorthHistory:
+        return cls(str(value.get("range", "")), int(value.get("intervalMinutes", 0)),
+                   [NetWorthHistorySample.from_dict(item) for item in value.get("samples", [])],
+                   bool(value.get("cached", False)), bool(value.get("stale", False)),
+                   int(value.get("ageSeconds", 0)), int(value.get("fetchedAtUnixSeconds", 0)),
+                   int(value.get("retryAfterMs", 0)), value)
+
+
+@dataclass(frozen=True)
 class Position:
     stock_id: str
     shares_owned: str
@@ -181,6 +213,7 @@ class Snapshot:
     ready: bool
     server_tick: int
     cash: str
+    net_worth: str
     level: int
     stocks: list[Stock]
     positions: list[Position]
@@ -191,7 +224,8 @@ class Snapshot:
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> Snapshot:
         return cls(bool(value.get("ready", False)), int(value.get("serverTick", 0)),
-                   str(value.get("cash", "0")), int(value.get("level", 0)),
+                   str(value.get("cash", "0")), str(value.get("netWorth", "0")),
+                   int(value.get("level", 0)),
                    [Stock.from_dict(item) for item in value.get("stocks", [])],
                    [Position.from_dict(item) for item in value.get("positions", [])],
                    TradeCooldowns.from_dict(value.get("cooldowns", {})),

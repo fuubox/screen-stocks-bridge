@@ -24,14 +24,16 @@ from screenstocks_bridge import BridgeClient
 
 with BridgeClient(token="YOUR_TOKEN") as bridge:
     state = bridge.snapshot()
-    print(state["ready"], state["cash"])
+    print(state["ready"], state["cash"], state["netWorth"])
     print(bridge.upgrades())
     recent = bridge.transaction_history(filter="both", limit=100)
     print(recent["entries"])
+    chart = bridge.net_worth_history("last_7_days")
+    print(chart["intervalMinutes"], chart["samples"])
 ```
 
 The client supports state reads, market, ticker-news, and auto-action toast
-subscriptions, leaderboard requests, transaction-history reads, activity reads
+subscriptions, leaderboard requests, transaction-history and net-worth chart reads, activity reads
 and subscriptions, explicit single-stock activity-focus controls, trades,
 upgrade purchases, and auto-action controls. Request a game-supported leaderboard with `leaderboard("current")`,
 `leaderboard("all_time")`, `leaderboard("ipo")`, `leaderboard("current_top")`,
@@ -55,6 +57,15 @@ Filters are `manual`, `both`, and `auto_action`. The game screen can seed the
 in-memory cache; successful screen requests also start the bridge cooldown. The
 BepInEx cache lifetime and request interval can be increased from their 60-second
 and 30-second minimums, as described in the usage guide.
+
+`snapshot()` includes `netWorth` as an exact decimal string from the game's
+current in-memory calculation. `net_worth_history("last_24_hours")` can query
+the saved chart for `last_24_hours`, `last_7_days`, or `last_14_days`. Chart
+responses use the game's own client, are cached in memory for at least 60
+seconds, and have a hard 30-second minimum between requests across ranges.
+Those settings can be raised under `[NetWorthHistory]`; successful Net Worth
+screen responses also seed the cache. See the usage guide for fields, examples,
+and details about native game UI requests.
 
 Use `offline_summary()` to read the latest welcome-back summary captured during
 the current game session. The plugin captures it in memory before automatically

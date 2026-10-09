@@ -19,6 +19,7 @@ namespace ScreenStocksBridge
             snapshot.ready = true;
             snapshot.serverTick = manager.Source.ServerTick;
             snapshot.cash = FormatBigNumber(game.Money);
+            snapshot.netWorth = FormatBigNumber(game.CalculateNetWorth());
             snapshot.level = game.PlayerLevel;
             snapshot.cooldowns = CreateTradeCooldowns(game);
             snapshot.autoActions = _autoActions.CreateSnapshot();
