@@ -43,6 +43,7 @@ namespace ScreenStocksBridge
         private TransactionHistoryService _transactionHistory = null!;
         private NetWorthHistoryService _netWorthHistory = null!;
         private LeaderboardService _leaderboards = null!;
+        private readonly IpoService _ipo = new IpoService();
         private float _nextSnapshotAt;
         private float _nextAutoActionUiRefreshAt;
         private float _nextLevelClaimAt;
@@ -362,6 +363,16 @@ namespace ScreenStocksBridge
             if (request.method == "net_worth_history.snapshot")
             {
                 _netWorthHistory.Handle(request, connection);
+                return;
+            }
+            if (request.method == "ipo.snapshot")
+            {
+                connection.Send(_ipo.Snapshot(request.id), false);
+                return;
+            }
+            if (request.method == "ipo.trigger")
+            {
+                connection.Send(_ipo.Trigger(request.id), false);
                 return;
             }
             if (request.method == "state.subscribe")

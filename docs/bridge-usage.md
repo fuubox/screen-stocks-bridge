@@ -67,6 +67,25 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
             print(change["stockId"], change["cashChange"], change["percentChange"])
 ```
 
+## Check and trigger an IPO
+
+`bridge.ipo_snapshot()` reads the current in-memory IPO state. It reports whether the IPO catalog is ready, whether going public is unlocked, whether the game's own `CanIPO()` check passes, the raw and effective IPO counts, the current run's peak net worth, and the required net worth. Large net-worth values are decimal strings. Requirements and unlocks can come from the game's runtime/server catalog; scripts should use these values instead of assuming a fixed level-50 gate.
+
+`bridge.trigger_ipo()` asks the game to perform an IPO. The bridge checks that IPO data is ready, the unlock is active, and the game reports the player eligible, then calls the game's own `GameManager.TriggerIPO()` method. The game remains responsible for the progress reset and online synchronization; the bridge does not call a backend endpoint. The response status `submitted` means the in-process method was invoked, not that a server-side reset has completed. Refresh `ipo_snapshot()` to observe the updated count and state.
+
+An IPO resets the current run according to the game's rules. Call `trigger_ipo()` only when you intend to do that. The installed test save is still locked, so the trigger path has been build-checked but not executed in a live game.
+
+```python
+with BridgeClient(token="YOUR_TOKEN") as bridge:
+    state = bridge.ipo_snapshot()
+    if state["ready"]:
+        print(state["unlocked"], state["eligible"],
+              state["roundPeakNetWorth"], state["requiredNetWorth"])
+        if state["eligible"]:
+            result = bridge.trigger_ipo()
+            print(result["status"])
+```
+
 ## Discover market status, stocks, and values
 
 `bridge.snapshot()` returns a dictionary assembled from the current in-memory game state:
@@ -519,6 +538,8 @@ Live verification on the demo build confirmed that `upgrades.snapshot` returned 
 | `transactions.snapshot` | Request recent transaction history through the game's client, subject to cache and cooldown |
 | `net_worth_history.snapshot` | Request the game's saved net-worth chart through its client, subject to cache and cooldown |
 | `offline_summary.snapshot` | Read the latest in-memory welcome-back summary |
+| `ipo.snapshot` | Read IPO unlock, eligibility, count, and net-worth state |
+| `ipo.trigger` | Ask the game to trigger an IPO if its own checks pass |
 | `market.human_activity` | Read one page of graph activity for a visible stock |
 | `market.human_activity.subscribe` | Subscribe this connection to updates for one visible stock |
 | `market.human_activity.unsubscribe` | Stop this connection's updates for one stock |

@@ -251,6 +251,18 @@ namespace ScreenStocksBridge
     }
 
     [Serializable]
+    internal sealed class IpoSnapshotDto
+    {
+        public bool ready;
+        public bool unlocked;
+        public bool eligible;
+        public int ipoCount;
+        public int effectiveIpoCount;
+        public string roundPeakNetWorth = "0";
+        public string requiredNetWorth = "0";
+    }
+
+    [Serializable]
     internal sealed class LeaderboardSnapshotDto
     {
         public string mode = string.Empty;

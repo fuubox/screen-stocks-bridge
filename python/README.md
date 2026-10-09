@@ -32,10 +32,13 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     print(chart["intervalMinutes"], chart["samples"])
 ```
 
-The client supports state reads, market, ticker-news, and auto-action toast
-subscriptions, leaderboard requests, transaction-history and net-worth chart reads, activity reads
-and subscriptions, explicit single-stock activity-focus controls, trades,
-upgrade purchases, and auto-action controls. Request a game-supported leaderboard with `leaderboard("current")`,
+The client supports market-state reads, market, ticker-news, and auto-action toast
+subscriptions, leaderboard requests, transaction-history and net-worth chart reads,
+activity reads and subscriptions, explicit single-stock activity-focus controls,
+trades, upgrade purchases, auto-action controls, and IPO state and trigger requests.
+Use `ipo_snapshot()` to check readiness and the dynamic requirement, and
+`trigger_ipo()` to ask the game to perform an eligible IPO. Request a game-supported
+leaderboard with `leaderboard("current")`,
 `leaderboard("all_time")`, `leaderboard("ipo")`, `leaderboard("current_top")`,
 `leaderboard("clan_net_worth")`, or `leaderboard("clan_player_share")`. Leaderboard
 requests use the game's in-process client, with one live request every 30 seconds;
