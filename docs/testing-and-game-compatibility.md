@@ -18,10 +18,12 @@ The trusted Windows runner has Screen Stocks Demo and BepInEx installed. A push 
 When Steam updates the game, review the patch before refreshing the manifest:
 
 1. Run `tools/check-game-compatibility.ps1`. A changed Assembly-CSharp hash, MVID, BepInEx/Harmony version, required method signature, or reflected field fails the check.
-2. Inspect the updated game assemblies and compare every reported type/member used by the plugin, especially Harmony targets, reflected private members, market data access, and action methods.
-3. Run the in-game smoke checks below against the updated game. Exercise relevant features only; avoid routine online trades during CI.
-4. Update `tools/game-compatibility.json` with the new observed fingerprint and signatures only after review. The fingerprint is a review gate, not proof that every game behavior is unchanged.
-5. Run the local checks, build against the updated installation, and push the reviewed manifest/code changes. The `main` workflow then confirms that the checked-in fingerprint matches the runner's installation.
+2. Compare data authority and behavior, not only signatures. For each bridge field, determine whether the game's current UI reads a local ScriptableObject, a cached remote DTO, a predicted/optimistic value, or a live accessor that combines several sources. Check whether the UI path and bridge path use the same source and level/index convention. A signature can remain unchanged while its source of truth or clamping behavior changes.
+3. Specifically inspect upgrade data after a patch: compare `GameManager.GetUpgradeLevel`, `GetUpgradeValue`, `IsUpgradeMaxed`, and `GetUpgradePrice` with `RemoteUpgradesClient` and `UpgradeViewDto` fields (`currentLevel`, caps, values, next price, and `maxed`). Do not calculate remote caps or next-level changes from the local `PlayerUpgradesSO` if the game now has remote upgrade data. Verify any such mismatch against the in-game UI before refreshing the compatibility manifest.
+4. Inspect the updated game assemblies and compare every reported type/member used by the plugin, especially Harmony targets, reflected private members, market data access, and action methods.
+5. Run the in-game smoke checks below against the updated game. Exercise relevant features only; avoid routine online trades during CI.
+6. Update `tools/game-compatibility.json` with the new observed fingerprint and signatures only after review. The fingerprint is a review gate, not proof that every game behavior is unchanged.
+7. Run the local checks, build against the updated installation, and push the reviewed manifest/code changes. The `main` workflow then confirms that the checked-in fingerprint matches the runner's installation.
 
 If the game changes in a way that breaks the bridge, keep the compatibility check failing until the code is adapted and reviewed. Do not weaken it by replacing the expected hash alone.
 
@@ -34,7 +36,7 @@ Use a development installation with the game open. These checks are manual becau
 - `news.subscribe` succeeds; while subscribed, verify an ordinary `market` ticker event when one naturally renders. Verify a `scheduled_price` event only if the game naturally renders one during the check; it can be rare or time-dependent, so do not force backend requests or delay routine smoke tests waiting for it. Confirm event text and structured stock ID come from the rendered item, then unsubscribe and confirm that connection stops receiving ticker events. A later subscription does not replay earlier items.
 - `market.human_activity` reads current graph activity; the focus override changes the observed stock, shows its overlay, respects the five-second change limit, and restores the previous focus when cleared.
 - `offline_summary.snapshot` returns unavailable before a welcome-back summary has been captured, and returns the captured values after a session displays it. Verify the auto-close setting separately when testing the Harmony hook.
-- `upgrades.snapshot` reports available/maxed upgrades; only submit a purchase when intentionally testing against the running game.
+- `upgrades.snapshot` reports available/maxed upgrades and agrees with the game UI on the current level, cap, current effective value, and next-level change; only submit a purchase when intentionally testing against the running game.
 - `auto_actions.snapshot` discovers current slots and cooldowns. Mutating actions should be tested intentionally and not as a routine CI step.
 - Submit at most one deliberate trade to verify request acceptance and completion reporting, then confirm the game's visible market/player state. Do not use automated checks to send trades to an online shared market.
 

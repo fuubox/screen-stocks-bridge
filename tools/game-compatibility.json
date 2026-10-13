@@ -2,8 +2,8 @@
   "game": "Screen Stocks Demo",
   "assemblyName": "Assembly-CSharp",
   "assemblyVersion": "0.0.0.0",
-  "moduleMvid": "9f5e8586-9d18-432e-b099-16a71321721a",
-  "sha256": "68795c3d9f3206ef5eff02ad4112788c7c4c1aff249fdbe51b94eab2452791a4",
+  "moduleMvid": "97169537-f707-4683-96b7-8d7f4d59fbae",
+  "sha256": "1dd6ae4df7a91f0f9f54c79b68fe0b0c5a96486e5e043ab60a08e205310aa26d",
   "bepInExVersion": "5.4.23.5",
   "harmonyVersion": "2.9.0.0",
   "methods": [
@@ -54,6 +54,24 @@
       "name": "get_EffectiveIPOCount",
       "returnType": "System.Int32",
       "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksAuthManager",
+      "name": "get_Upgrades",
+      "returnType": "ScreenStocks.Net.RemoteUpgradesClient",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteUpgradesClient",
+      "name": "get_HasData",
+      "returnType": "System.Boolean",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteUpgradesClient",
+      "name": "Get",
+      "returnType": "ScreenStocks.Net.UpgradeViewDto",
+      "parameters": ["StatType"]
     },
     {
       "type": "ScreenStocks.Net.ScreenStocksAuthManager",
@@ -436,6 +454,42 @@
       "type": "ScreenStocks.Net.ScheduledPriceOccurrenceDto",
       "name": "scheduledAtMs",
       "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "currentLevel",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "hasMaxLevel",
+      "fieldType": "System.Boolean",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "maxLevel",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "currentValue",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "nextValue",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "maxed",
+      "fieldType": "System.Boolean",
       "public": true
     }
   ]

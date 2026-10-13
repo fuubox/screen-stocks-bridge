@@ -5,6 +5,18 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-10-13
+
+### Fixed
+
+- Use the game's current remote upgrade data for finite level caps and the next
+  upgrade value, avoiding stale local catalog limits after game updates.
+
+### Documentation
+
+- Add explicit patch-review checks for changes to data sources, remote DTOs,
+  value clamping, and level/index semantics.
+
 ## [0.13.0] - 2026-10-09
 
 ### Changed

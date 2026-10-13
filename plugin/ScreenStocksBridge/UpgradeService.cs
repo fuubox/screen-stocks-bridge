@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using ScreenStocks.Net;
 
 namespace ScreenStocksBridge
 {
@@ -13,6 +14,11 @@ namespace ScreenStocksBridge
             var upgrades = game == null ? null : game.Upgrades;
             if (game == null || game.Data == null || upgrades == null || upgrades.stats == null) return result;
 
+            // In online mode the game can receive upgrade levels and caps that are newer than
+            // the local ScriptableObject catalog. Prefer that same remote view used by the UI.
+            var remoteUpgrades = ScreenStocksAuthManager.I?.Upgrades;
+            var hasRemoteUpgrades = remoteUpgrades != null && remoteUpgrades.HasData;
+
             result.ready = true;
             var seen = new HashSet<StatType>();
             foreach (var definition in upgrades.stats)
@@ -20,7 +26,12 @@ namespace ScreenStocksBridge
                 if (definition == null || !seen.Add(definition.stat)) continue;
                 var level = Math.Max(0, game.GetUpgradeLevel(definition.stat));
                 var maxed = game.IsUpgradeMaxed(definition.stat);
-                var hasMaxLevel = !definition.infiniteLevels;
+                var remoteUpgrade = hasRemoteUpgrades ? remoteUpgrades!.Get(definition.stat) : null;
+                var hasMaxLevel = remoteUpgrade != null ? remoteUpgrade.hasMaxLevel : !definition.infiniteLevels;
+                var maxLevel = hasMaxLevel
+                    ? Math.Max(0, remoteUpgrade != null ? remoteUpgrade.maxLevel : definition.maxLevel)
+                    : 0;
+                var currentValue = game.GetUpgradeValue(definition.stat);
                 var dto = new UpgradeDto
                 {
                     upgradeId = definition.stat.ToString(),
@@ -29,11 +40,11 @@ namespace ScreenStocksBridge
                     hidden = definition.hide,
                     currentLevel = level,
                     hasMaxLevel = hasMaxLevel,
-                    maxLevel = hasMaxLevel ? (int?)Math.Max(0, definition.maxLevel) : null,
-                    remainingLevels = hasMaxLevel ? (int?)Math.Max(0, definition.maxLevel - level) : null,
+                    maxLevel = hasMaxLevel ? (int?)maxLevel : null,
+                    remainingLevels = hasMaxLevel ? (int?)Math.Max(0, maxLevel - level) : null,
                     maxed = maxed,
-                    currentValue = game.GetUpgradeValue(definition.stat),
-                    nextValue = maxed ? (float?)null : NextValue(game, upgrades, definition.stat, level),
+                    currentValue = currentValue,
+                    nextValue = maxed ? (float?)null : NextValue(game, upgrades, definition.stat, level, currentValue, remoteUpgrade),
                     nextPrice = maxed ? null : StateService.FormatBigNumber(game.GetUpgradePrice(definition.stat))
                 };
                 result.upgrades.Add(dto);
@@ -85,11 +96,15 @@ namespace ScreenStocksBridge
             return ProtocolJson.Response(request.id, true, response, string.Empty);
         }
 
-        private static float NextValue(GameManager game, PlayerUpgradesSO upgrades, StatType stat, int level)
+        private static float NextValue(GameManager game, PlayerUpgradesSO upgrades, StatType stat, int level,
+            float currentValue, ScreenStocks.Net.UpgradeViewDto? remoteUpgrade)
         {
+            if (remoteUpgrade != null)
+                return currentValue + (remoteUpgrade.nextValue - remoteUpgrade.currentValue);
+
             var currentBase = upgrades.GetValue(stat, level);
             var nextBase = upgrades.GetValue(stat, level + 1);
-            return game.GetUpgradeValue(stat) + (nextBase - currentBase);
+            return currentValue + (nextBase - currentBase);
         }
 
         private static PlayerUpgradesSO.StatData? FindDefinition(List<PlayerUpgradesSO.StatData> definitions, StatType stat)
