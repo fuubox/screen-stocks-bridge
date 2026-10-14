@@ -23,6 +23,7 @@ venv/
 *.log
 *.token
 *.secret
+/.local/
 
 # Local workflow state
 /.superpowers/
