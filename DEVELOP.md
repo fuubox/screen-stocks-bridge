@@ -85,6 +85,10 @@ See [the compatibility and testing guide](docs/testing-and-game-compatibility.md
 
 Install the local package in editable mode from the repository root:
 
+Before installing or upgrading Python packages, follow the [Python package
+installation security note](docs/python-install-security.md) and bootstrap
+each environment to `pip` 26.2.2 or later.
+
 ```powershell
 python -m pip install -e .\python
 ```

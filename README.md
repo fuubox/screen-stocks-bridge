@@ -23,6 +23,10 @@ The release ZIP contains the plugin, its core library, and project license; it d
 
 Python 3.10 or later is required. Install the published client:
 
+Before using pip, check the [Python package installation security note](docs/python-install-security.md)
+for the October 2026 certificate incident. In particular, `pip` must be at
+least 26.2.2; upgrading an older pip safely requires a hash-pinned bootstrap.
+
 ```powershell
 python -m pip install screenstocks-bridge
 ```

@@ -16,6 +16,10 @@ The bridge itself does not connect to the game's backend or implement its networ
 
 Install the published Python client with Python 3.10 or later:
 
+Before installing, follow the [Python package installation security note](python-install-security.md)
+for the October 2026 certificate incident and ensure your environment uses
+`pip` 26.2.2 or later.
+
 ```powershell
 python -m pip install screenstocks-bridge
 ```

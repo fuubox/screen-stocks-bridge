@@ -5,6 +5,11 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Security
+
+- Document the eMudhra/emSign certificate incident and bootstrap the Python
+  publishing workflow with a hash-pinned fixed pip wheel.
+
 ### Changed
 
 - Set net-worth history caching and the shared request interval to a hard

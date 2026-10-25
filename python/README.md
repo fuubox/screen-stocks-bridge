@@ -7,6 +7,11 @@ install or contact the game backend; it connects to the plugin on loopback.
 
 ## Install
 
+Before installing, follow the [Python package installation security note](https://github.com/fuubox/screen-stocks-bridge/blob/main/docs/python-install-security.md)
+for the October 2026 certificate incident. Use `pip` 26.2.2 or later; upgrade
+an older pip with the hash-pinned bootstrap instructions before installing
+packages.
+
 ```powershell
 python -m pip install screenstocks-bridge
 ```
