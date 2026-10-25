@@ -233,6 +233,53 @@ class Snapshot:
 
 
 @dataclass(frozen=True)
+class StatsSnapshot:
+    ready: bool
+    net_worth: str
+    lifetime_buying_profit: str
+    lifetime_shorting_profit: str
+    highest_net_worth: str
+    total_playtime: float
+    highest_ranking: int
+    total_buys: int
+    total_sells: int
+    total_shorts: int
+    total_covers: int
+    current_xp: str
+    server_effective_current_xp: str
+    total_xp_gained: str
+    total_xp_gained_ever: str
+    total_money_earned: str
+    clan: str
+    owned_generators: list[str]
+    raw: dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> StatsSnapshot:
+        return cls(
+            bool(value.get("ready", False)),
+            str(value.get("netWorth", "0")),
+            str(value.get("lifetimeBuyingProfit", "0")),
+            str(value.get("lifetimeShortingProfit", "0")),
+            str(value.get("highestNetWorth", "0")),
+            float(value.get("totalPlaytime", 0)),
+            int(value.get("highestRanking", 0)),
+            int(value.get("totalBuys", 0)),
+            int(value.get("totalSells", 0)),
+            int(value.get("totalShorts", 0)),
+            int(value.get("totalCovers", 0)),
+            str(value.get("currentXP", "0")),
+            str(value.get("serverEffectiveCurrentXP", "0")),
+            str(value.get("totalXPGained", "0")),
+            str(value.get("totalXPGainedEver", "0")),
+            str(value.get("totalMoneyEarned", "0")),
+            str(value.get("clan", "")),
+            [str(item) for item in value.get("ownedGenerators", [])],
+            value,
+        )
+
+
+@dataclass(frozen=True)
 class TradeReceipt:
     status: str
     raw: dict[str, Any] = field(repr=False)

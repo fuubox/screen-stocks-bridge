@@ -137,6 +137,33 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 
 For typed access, use `Snapshot.from_dict(data).net_worth` for the exact current value and `NetWorthHistory.from_dict(data)` for the chart. `NetWorthHistory.samples` contains `NetWorthHistorySample` records.
 
+## Read lifetime stats and progression
+
+`bridge.stats_snapshot()` reads the stats already held in the running game's `GameData`. It does not open the Stats page, refresh the leaderboard, or make a game/backend request. There is no bridge request throttle for this endpoint because it only reads local memory. The game's own normal sync and UI refresh behavior can update these fields independently.
+
+The response includes `netWorth` (the same current calculation available from `snapshot()`), lifetime buying and shorting profits, `highestNetWorth`, `totalPlaytime`, `highestRanking`, trade totals, XP and money totals, the current `clan`, and `ownedGenerators`.
+
+- BigNumber values (`netWorth`, profits, net-worth high, and XP/money totals) are exact decimal strings.
+- `totalPlaytime` is seconds as a number.
+- `highestRanking` is the best rank currently stored in game data. Reading this API does not request a fresh rank; it may change when the game's own leaderboard flow updates it.
+- `currentXP` and `serverEffectiveCurrentXP` are reported separately, matching the local and server-effective fields currently present in the game.
+- `clan` is the game's enum name (for example, `BlueWhales` or `None`).
+- `ownedGenerators` contains generator IDs owned by the player. It does not include generator definitions or perform purchases.
+- Trade totals include buys, sells, shorts, and covers.
+
+`StatsSnapshot.from_dict(data)` provides typed Python access while retaining the original dictionary in `.raw`:
+
+```python
+from screenstocks_bridge import BridgeClient, StatsSnapshot
+
+with BridgeClient(token="YOUR_TOKEN") as bridge:
+    stats = StatsSnapshot.from_dict(bridge.stats_snapshot())
+    if stats.ready:
+        print(stats.lifetime_buying_profit, stats.lifetime_shorting_profit)
+        print(stats.total_buys, stats.total_sells, stats.total_shorts, stats.total_covers)
+        print(stats.clan, stats.owned_generators)
+```
+
 The three volume fields describe different values:
 
 - `maxVolume` is the stock definition's base cap.
@@ -533,6 +560,7 @@ Live verification on the demo build confirmed that `upgrades.snapshot` returned 
 | Method | Purpose |
 | --- | --- |
 | `state.snapshot` | Read current market/player state, cooldowns, and auto actions |
+| `stats.snapshot` | Read in-memory stats, progression totals, clan, and owned generators without a server request |
 | `state.subscribe` | Subscribe to `market.updated` events |
 | `news.subscribe` | Subscribe to newly rendered ticker headlines |
 | `news.unsubscribe` | Stop this connection's ticker headline events |

@@ -100,6 +100,13 @@ class BridgeClient:
         """Return the current in-memory player and visible-market snapshot."""
         return self.request("state.snapshot")
 
+    def stats_snapshot(self) -> dict[str, Any]:
+        """Return lifetime stats and progression values already held in game memory.
+
+        This is a local read and does not trigger a leaderboard or backend refresh.
+        """
+        return self.request("stats.snapshot")
+
     def leaderboard(self, mode: str, *, radius: int | None = None,
                     count: int | None = None) -> dict[str, Any]:
         """Request a leaderboard through the game's in-process leaderboard client.

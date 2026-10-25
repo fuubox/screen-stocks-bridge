@@ -32,6 +32,7 @@ namespace ScreenStocksBridge
         private Harmony? _newsTickerHarmony;
         private Harmony? _autoActionToastHarmony;
         private readonly StateService _state = new StateService();
+        private readonly StatsService _stats = new StatsService();
         private readonly OfflineProgressCaptureService _offlineProgress = new OfflineProgressCaptureService();
         private readonly NewsTickerService _newsTicker = new NewsTickerService();
         private readonly AutoActionToastService _autoActionToasts = new AutoActionToastService();
@@ -348,6 +349,11 @@ namespace ScreenStocksBridge
                 var snapshot = _state.CreateSnapshot();
                 if (!snapshot.ready) connection.Send(ProtocolJson.Error(request.id, "not_ready", "The online market is not ready."), false);
                 else connection.Send(ProtocolJson.Response(request.id, true, BridgeJson.SerializeSnapshot(snapshot), string.Empty), false);
+                return;
+            }
+            if (request.method == "stats.snapshot")
+            {
+                connection.Send(_stats.Snapshot(request.id), false);
                 return;
             }
             if (request.method == "leaderboard.snapshot")

@@ -33,6 +33,35 @@ namespace ScreenStocksBridge
             return json.Append('}').ToString();
         }
 
+        internal static string SerializeStatsSnapshot(StatsSnapshotDto value)
+        {
+            var json = new StringBuilder(512);
+            json.Append("{\"ready\":").Append(Bool(value.ready))
+                .Append(",\"netWorth\":").Append(Quote(value.netWorth))
+                .Append(",\"lifetimeBuyingProfit\":").Append(Quote(value.lifetimeBuyingProfit))
+                .Append(",\"lifetimeShortingProfit\":").Append(Quote(value.lifetimeShortingProfit))
+                .Append(",\"highestNetWorth\":").Append(Quote(value.highestNetWorth))
+                .Append(",\"totalPlaytime\":").Append(Number(value.totalPlaytime))
+                .Append(",\"highestRanking\":").Append(value.highestRanking.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"totalBuys\":").Append(value.totalBuys.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"totalSells\":").Append(value.totalSells.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"totalShorts\":").Append(value.totalShorts.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"totalCovers\":").Append(value.totalCovers.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"currentXP\":").Append(Quote(value.currentXP))
+                .Append(",\"serverEffectiveCurrentXP\":").Append(Quote(value.serverEffectiveCurrentXP))
+                .Append(",\"totalXPGained\":").Append(Quote(value.totalXPGained))
+                .Append(",\"totalXPGainedEver\":").Append(Quote(value.totalXPGainedEver))
+                .Append(",\"totalMoneyEarned\":").Append(Quote(value.totalMoneyEarned))
+                .Append(",\"clan\":").Append(Quote(value.clan))
+                .Append(",\"ownedGenerators\":[");
+            for (var i = 0; i < value.ownedGenerators.Count; i++)
+            {
+                if (i > 0) json.Append(',');
+                json.Append(Quote(value.ownedGenerators[i] ?? string.Empty));
+            }
+            return json.Append("]}").ToString();
+        }
+
         internal static string SerializeAutoActions(AutoActionsSnapshotDto value)
         {
             var json = new StringBuilder(512);

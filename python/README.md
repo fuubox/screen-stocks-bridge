@@ -25,6 +25,8 @@ from screenstocks_bridge import BridgeClient
 with BridgeClient(token="YOUR_TOKEN") as bridge:
     state = bridge.snapshot()
     print(state["ready"], state["cash"], state["netWorth"])
+    stats = bridge.stats_snapshot()
+    print(stats["lifetimeBuyingProfit"], stats["lifetimeShortingProfit"])
     print(bridge.upgrades())
     recent = bridge.transaction_history(filter="both", limit=100)
     print(recent["entries"])
@@ -32,7 +34,7 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
     print(chart["intervalMinutes"], chart["samples"])
 ```
 
-The client supports market-state reads, market, ticker-news, and auto-action toast
+The client supports market-state and stats reads, market, ticker-news, and auto-action toast
 subscriptions, leaderboard requests, transaction-history and net-worth chart reads,
 activity reads and subscriptions, explicit single-stock activity-focus controls,
 trades, upgrade purchases, auto-action controls, and IPO state and trigger requests.
@@ -50,6 +52,8 @@ for the full API and its online behavior. Activity history reads page through
 only the samples the game currently retains in memory; they do not fetch older
 history from the game's server, and the bridge makes no guarantee about the
 retained history's total depth or time span.
+`stats_snapshot()` similarly reads values already held in local game memory; it
+does not refresh rank or make any game/backend request.
 
 For a complete, runnable auto-action toast listener—including the event schema,
 callback threading, cleanup, and error handling—see [Subscribe to auto-action

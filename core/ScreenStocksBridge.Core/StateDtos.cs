@@ -18,6 +18,29 @@ namespace ScreenStocksBridge
     }
 
     [Serializable]
+    public sealed class StatsSnapshotDto
+    {
+        public bool ready;
+        public string netWorth = "0";
+        public string lifetimeBuyingProfit = "0";
+        public string lifetimeShortingProfit = "0";
+        public string highestNetWorth = "0";
+        public double totalPlaytime;
+        public long highestRanking;
+        public int totalBuys;
+        public int totalSells;
+        public int totalShorts;
+        public int totalCovers;
+        public string currentXP = "0";
+        public string serverEffectiveCurrentXP = "0";
+        public string totalXPGained = "0";
+        public string totalXPGainedEver = "0";
+        public string totalMoneyEarned = "0";
+        public string clan = string.Empty;
+        public List<string> ownedGenerators = new List<string>();
+    }
+
+    [Serializable]
     public sealed class StockDto
     {
         public string stockId = string.Empty;

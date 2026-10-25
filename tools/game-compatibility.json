@@ -15,6 +15,12 @@
     },
     {
       "type": "GameManager",
+      "name": "CalculateNetWorth",
+      "returnType": "BigNumber",
+      "parameters": []
+    },
+    {
+      "type": "GameManager",
       "name": "IsIPOCatalogReady",
       "returnType": "System.Boolean",
       "parameters": []
@@ -196,6 +202,102 @@
       "type": "GameData",
       "name": "roundPeakNetWorth",
       "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "lifetimeBuyingProfit",
+      "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "lifetimeShortingProfit",
+      "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "highestNetWorth",
+      "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "totalPlaytime",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "highestRanking",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "totalBuys",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "totalSells",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "totalShorts",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "totalCovers",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "currentXP",
+      "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "serverEffectiveCurrentXP",
+      "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "totalXPGained",
+      "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "totalXPGainedEver",
+      "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "totalMoneyEarned",
+      "fieldType": "BigNumber",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "clan",
+      "fieldType": "PlayerClan",
+      "public": true
+    },
+    {
+      "type": "GameData",
+      "name": "ownedGenerators",
+      "fieldType": "System.Collections.Generic.List`1<System.String>",
       "public": true
     },
     {

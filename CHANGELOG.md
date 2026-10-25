@@ -5,6 +5,13 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Added
+
+- Add `stats.snapshot` and Python `stats_snapshot()` for lifetime trading
+  profits, high net worth, playtime, stored highest rank, trade totals,
+  progression totals, clan, and owned generator IDs. The endpoint reads only
+  in-memory game data and makes no server request.
+
 ## [0.13.1] - 2026-10-13
 
 ### Fixed
