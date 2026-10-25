@@ -5,6 +5,11 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Changed
+
+- Set net-worth history caching and the shared request interval to a hard
+  five-minute minimum, matching the game's stated graph refresh cadence.
+
 ### Added
 
 - Add `stats.snapshot` and Python `stats_snapshot()` for lifetime trading

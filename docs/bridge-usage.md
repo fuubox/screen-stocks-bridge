@@ -117,15 +117,15 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
 
 Unlike `snapshot().netWorth`, chart history is not already part of the live player snapshot. On a cache miss or stale cache, the bridge asks the game's own `NetWorthHistoryClient` for the selected range. The plugin does not implement or connect to a backend endpoint itself. The game may make its normal online request through that client.
 
-The bridge keeps results in memory for 60 seconds by default and enforces a shared minimum 30-second gap between chart requests, across ranges. Both values can be raised, but not lowered below those safeguards, under `[NetWorthHistory]` in `BepInEx/config/screenstocks.bridge.cfg`:
+The game says its graph updates every five minutes. The bridge keeps each range's result in memory for 300 seconds by default and enforces a shared minimum 300-second gap between chart requests, across ranges. This prevents bridge requests from refreshing the chart more often than the game's stated cadence, including when callers switch ranges. Both values can be raised, but not lowered below those safeguards, under `[NetWorthHistory]` in `BepInEx/config/screenstocks.bridge.cfg`:
 
 ```ini
 [NetWorthHistory]
-CacheSeconds = 60
-MinimumRequestIntervalSeconds = 30
+CacheSeconds = 300
+MinimumRequestIntervalSeconds = 300
 ```
 
-Opening or refreshing the in-game Net Worth screen uses the same client. The bridge observes those requests, caches their successful responses, and starts the same cooldown, so a Python call can reuse a recent chart response. These safeguards govern bridge-started requests and report observed game requests; they do not block requests initiated by the game UI itself. If the chart cache is stale while the interval is active or another request is in flight, the response includes the stale samples plus `retryAfterMs`; if there is no cached response, the API returns `rate_limited` or `net_worth_history_busy`. `cached`, `stale`, `ageSeconds`, and `fetchedAtUnixSeconds` describe the returned cache state. The fetched time is when the plugin received the response, not a timestamp provided by the game server.
+Opening or refreshing the in-game Net Worth screen uses the same client. The bridge observes those requests, caches their successful responses, and starts the same cooldown, so a Python call can reuse a recent chart response. These safeguards govern bridge-started requests and report observed game requests; they do not block or delay requests initiated by the game UI itself. If the chart cache is stale while the interval is active or another request is in flight, the response includes the stale samples plus `retryAfterMs`; if there is no cached response, the API returns `rate_limited` or `net_worth_history_busy`. `cached`, `stale`, `ageSeconds`, and `fetchedAtUnixSeconds` describe the returned cache state. The fetched time is when the plugin received the response, not a timestamp provided by the game server.
 
 ```python
 with BridgeClient(token="YOUR_TOKEN") as bridge:

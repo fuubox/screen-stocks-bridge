@@ -68,8 +68,9 @@ and 30-second minimums, as described in the usage guide.
 `snapshot()` includes `netWorth` as an exact decimal string from the game's
 current in-memory calculation. `net_worth_history("last_24_hours")` can query
 the saved chart for `last_24_hours`, `last_7_days`, or `last_14_days`. Chart
-responses use the game's own client, are cached in memory for at least 60
-seconds, and have a hard 30-second minimum between requests across ranges.
+responses use the game's own client, are cached in memory for at least 300
+seconds, and have a hard 300-second minimum between requests across ranges,
+matching the game's stated five-minute graph refresh cadence.
 Those settings can be raised under `[NetWorthHistory]`; successful Net Worth
 screen responses also seed the cache. See the usage guide for fields, examples,
 and details about native game UI requests.

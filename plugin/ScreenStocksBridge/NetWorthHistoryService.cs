@@ -11,8 +11,8 @@ namespace ScreenStocksBridge
 {
     internal sealed class NetWorthHistoryService
     {
-        internal const int MinimumCacheSeconds = 60;
-        internal const int MinimumRequestIntervalSeconds = 30;
+        internal const int MinimumCacheSeconds = 300;
+        internal const int MinimumRequestIntervalSeconds = 300;
         private readonly Plugin _plugin;
         private readonly object _cacheGate = new object();
         private readonly Dictionary<string, CacheEntry> _cache = new Dictionary<string, CacheEntry>(StringComparer.Ordinal);

@@ -73,22 +73,22 @@ namespace ScreenStocksBridge
             }
             if (normalizedTransactionHistoryConfig) Config.Save();
             _transactionHistory = new TransactionHistoryService(this);
-            NetWorthHistoryCacheSeconds = Config.Bind("NetWorthHistory", "CacheSeconds", 60,
-                "How long net-worth chart results stay fresh in memory. Values below 60 are raised to 60; larger values are allowed.");
-            NetWorthHistoryMinimumRequestIntervalSeconds = Config.Bind("NetWorthHistory", "MinimumRequestIntervalSeconds", 30,
-                "Minimum gap before the bridge starts a net-worth chart request after any observed game request. Values below 30 are raised to 30; larger values are allowed.");
+            NetWorthHistoryCacheSeconds = Config.Bind("NetWorthHistory", "CacheSeconds", 300,
+                "How long net-worth chart results stay fresh in memory. Values below 300 are raised to 300; larger values are allowed.");
+            NetWorthHistoryMinimumRequestIntervalSeconds = Config.Bind("NetWorthHistory", "MinimumRequestIntervalSeconds", 300,
+                "Minimum gap before the bridge starts a net-worth chart request after any observed game request. Values below 300 are raised to 300; larger values are allowed.");
             var normalizedNetWorthHistoryConfig = false;
             if (NetWorthHistoryCacheSeconds.Value < NetWorthHistoryService.MinimumCacheSeconds)
             {
                 NetWorthHistoryCacheSeconds.Value = NetWorthHistoryService.MinimumCacheSeconds;
                 normalizedNetWorthHistoryConfig = true;
-                Logger.LogWarning("NetWorthHistory.CacheSeconds cannot be lower than 60; using 60 seconds.");
+                Logger.LogWarning("NetWorthHistory.CacheSeconds cannot be lower than 300; using 300 seconds.");
             }
             if (NetWorthHistoryMinimumRequestIntervalSeconds.Value < NetWorthHistoryService.MinimumRequestIntervalSeconds)
             {
                 NetWorthHistoryMinimumRequestIntervalSeconds.Value = NetWorthHistoryService.MinimumRequestIntervalSeconds;
                 normalizedNetWorthHistoryConfig = true;
-                Logger.LogWarning("NetWorthHistory.MinimumRequestIntervalSeconds cannot be lower than 30; using 30 seconds.");
+                Logger.LogWarning("NetWorthHistory.MinimumRequestIntervalSeconds cannot be lower than 300; using 300 seconds.");
             }
             if (normalizedNetWorthHistoryConfig) Config.Save();
             _netWorthHistory = new NetWorthHistoryService(this);
