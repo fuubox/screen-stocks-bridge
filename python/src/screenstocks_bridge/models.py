@@ -52,6 +52,16 @@ class Stock:
         return int(self.raw.get("maxVolume", 0))
 
     @property
+    def dividend_rate(self) -> float:
+        """Stock dividend rate after the game's current payout multipliers."""
+        return float(self.raw.get("dividendRate", 0))
+
+    @property
+    def base_dividend_rate(self) -> float:
+        """Unmodified dividend rate from the stock definition."""
+        return float(self.raw.get("baseDividendRate", self.raw.get("dividendRate", 0)))
+
+    @property
     def effective_max_volume(self) -> str:
         """Game-calculated cap including purchased upgrades, levels, and IPOs."""
         return str(self.raw.get("effectiveMaxVolume", "0"))
@@ -220,6 +230,8 @@ class Snapshot:
     cooldowns: TradeCooldowns
     auto_actions: AutoActions
     raw: dict[str, Any] = field(repr=False)
+    dividend_income_per_minute: str = "0"
+    dividend_payout_per_cycle: str = "0"
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> Snapshot:
@@ -229,7 +241,9 @@ class Snapshot:
                    [Stock.from_dict(item) for item in value.get("stocks", [])],
                    [Position.from_dict(item) for item in value.get("positions", [])],
                    TradeCooldowns.from_dict(value.get("cooldowns", {})),
-                   AutoActions.from_dict(value.get("autoActions", {})), value)
+                   AutoActions.from_dict(value.get("autoActions", {})), value,
+                   str(value.get("dividendIncomePerMinute", "0")),
+                   str(value.get("dividendPayoutPerCycle", "0")))
 
 
 @dataclass(frozen=True)

@@ -20,6 +20,8 @@ namespace ScreenStocksBridge
             snapshot.serverTick = manager.Source.ServerTick;
             snapshot.cash = FormatBigNumber(game.Money);
             snapshot.netWorth = FormatBigNumber(game.CalculateNetWorth());
+            snapshot.dividendIncomePerMinute = FormatBigNumber(game.CalculateDividendIncomePerMinute());
+            snapshot.dividendPayoutPerCycle = FormatBigNumber(game.CalculateDividendPayoutPerCycle());
             snapshot.level = game.PlayerLevel;
             snapshot.cooldowns = CreateTradeCooldowns(game);
             snapshot.autoActions = _autoActions.CreateSnapshot();
@@ -39,7 +41,8 @@ namespace ScreenStocksBridge
                         unlocked = game.IsStockUnlocked(stock),
                         basePrice = stock.basePrice,
                         priceCap = stock.EffectivePriceCap,
-                        dividendRate = stock.dividendRate,
+                        dividendRate = stock.dividendRate * manager.GetTotalDividendPayoutMultiplier(),
+                        baseDividendRate = stock.dividendRate,
                         maxVolume = stock.maxVolume,
                         effectiveMaxVolume = FormatBigNumber(manager.GetEffectiveMaxVolume(stockId)),
                         availableShares = (int)Math.Max(0, Math.Min(int.MaxValue, manager.GetAvailableShares(stockId).ToDouble()))

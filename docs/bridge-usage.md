@@ -98,7 +98,9 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 - `serverTick`: the current market tick.
 - `cash`: the player's available cash as an exact decimal string.
 - `netWorth`: the game's current net-worth calculation as an exact decimal string. This comes from the running game's in-memory `CalculateNetWorth()` value, so it is part of the ordinary snapshot and does not request chart history.
-- `stocks`: stocks visible to the current player and edition. Each record includes `stockId`, `name`, current `price`, `unlocked`, `basePrice`, `priceCap`, `dividendRate`, `maxVolume`, `effectiveMaxVolume`, and `availableShares`.
+- `dividendIncomePerMinute`: the game's calculated aggregate dividend income rate as an exact decimal string. It includes owned positions and the effective Dividend Gain upgrade multiplier.
+- `dividendPayoutPerCycle`: the exact amount calculated for one dividend payout cycle. This matches the amount used by the game's Dividends display; the game derives it from its per-minute calculation and the effective payout interval.
+- `stocks`: stocks visible to the current player and edition. Each record includes `stockId`, `name`, current `price`, `unlocked`, `basePrice`, `priceCap`, `dividendRate`, `baseDividendRate`, `maxVolume`, `effectiveMaxVolume`, and `availableShares`. `dividendRate` applies the game's current dividend payout multipliers; `baseDividendRate` preserves the stock definition's unmodified rate. The per-stock rate does not include price, player holdings, or payout interval, so use the top-level dividend totals to read actual income.
 - `positions`: the player's long and short holdings and average prices.
 - `cooldowns` and `autoActions`: trade cooldown and auto-action state described below.
 

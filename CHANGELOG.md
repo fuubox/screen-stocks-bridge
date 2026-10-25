@@ -5,6 +5,8 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-25
+
 ### Security
 
 - Document the eMudhra/emSign certificate incident and bootstrap the Python
@@ -17,6 +19,10 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ### Added
 
+- Add game-calculated dividend income per minute and payout per cycle to state
+  snapshots, while retaining the per-stock base dividend rate.
+- Apply the game's current dividend payout multipliers to `stocks[].dividendRate`
+  and expose the unmodified stock-definition value as `baseDividendRate`.
 - Add `stats.snapshot` and Python `stats_snapshot()` for lifetime trading
   profits, high net worth, playtime, stored highest rank, trade totals,
   progression totals, clan, and owned generator IDs. The endpoint reads only

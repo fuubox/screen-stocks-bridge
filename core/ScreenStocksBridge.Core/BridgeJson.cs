@@ -13,6 +13,8 @@ namespace ScreenStocksBridge
                 .Append(",\"serverTick\":").Append(value.serverTick.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"cash\":").Append(Quote(value.cash))
                 .Append(",\"netWorth\":").Append(Quote(value.netWorth))
+                .Append(",\"dividendIncomePerMinute\":").Append(Quote(value.dividendIncomePerMinute))
+                .Append(",\"dividendPayoutPerCycle\":").Append(Quote(value.dividendPayoutPerCycle))
                 .Append(",\"level\":").Append(value.level.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"stocks\":[");
             for (var i = 0; i < value.stocks.Count; i++)
@@ -303,6 +305,7 @@ namespace ScreenStocksBridge
                 .Append(",\"basePrice\":").Append(Number(value.basePrice))
                 .Append(",\"priceCap\":").Append(Number(value.priceCap))
                 .Append(",\"dividendRate\":").Append(Number(value.dividendRate))
+                .Append(",\"baseDividendRate\":").Append(Number(value.baseDividendRate))
                 .Append(",\"maxVolume\":").Append(value.maxVolume.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"effectiveMaxVolume\":").Append(Quote(value.effectiveMaxVolume))
                 .Append(",\"availableShares\":").Append(value.availableShares.ToString(CultureInfo.InvariantCulture)).Append('}');

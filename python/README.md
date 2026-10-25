@@ -80,6 +80,14 @@ Those settings can be raised under `[NetWorthHistory]`; successful Net Worth
 screen responses also seed the cache. See the usage guide for fields, examples,
 and details about native game UI requests.
 
+The snapshot also includes the game's calculated `dividendIncomePerMinute` and
+`dividendPayoutPerCycle` as exact decimal strings. Per-stock `dividendRate`
+includes the current game dividend payout multipliers, while
+`baseDividendRate` preserves the unmodified stock-definition rate. These rates
+do not include price, owned shares, or payout timing; use the aggregate fields
+for the actual income totals. In Python, access them as `stock.dividend_rate`
+and `stock.base_dividend_rate`.
+
 Use `offline_summary()` to read the latest welcome-back summary captured during
 the current game session. The plugin captures it in memory before automatically
 closing the screen; set `AutoCloseOfflineSummary = false` in the BepInEx config

@@ -10,6 +10,8 @@ namespace ScreenStocksBridge
         public long serverTick;
         public string cash = "0";
         public string netWorth = "0";
+        public string dividendIncomePerMinute = "0";
+        public string dividendPayoutPerCycle = "0";
         public int level;
         public List<StockDto> stocks = new List<StockDto>();
         public List<PositionDto> positions = new List<PositionDto>();
@@ -50,6 +52,7 @@ namespace ScreenStocksBridge
         public float basePrice;
         public float priceCap;
         public float dividendRate;
+        public float baseDividendRate;
         public int maxVolume;
         public string effectiveMaxVolume = "0";
         public int availableShares;
