@@ -1,13 +1,13 @@
 {
   "game": "Screen Stocks",
-  "baselineStatus": "pending_full_release_review",
-  "contractStatus": "provisional_from_pre_release_build",
-  "assemblyName": null,
-  "assemblyVersion": null,
-  "moduleMvid": null,
-  "sha256": null,
-  "bepInExVersion": null,
-  "harmonyVersion": null,
+  "baselineStatus": "supported",
+  "contractStatus": "reviewed",
+  "assemblyName": "Assembly-CSharp",
+  "assemblyVersion": "0.0.0.0",
+  "moduleMvid": "97169537-f707-4683-96b7-8d7f4d59fbae",
+  "sha256": "1dd6ae4df7a91f0f9f54c79b68fe0b0c5a96486e5e043ab60a08e205310aa26d",
+  "bepInExVersion": "5.4.23.6",
+  "harmonyVersion": "2.9.0.0",
   "methods": [
     {
       "type": "GameManager",
