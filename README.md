@@ -4,9 +4,11 @@ Screen Stocks Bridge is a BepInEx plugin and Python client for reading live game
 
 The plugin listens on `127.0.0.1` only. It does not enable or use the game's official `modSupport` file API, and it does not write bridge snapshots, trade requests, results, or market exports to disk. BepInEx still writes its normal config and log files, and the game can save its own settings. In online mode, the game remains responsible for processing and validating actions submitted through its normal methods. Trades and auto actions can change the shared online market.
 
+The demo compatibility baseline has been retired. Full-release compatibility is pending review against the released game build, so game builds and release packaging remain blocked until that review is complete.
+
 ## Install the plugin
 
-1. Install Screen Stocks Demo and a compatible BepInEx 5 release.
+1. Install Screen Stocks and a compatible BepInEx 5 release.
 2. Download the latest `ScreenStocksBridge-v<version>.zip` from [GitHub Releases](https://github.com/fuubox/screen-stocks-bridge/releases).
 3. Close the game and extract the ZIP into the Screen Stocks installation folder. The archive contains the plugin directory structure:
 

@@ -74,7 +74,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $gameDir = $env:SCREENSTOCKS_GAME_DIR
           if ([string]::IsNullOrWhiteSpace($gameDir)) {
-            $gameDir = 'C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks Demo'
+            $gameDir = 'C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks'
           }
 
           $requiredReferences = @(

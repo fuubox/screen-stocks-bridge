@@ -4,7 +4,7 @@ This guide covers building, changing, and releasing Screen Stocks Bridge. Player
 
 ## Prerequisites
 
-- Screen Stocks Demo installed locally.
+- Screen Stocks (full release) installed locally.
 - BepInEx 5 installed in that game directory. The plugin references the game's and BepInEx's assemblies directly and does not redistribute them.
 - A .NET SDK. CI installs .NET 8; the plugin targets `netstandard2.1`.
 - Python 3.10 or later for Python client work.
@@ -12,7 +12,7 @@ This guide covers building, changing, and releasing Screen Stocks Bridge. Player
 The project defaults `GameDir` to:
 
 ```text
-C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks Demo
+C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks
 ```
 
 Override it for another installation when building.
@@ -28,7 +28,7 @@ dotnet build .\plugin\ScreenStocksBridge\ScreenStocksBridge.csproj -c Release
 For a non-default game path:
 
 ```powershell
-dotnet build .\plugin\ScreenStocksBridge\ScreenStocksBridge.csproj -c Release -p:GameDir="D:\Games\Screen Stocks Demo"
+dotnet build .\plugin\ScreenStocksBridge\ScreenStocksBridge.csproj -c Release -p:GameDir="D:\Games\Screen Stocks"
 ```
 
 The output directory contains `ScreenStocksBridge.dll` and its dependency `ScreenStocksBridge.Core.dll`. To try it in game, close Screen Stocks and copy both files into:

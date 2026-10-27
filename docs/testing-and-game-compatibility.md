@@ -13,7 +13,11 @@ These tests check the bridge/client boundary. They do not prove that the current
 
 ## Check a game patch
 
-The trusted Windows runner has Screen Stocks Demo and BepInEx installed. A push to `main` or a manual run of the **Continuous integration** workflow checks the installed binaries against `tools/game-compatibility.json`, then builds the plugin against the installed assemblies. Pull requests do not execute repository code on this self-hosted runner.
+The trusted Windows runner must have the full Screen Stocks release and BepInEx installed. Set the repository Actions variable `SCREENSTOCKS_GAME_DIR` to that installation; the fallback path is `C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks`. A push to `main` or a manual run of the **Continuous integration** workflow checks the installed binaries against `tools/game-compatibility.json`, then builds the plugin against the installed assemblies. Pull requests do not execute repository code on this self-hosted runner.
+
+The demo fingerprint has been retired. `tools/game-compatibility.json` is deliberately marked `pending_full_release_review`, so game builds fail closed until the full-release assemblies have been reviewed. Its API contracts are provisional copies from the pre-release build, not confirmation of full-release compatibility.
+
+For the first full-release review, this workspace already has a pre-release local baseline. After installing the full game, run `tools/compare-game-reference.ps1 -Mode Compare` against its install directory; this creates a candidate and a member-level diff against the old baseline. Review every changed contract and relevant behavior, update the fingerprint and API contracts in `tools/game-compatibility.json`, then set `baselineStatus` to `supported` and `contractStatus` to `reviewed`. Build and run the in-game smoke checks against the full game before promoting the candidate with `-Mode Promote`. Update the repository's `SCREENSTOCKS_GAME_DIR` variable to the full-game install path as well.
 
 When Steam updates the game, review the patch before refreshing the manifest:
 

@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [ValidateSet('Initialize', 'Compare', 'Promote')]
     [string]$Mode,
-    [string]$GameDir = $(if ($env:SCREENSTOCKS_GAME_DIR) { $env:SCREENSTOCKS_GAME_DIR } else { 'C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks Demo' })
+    [string]$GameDir = $(if ($env:SCREENSTOCKS_GAME_DIR) { $env:SCREENSTOCKS_GAME_DIR } else { 'C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks' })
 )
 
 $ErrorActionPreference = 'Stop'

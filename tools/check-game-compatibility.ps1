@@ -1,10 +1,13 @@
 param(
-    [string]$GameDir = $(if ($env:SCREENSTOCKS_GAME_DIR) { $env:SCREENSTOCKS_GAME_DIR } else { 'C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks Demo' })
+    [string]$GameDir = $(if ($env:SCREENSTOCKS_GAME_DIR) { $env:SCREENSTOCKS_GAME_DIR } else { 'C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks' })
 )
 
 $ErrorActionPreference = 'Stop'
 $manifestPath = Join-Path $PSScriptRoot 'game-compatibility.json'
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+if ($manifest.baselineStatus -ne 'supported') {
+    throw "The full-release compatibility baseline is pending review. Install Screen Stocks, compare its assemblies with the local reference, review API and behavior changes, then update tools/game-compatibility.json and mark the baseline supported."
+}
 $gameAssemblyPath = Join-Path $GameDir 'Screen Stocks_Data\Managed\Assembly-CSharp.dll'
 $bepInExPath = Join-Path $GameDir 'BepInEx\core\BepInEx.dll'
 $harmonyPath = Join-Path $GameDir 'BepInEx\core\0Harmony.dll'

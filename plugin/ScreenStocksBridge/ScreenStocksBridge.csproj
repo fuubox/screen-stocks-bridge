@@ -4,7 +4,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks Demo</GameDir>
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks</GameDir>
     <AssemblyName>ScreenStocksBridge</AssemblyName>
     <RootNamespace>ScreenStocksBridge</RootNamespace>
     <Version>0.14.0</Version>

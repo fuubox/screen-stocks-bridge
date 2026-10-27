@@ -4,7 +4,7 @@ This guide answers the current questions about discovering game state and using 
 
 ## Unity, BepInEx, and the game's file-based mod API
 
-The Screen Stocks demo is a Unity Mono game. The bridge runs as a BepInEx 5 plugin inside the game and exposes a separate local API to Python.
+Screen Stocks is a Unity Mono game. The bridge runs as a BepInEx 5 plugin inside the game and exposes a separate local API to Python.
 
 The official support mechanism discussed earlier is tied to the game's `modSupport` setting and the `thesmallshort_online_settings.sav` file-based interface. The bridge does not enable that setting, access that file, or redirect that filesystem API. It does not write API snapshots, trade requests/results, market exports, or command files. Instead, it reads live game objects in memory and sends JSON over an authenticated TCP connection bound to `127.0.0.1`. BepInEx still writes its normal config and logs, and the game can persist normal game settings. In particular, changing auto-action configuration uses the game's own manager APIs and may be saved by the game.
 
@@ -299,7 +299,7 @@ Player results contain `totalRanked`, `selfRank`, and `entries`; each entry incl
 
 There can be only one leaderboard request in flight, and starting a live request begins a global 30-second cooldown shared by all modes. Identical queries are cached for 30 seconds; cached responses include `cached: true` and do not use another game request. A concurrent query returns `leaderboard_busy`; a different uncached query during the cooldown returns `rate_limited` with `retryAfterMs`. Invalid modes or limits return `invalid_mode`, `invalid_radius`, or `invalid_count`.
 
-This 30-second limit is a bridge safeguard, not a game UI rule. In the inspected demo build, opening the leaderboard and switching its mode each start a refresh, with no client-side cooldown or in-flight lock. The UI uses a refresh token to ignore stale results; that does not cancel requests already sent. The game's server may apply its own limits, which are not established by this client-side behavior.
+This 30-second limit is a bridge safeguard, not a game UI rule. In the inspected pre-release build, opening the leaderboard and switching its mode each start a refresh, with no client-side cooldown or in-flight lock. The UI uses a refresh token to ignore stale results; that does not cancel requests already sent. The game's server may apply its own limits, which are not established by this client-side behavior.
 
 ```python
 with BridgeClient(token="YOUR_TOKEN") as bridge:
@@ -518,7 +518,7 @@ python .\listen_for_auto_action_toasts.py
 
 The default port is `48721`; use the `Port` value from `BepInEx/config/screenstocks.bridge.cfg` if you changed it. `subscribe_auto_action_toasts` returns `{"status": "subscribed"}` when accepted, while `unsubscribe_auto_action_toasts` returns `{"status": "unsubscribed"}`. An `auto_action_toasts_unavailable` error means the plugin could not attach to the toast UI method in this game build; check the BepInEx log for plugin startup and compatibility errors.
 
-Only toasts initialized after subscription are sent. There is no history, replay, or guarantee that a missed/disconnected event can be recovered. Unsubscribing stops delivery to that connection; closing the client also ends its subscription. The event reports that the game's toast UI was initialized; it is not a trade receipt and does not independently confirm a trade's final server-side outcome. A live capture on the current demo build confirmed the event envelope, all five data fields, and the raw rich-text string shown above; stock label and structured `stockId` differed in that capture.
+Only toasts initialized after subscription are sent. There is no history, replay, or guarantee that a missed/disconnected event can be recovered. Unsubscribing stops delivery to that connection; closing the client also ends its subscription. The event reports that the game's toast UI was initialized; it is not a trade receipt and does not independently confirm a trade's final server-side outcome. A live capture on the pre-release build confirmed the event envelope, all five data fields, and the raw rich-text string shown above; stock label and structured `stockId` differed in that capture.
 
 ## Automatically claim level rewards
 
@@ -559,7 +559,7 @@ The catalog description is the game's own description when provided. These short
 
 These hints are based on the upgrade identifiers and UI-facing descriptions found in the current game build. The bridge also returns each catalog record's description so scripts can display the game's own wording. Other bonuses can affect effective values, and the bridge reports `currentValue` through the game's `GetUpgradeValue` method.
 
-Live verification on the demo build confirmed that `upgrades.snapshot` returned a ready catalog with 8 currently defined upgrades, including finite, unlimited, and maxed entries. A one-level `DividendGain` purchase returned `submitted`; a subsequent catalog refresh reported the level increase. The catalog size and available upgrade IDs can vary by game build or player state.
+Live verification on the pre-release build confirmed that `upgrades.snapshot` returned a ready catalog with 8 currently defined upgrades, including finite, unlimited, and maxed entries. A one-level `DividendGain` purchase returned `submitted`; a subsequent catalog refresh reported the level increase. The catalog size and available upgrade IDs can vary by game build or player state.
 
 ## API methods
 

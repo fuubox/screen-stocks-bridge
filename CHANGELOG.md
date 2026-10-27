@@ -5,6 +5,12 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Changed
+
+- Retire the demo-specific compatibility baseline and target the full Screen
+  Stocks release. Full-game builds remain blocked until its API fingerprint is
+  reviewed and recorded.
+
 ## [0.14.0] - 2026-10-25
 
 ### Security
