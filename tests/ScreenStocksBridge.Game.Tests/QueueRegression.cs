@@ -34,6 +34,8 @@ public static class QueueRegression
                 VerifyRecoveryGuard(plugin);
             }
             finally { harmony.UnpatchSelf(); }
+            SessionRecoveryRegression.Run(_game);
+            OwnedRequestRegression.Run(_game);
             Console.WriteLine("PASS: installed Mono/Harmony patch regression checks");
             return 0;
         }

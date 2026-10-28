@@ -5,6 +5,28 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-10-28
+
+### Fixed
+
+- Recover a trade session after 30 seconds of unresolved ambiguity. Stop owned
+  API request coroutines, complete interrupted waiters, and let native owners
+  release their gates before fetching fresh authoritative state and reconnecting.
+- Cancel old IPO barrier acquisitions without leaking or double-releasing their
+  gate ownership. Keep commands paused if the 15-second recovery budget expires
+  or request cancellation/state validation fails; no repeated automatic resets.
+- Report interrupted ambiguous trades as `outcome_unknown`, preserving their
+  bridge request IDs without pretending they were rejected or resubmitting them.
+
+### Added
+
+- Show pending/recovering/failed status in the game and expose read-only recovery
+  state through `trade.recovery`. Native manual trades and bridge writes remain
+  blocked during recovery; authentication and server-state reads remain available.
+- Extend installed-Mono regression coverage for owned request cancellation, late
+  responses, IPO ownership, principal isolation, and recovery admission, plus
+  deterministic tests of the 30-second window and shared 15-second deadline.
+
 ## [0.14.2] - 2026-10-28
 
 ### Fixed

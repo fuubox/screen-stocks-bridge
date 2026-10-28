@@ -387,12 +387,40 @@ The game exposes buy and short cooldown end times. A successful buy or short can
 `submitted` only means that the request entered the game's processing path. Use `trade.completed` as the outcome. A failed queue/hold precheck returns an error such as `trade_busy` immediately.
 
 If the game is reconciling a previous trade with an unknown outcome, new bridge
-trades and IPO triggers return `trade_recovery_pending` before dispatch. Wait for
-the game's recovery rather than repeatedly submitting commands. A task failure
-includes its underlying exception message in the completion event's reason.
-The queue safeguard prevents an exited action's cleanup failure from stranding
-later actions; it does not clear an uncertain server command or override the
-game's recovery block.
+trades and IPO triggers return `trade_recovery_pending` before dispatch. The plugin
+allows 30 seconds from its first observation of that ambiguous command for normal
+reconciliation. Additional attempts do not extend that window. If it remains
+unresolved, the plugin pauses native manual trades and new writes, invalidates the
+old command session, stops its owned request coroutines, and completes interrupted
+request tasks so their native gate owners can exit. Old queued IPO acquisitions
+are cancelled after releasing any gate they subsequently acquire.
+
+Recovery has a shared 15-second budget to drain ownership, fetch uncached server
+state for the same principal, and reconnect. New bridge trades/IPO triggers return
+`trade_recovery_in_progress` during that period. An interrupted ambiguous trade's
+`trade.completed` event has `status: "outcome_unknown"`, its original bridge request
+ID, and a reason; it is not reported as rejected or automatically resubmitted.
+The server may already have committed it. Refresh holdings after recovery rather
+than assuming it failed. Ordinary task failures still include their underlying
+exception message in the completion event's reason.
+
+If cancellation fails, state cannot be validated, or the deadline expires, the
+plugin keeps new commands blocked with `trade_recovery_failed` and displays a
+restart-required message. It does not reset repeatedly or unlock on a late result.
+Authentication and read requests remain available. The game shows a status banner
+while a trade is pending, during recovery, and after a recovery failure.
+
+Read the status without starting recovery or submitting a command:
+
+```python
+status = bridge.request("trade.recovery")
+# available, phase, blocksCommands, secondsUntilRecovery,
+# completedRecoveries, error
+```
+
+Phases are `idle`, `observing`, `draining`, `reloading`, `reconnecting`, and `failed`.
+If the reviewed recovery hooks could not be installed, `available` is false and
+`phase` is `unavailable`; the game log contains the installation failure.
 
 ## Read cooldown state
 

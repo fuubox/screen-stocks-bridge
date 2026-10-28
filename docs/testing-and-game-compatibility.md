@@ -29,6 +29,31 @@ It uses synthetic objects and never launches the game or dispatches HTTP/trades.
 The ordinary `dotnet test` runner does not execute this project; matching the
 game's Mono/Harmony runtime is necessary for this check.
 
+The session-recovery checks additionally run the native broker recovery loop and
+API durable-command gate with a controlled JSON-response task. No HTTP request
+is sent. They establish that resetting during retry backoff drains the trade gate,
+but resetting during an outstanding JSON request only clears ambiguity/completes
+its waiter: the request keeps both gates until it finishes. Late responses and
+old queued commands are fenced by session generation. An already-queued IPO
+barrier survives reset and can later acquire its gate, requiring owner cleanup.
+A never-completing response task demonstrates that native session reset alone
+cannot guarantee bounded recovery. These are fault-injection tests of the actual
+managed methods, not an end-to-end Unity networking test. Unity's integer retry
+jitter and clock getters are supplied deterministically by the isolated runner.
+
+The production recovery hooks are then tested against the same native methods:
+owned task cancellation drains both gates without manually releasing semaphores,
+old IPO acquisitions release and cancel before transferring ownership to their
+old caller, and the original ambiguous wait faults with an explicit unknown
+outcome. New mutations/barriers are blocked during recovery. Coroutine lifecycle
+checks cover abort/dispose exceptions, completion on error, late-resume suppression,
+deferred cancellation during iterator advancement, real generic-iterator adapter
+binding, and principal isolation. The core tests separately enforce the 30-second
+ambiguity window and a single 15-second recovery budget, fresh-state validation,
+and no unlocking after timeout. Actual UnityWebRequest abort/disposal and a full
+live auth/scene reconnect remain live-game smoke checks; the isolated harness
+uses controlled transport tasks and abort callbacks.
+
 The compatibility fingerprint reviewed on October 28, 2026 is `ac975fe3...`, module
 `da6422d0-3325-4c79-bfe4-ef9f5955c92b`. Compared with `1dd6ae4d...`, the member
 surface adds two private timing constants (`ManualHoldStateRequestSeconds` and
@@ -37,7 +62,7 @@ bridge's existing required signatures remain valid; BepInEx, Harmony, and refere
 Unity assemblies are unchanged. The queue hook additionally validates its method,
 preview parameter, tail field, and reviewed module before installation. These
 offline checks do not substitute for a live-game smoke test after installation.
-The October 28 local core check ran all 56 tests with runtime roll-forward to the
+The October 28 local core check ran all 63 tests with runtime roll-forward to the
 installed .NET 10 runtime because .NET 8 was unavailable; Python's 10 client tests
 also passed. Build output included an unavailable NuGet vulnerability-feed warning;
 compilation and the installed-Mono regression checks completed successfully.

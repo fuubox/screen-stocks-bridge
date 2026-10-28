@@ -17,6 +17,8 @@ namespace ScreenStocksBridge
 
         internal string Submit(BridgeRequest request, BridgeConnection connection)
         {
+            if (TradeRecoveryService.BlocksCommands)
+                return ProtocolJson.Error(request.id, TradeRecoveryService.ErrorCode, TradeRecoveryService.ErrorMessage);
             var args = request.@params;
             var action = args?.action ?? string.Empty;
             var stockId = args?.stockId ?? string.Empty;
@@ -114,11 +116,12 @@ namespace ScreenStocksBridge
                 if (!pending.Task.IsCompleted) continue;
                 var success = false;
                 var reason = string.Empty;
+                var unknown = false;
                 try { success = pending.Task.GetAwaiter().GetResult(); }
-                catch (Exception ex) { reason = ex.GetBaseException().Message; }
+                catch (Exception ex) { reason = ex.GetBaseException().Message; unknown = ex.GetBaseException() is TradeOutcomeUnknownException; }
                 if (!success && string.IsNullOrEmpty(reason)) reason = "Game trade command was rejected.";
                 var payload = BridgeJson.SerializeTradeCompleted(pending.RequestId, pending.Action, pending.StockId,
-                    success ? "completed" : "rejected", reason);
+                    unknown ? "outcome_unknown" : success ? "completed" : "rejected", reason);
                 pending.Connection.Send(ProtocolJson.Event("trade.completed", payload), false);
                 completed.Add(pair.Key);
             }

@@ -13,7 +13,7 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.14.2";
+        public const string PluginVersion = "0.14.3";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
@@ -28,6 +28,8 @@ namespace ScreenStocksBridge
         private Harmony? _autoActionUnlockHarmony;
         private Harmony? _levelUnlockRefreshHarmony;
         private Harmony? _manualTradeQueueHarmony;
+        private Harmony? _tradeRecoveryHarmony;
+        private TradeRecoveryService? _tradeRecovery;
         private Harmony? _transactionHistoryHarmony;
         private Harmony? _netWorthHistoryHarmony;
         private Harmony? _newsTickerHarmony;
@@ -120,6 +122,24 @@ namespace ScreenStocksBridge
                 _manualTradeQueueHarmony?.UnpatchSelf();
                 _manualTradeQueueHarmony = null;
                 Logger.LogWarning("Could not protect manual trade queue completion: " + ex.Message);
+            }
+
+            try
+            {
+                NativeRecoveryAttempt.ValidateSurface();
+                _tradeRecoveryHarmony = new Harmony(PluginGuid + ".trade-recovery");
+                OwnedApiRequests.Warning = LogWarning;
+                OwnedApiRequests.Install(_tradeRecoveryHarmony);
+                TradeRecoveryHooks.Install(_tradeRecoveryHarmony);
+                _tradeRecovery = new TradeRecoveryService(LogWarning);
+                Logger.LogInfo("Installed bounded trade recovery (30 seconds pending, 15 seconds to recover).");
+            }
+            catch (Exception ex)
+            {
+                _tradeRecoveryHarmony?.UnpatchSelf();
+                _tradeRecoveryHarmony = null;
+                OwnedApiRequests.Warning = null;
+                Logger.LogWarning("Automatic trade recovery is unavailable: " + ex.Message);
             }
 
             try
@@ -249,6 +269,7 @@ namespace ScreenStocksBridge
 
         private void Update()
         {
+            _tradeRecovery?.Update();
             _humanActivityFocus.Update();
             if (GameManager.I != null && GameManager.I.Data != null &&
                 AutoActionUnlockHarmonyPatch.TryConsumeLevelDataRefresh())
@@ -353,6 +374,11 @@ namespace ScreenStocksBridge
 
         private void HandleRequest(BridgeRequest request, BridgeConnection connection)
         {
+            if (request.method == "trade.recovery")
+            {
+                connection.Send(ProtocolJson.Response(request.id, true, TradeRecoveryService.Snapshot(), string.Empty), false);
+                return;
+            }
             if (request.method == "offline_summary.snapshot")
             {
                 connection.Send(ProtocolJson.Response(request.id, true, _offlineProgress.GetSnapshotJson(), string.Empty), false);
@@ -546,6 +572,11 @@ namespace ScreenStocksBridge
 
         private void OnDestroy()
         {
+            _tradeRecovery?.Dispose();
+            _tradeRecovery = null;
+            _tradeRecoveryHarmony?.UnpatchSelf();
+            _tradeRecoveryHarmony = null;
+            OwnedApiRequests.Warning = null;
             _manualTradeQueueHarmony?.UnpatchSelf();
             _manualTradeQueueHarmony = null;
             OfflineProgressHarmonyPatch.CaptureService = null;
@@ -580,6 +611,7 @@ namespace ScreenStocksBridge
 
         private void OnGUI()
         {
+            _tradeRecovery?.DrawStatus();
             var stockId = _humanActivityFocus.ActiveStockId;
             if (string.IsNullOrEmpty(stockId)) return;
 

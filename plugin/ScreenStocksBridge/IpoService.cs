@@ -12,6 +12,8 @@ namespace ScreenStocksBridge
 
         internal string Trigger(string requestId)
         {
+            if (TradeRecoveryService.BlocksCommands)
+                return ProtocolJson.Error(requestId, TradeRecoveryService.ErrorCode, TradeRecoveryService.ErrorMessage);
             var snapshot = CreateSnapshot();
             if (!IpoTriggerPolicy.TryAuthorize(snapshot.ready, snapshot.unlocked, snapshot.eligible,
                     out var errorCode, out var errorMessage))

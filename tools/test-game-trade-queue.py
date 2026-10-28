@@ -36,6 +36,16 @@ def main():
     domain = bind("mono_jit_init_version", ptr, string, string)(b"QueueRegression", b"v4.0.30319")
     if not domain:
         raise RuntimeError("Could not initialize the game's Mono runtime")
+    # The API retry method references Unity's integer jitter icall. There is no
+    # Unity engine in this isolated process; supply deterministic jitter only.
+    random_range = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.c_int)(lambda low, high: low)
+    bind("mono_add_internal_call", None, string, ptr)(
+        b"UnityEngine.Random::RandomRangeInt", ctypes.cast(random_range, ptr))
+    # Timing policy tests advance their own clock; patched game methods only
+    # need this engine getter to exist while their wrappers are compiled.
+    unity_time = ctypes.CFUNCTYPE(ctypes.c_float)(lambda: 0.0)
+    bind("mono_add_internal_call", None, string, ptr)(
+        b"UnityEngine.Time::get_realtimeSinceStartup", ctypes.cast(unity_time, ptr))
     assembly = bind("mono_domain_assembly_open", ptr, ptr, string)(domain, str(target).encode())
     if not assembly:
         raise RuntimeError("Could not load the regression assembly")

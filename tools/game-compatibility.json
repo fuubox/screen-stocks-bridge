@@ -10,6 +10,68 @@
   "harmonyVersion": "2.9.0.0",
   "methods": [
     {
+      "type": "ScreenStocks.Net.ScreenStocksAuthManager",
+      "name": "ResetPendingPlayerCommandsForSessionBoundary",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksApiClient",
+      "name": "InvalidateDurableCommandSession",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "ResetPendingCommandForSessionBoundary",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "WaitForAmbiguousTradeResultAsync",
+      "returnType": "System.Threading.Tasks.Task`1<TradeResult>",
+      "parameters": [
+        "System.Guid"
+      ]
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "AcquireProgressResetBarrierAsync",
+      "returnType": "System.Threading.Tasks.Task",
+      "parameters": []
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "ReleaseProgressResetBarrier",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteUpgradesClient",
+      "name": "AcquireProgressResetBarrierAsync",
+      "returnType": "System.Threading.Tasks.Task",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteUpgradesClient",
+      "name": "ReleaseProgressResetBarrier",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteLevelsClient",
+      "name": "AcquireProgressResetBarrierAsync",
+      "returnType": "System.Threading.Tasks.Task",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteLevelsClient",
+      "name": "ReleaseProgressResetBarrier",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
       "type": "RemoteTradeBroker",
       "name": "get_HasAmbiguousTrade",
       "returnType": "System.Boolean",
@@ -219,6 +281,132 @@
     }
   ],
   "fields": [
+    {
+      "type": "StockManager",
+      "name": "_queuedManualActions",
+      "fieldType": "System.Int32",
+      "public": false
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "_ambiguousCommand",
+      "fieldType": "RemoteTradeBroker/PendingTradeCommand",
+      "public": false
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "_tradeDispatchGate",
+      "fieldType": "System.Threading.SemaphoreSlim",
+      "public": false
+    },
+    {
+      "type": "RemoteTradeBroker/PendingTradeCommand",
+      "name": "RequestId",
+      "fieldType": "System.Guid",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksApiClient",
+      "name": "_durableCommandGate",
+      "fieldType": "System.Threading.SemaphoreSlim",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksApiClient",
+      "name": "_durableCommandSessionGeneration",
+      "fieldType": "System.Int64",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.PlayerServerStateClient",
+      "name": "_fetchGate",
+      "fieldType": "System.Threading.SemaphoreSlim",
+      "public": false
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "_tradeDispatchGate",
+      "fieldType": "System.Threading.SemaphoreSlim",
+      "public": false
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "_progressResetBarrierRequested",
+      "fieldType": "System.Boolean",
+      "public": false
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "_progressResetBarrierHeld",
+      "fieldType": "System.Boolean",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteUpgradesClient",
+      "name": "_purchaseGate",
+      "fieldType": "System.Threading.SemaphoreSlim",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteUpgradesClient",
+      "name": "_progressResetBarrierRequested",
+      "fieldType": "System.Boolean",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteUpgradesClient",
+      "name": "_progressResetBarrierHeld",
+      "fieldType": "System.Boolean",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteLevelsClient",
+      "name": "_claimGate",
+      "fieldType": "System.Threading.SemaphoreSlim",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteLevelsClient",
+      "name": "_progressResetBarrierRequested",
+      "fieldType": "System.Boolean",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.RemoteLevelsClient",
+      "name": "_progressResetBarrierHeld",
+      "fieldType": "System.Boolean",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksApiClient/<SendCoroutine>d__69`1",
+      "name": "<>4__this",
+      "fieldType": "ScreenStocks.Net.ScreenStocksApiClient",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksApiClient/<SendCoroutine>d__69`1",
+      "name": "tcs",
+      "fieldType": "System.Threading.Tasks.TaskCompletionSource`1<ScreenStocks.Net.ApiResult`1<TResp>>",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksApiClient/<SendCoroutine>d__69`1",
+      "name": "method",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksApiClient/<SendCoroutine>d__69`1",
+      "name": "path",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksApiClient/<SendCoroutine>d__69`1",
+      "name": "<req>5__3",
+      "fieldType": "UnityEngine.Networking.UnityWebRequest",
+      "public": false
+    },
     {
       "type": "StockManager",
       "name": "_remoteTradeBroker",
