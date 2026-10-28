@@ -4,11 +4,30 @@
   "contractStatus": "reviewed",
   "assemblyName": "Assembly-CSharp",
   "assemblyVersion": "0.0.0.0",
-  "moduleMvid": "97169537-f707-4683-96b7-8d7f4d59fbae",
-  "sha256": "1dd6ae4df7a91f0f9f54c79b68fe0b0c5a96486e5e043ab60a08e205310aa26d",
+  "moduleMvid": "da6422d0-3325-4c79-bfe4-ef9f5955c92b",
+  "sha256": "ac975fe30dad297c78b5c9adeccfde5a2fa4b2cbbb763000279326fd6d76c826",
   "bepInExVersion": "5.4.23.6",
   "harmonyVersion": "2.9.0.0",
   "methods": [
+    {
+      "type": "RemoteTradeBroker",
+      "name": "get_HasAmbiguousTrade",
+      "returnType": "System.Boolean",
+      "parameters": []
+    },
+    {
+      "type": "StockManager",
+      "name": "RunQueuedManualTradeAsync",
+      "returnType": "System.Threading.Tasks.Task`1<System.Boolean>",
+      "parameters": [
+        "System.String",
+        "System.Func`2<StockManager/ManualTradeAction,System.Threading.Tasks.Task`1<System.Boolean>>",
+        "System.Action`1<StockManager/ManualTradeAction>",
+        "System.Func`1<System.Boolean>",
+        "BigNumber",
+        "BigNumber"
+      ]
+    },
     {
       "type": "GameManager",
       "name": "get_Data",
@@ -200,6 +219,18 @@
     }
   ],
   "fields": [
+    {
+      "type": "StockManager",
+      "name": "_remoteTradeBroker",
+      "fieldType": "RemoteTradeBroker",
+      "public": false
+    },
+    {
+      "type": "StockManager",
+      "name": "_manualActionTail",
+      "fieldType": "System.Threading.Tasks.Task",
+      "public": false
+    },
     {
       "type": "GameData",
       "name": "roundPeakNetWorth",

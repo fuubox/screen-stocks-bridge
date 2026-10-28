@@ -21,6 +21,9 @@ namespace ScreenStocksBridge
             if (game == null || game.Data == null)
                 return ProtocolJson.Error(requestId, "not_ready", "IPO data is not ready.");
 
+            if (TradeRecoveryState.IsPending(StockManager.I))
+                return ProtocolJson.Error(requestId, "trade_recovery_pending", TradeRecoveryState.Message);
+
             var countBefore = game.RawIPOCount;
             game.TriggerIPO();
             var result = "{\"status\":\"submitted\",\"ipoCountBefore\":" +

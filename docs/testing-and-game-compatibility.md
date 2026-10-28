@@ -11,6 +11,37 @@ GitHub Actions runs:
 
 These tests check the bridge/client boundary. They do not prove that the current game accepts a trade or that a specific UI still behaves as expected.
 
+### Manual-trade queue regression checks
+
+On Windows with the reviewed game installed, run:
+
+```powershell
+dotnet build tests/ScreenStocksBridge.Game.Tests/ScreenStocksBridge.Game.Tests.csproj -c Release
+python tools/test-game-trade-queue.py
+```
+
+The runner embeds the game's installed Mono runtime in an isolated process and
+uses its installed Harmony library to apply the production queue patch. It first
+reproduces the unpatched cleanup lock, then checks that the patch preserves active
+waits and original exceptions, drains faulted actions, handles reentrant previews,
+and permits later healthy actions. It also checks the bridge's recovery guard.
+It uses synthetic objects and never launches the game or dispatches HTTP/trades.
+The ordinary `dotnet test` runner does not execute this project; matching the
+game's Mono/Harmony runtime is necessary for this check.
+
+The compatibility fingerprint reviewed on October 28, 2026 is `ac975fe3...`, module
+`da6422d0-3325-4c79-bfe4-ef9f5955c92b`. Compared with `1dd6ae4d...`, the member
+surface adds two private timing constants (`ManualHoldStateRequestSeconds` and
+`MaxRecoveryRetryAfterSeconds`) and renumbers generated async/closure types. The
+bridge's existing required signatures remain valid; BepInEx, Harmony, and referenced
+Unity assemblies are unchanged. The queue hook additionally validates its method,
+preview parameter, tail field, and reviewed module before installation. These
+offline checks do not substitute for a live-game smoke test after installation.
+The October 28 local core check ran all 56 tests with runtime roll-forward to the
+installed .NET 10 runtime because .NET 8 was unavailable; Python's 10 client tests
+also passed. Build output included an unavailable NuGet vulnerability-feed warning;
+compilation and the installed-Mono regression checks completed successfully.
+
 ## Check a game patch
 
 The trusted Windows runner must have the full Screen Stocks release and BepInEx installed. Set the repository Actions variable `SCREENSTOCKS_GAME_DIR` to that installation; the fallback path is `C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks`. A push to `main` or a manual run of the **Continuous integration** workflow checks the installed binaries against `tools/game-compatibility.json`, then builds the plugin against the installed assemblies. Pull requests do not execute repository code on this self-hosted runner.

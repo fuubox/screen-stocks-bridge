@@ -28,6 +28,8 @@ namespace ScreenStocksBridge
                 return ProtocolJson.Error(request.id, "not_ready", "The online market is not ready.");
             if (!game.IsStockVisibleToPlayer(stockId) || !game.IsStockUnlocked(stockId))
                 return ProtocolJson.Error(request.id, "stock_unavailable", "Stock is not visible and unlocked in this edition.");
+            if (TradeRecoveryState.IsPending(manager))
+                return ProtocolJson.Error(request.id, "trade_recovery_pending", TradeRecoveryState.Message);
             if (!manager.CanStartManualTrade || manager.IsManualTradeHeld(stockId))
                 return ProtocolJson.Error(request.id, "trade_busy", "A manual trade is held or the trade queue is full.");
 
@@ -112,7 +114,7 @@ namespace ScreenStocksBridge
                 if (!pending.Task.IsCompleted) continue;
                 var success = false;
                 var reason = string.Empty;
-                try { success = pending.Task.Status == TaskStatus.RanToCompletion && pending.Task.Result; }
+                try { success = pending.Task.GetAwaiter().GetResult(); }
                 catch (Exception ex) { reason = ex.GetBaseException().Message; }
                 if (!success && string.IsNullOrEmpty(reason)) reason = "Game trade command was rejected.";
                 var payload = BridgeJson.SerializeTradeCompleted(pending.RequestId, pending.Action, pending.StockId,

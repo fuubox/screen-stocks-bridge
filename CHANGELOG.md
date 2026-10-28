@@ -5,6 +5,21 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Fixed
+
+- Protect the game's manual-trade queue handoff when an exited action faults
+  during cleanup. Active trades keep their ordering; original faults remain
+  visible in bridge trade-completion events.
+- Reject new bridge trades and IPO submissions with `trade_recovery_pending`
+  while the game is reconciling an uncertain trade outcome, avoiding additional
+  queued requests and misleading IPO submission acknowledgements in that state.
+
+### Changed
+
+- Refresh the installed-game compatibility fingerprint to `ac975fe3...`, add
+  queue-patch reflection contracts, and restrict the runtime patch to the reviewed
+  game module. Add regression checks using the installed game's Mono and Harmony.
+
 ## [0.14.1] - 2026-10-27
 
 ### Changed

@@ -386,6 +386,14 @@ The game exposes buy and short cooldown end times. A successful buy or short can
 
 `submitted` only means that the request entered the game's processing path. Use `trade.completed` as the outcome. A failed queue/hold precheck returns an error such as `trade_busy` immediately.
 
+If the game is reconciling a previous trade with an unknown outcome, new bridge
+trades and IPO triggers return `trade_recovery_pending` before dispatch. Wait for
+the game's recovery rather than repeatedly submitting commands. A task failure
+includes its underlying exception message in the completion event's reason.
+The queue safeguard prevents an exited action's cleanup failure from stranding
+later actions; it does not clear an uncertain server command or override the
+game's recovery block.
+
 ## Read cooldown state
 
 The snapshot's `cooldowns.buy` and `cooldowns.shortTrade` records expose:
