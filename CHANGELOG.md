@@ -5,6 +5,8 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-10-28
+
 ### Fixed
 
 - Protect the game's manual-trade queue handoff when an exited action faults
