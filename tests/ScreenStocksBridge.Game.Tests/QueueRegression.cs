@@ -20,6 +20,7 @@ public static class QueueRegression
         {
             _game = Assembly.Load("Assembly-CSharp");
             _stock = _game.GetType("StockManager", true);
+            BrokerCloseRegression.Run();
             VerifyCleanup(false);
             var harmony = new Harmony("screenstocks.bridge.queue-regression");
             try

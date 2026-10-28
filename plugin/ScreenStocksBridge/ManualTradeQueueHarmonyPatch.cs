@@ -14,8 +14,7 @@ namespace ScreenStocksBridge
 
         internal static void Install(Harmony harmony)
         {
-            if (typeof(StockManager).Module.ModuleVersionId != new Guid("da6422d0-3325-4c79-bfe4-ef9f5955c92b"))
-                throw new InvalidOperationException("Manual trade queue patch requires a reviewed game build.");
+            ReviewedGameBuild.Require();
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             var method = typeof(StockManager).GetMethod("RunQueuedManualTradeAsync", flags)
                 ?? throw new MissingMethodException("StockManager.RunQueuedManualTradeAsync was not found.");

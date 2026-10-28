@@ -54,18 +54,45 @@ and no unlocking after timeout. Actual UnityWebRequest abort/disposal and a full
 live auth/scene reconnect remain live-game smoke checks; the isolated harness
 uses controlled transport tasks and abort callbacks.
 
-The compatibility fingerprint reviewed on October 28, 2026 is `ac975fe3...`, module
-`da6422d0-3325-4c79-bfe4-ef9f5955c92b`. Compared with `1dd6ae4d...`, the member
-surface adds two private timing constants (`ManualHoldStateRequestSeconds` and
-`MaxRecoveryRetryAfterSeconds`) and renumbers generated async/closure types. The
-bridge's existing required signatures remain valid; BepInEx, Harmony, and referenced
-Unity assemblies are unchanged. The queue hook additionally validates its method,
-preview parameter, tail field, and reviewed module before installation. These
-offline checks do not substitute for a live-game smoke test after installation.
-The October 28 local core check ran all 63 tests with runtime roll-forward to the
-installed .NET 10 runtime because .NET 8 was unavailable; Python's 10 client tests
-also passed. Build output included an unavailable NuGet vulnerability-feed warning;
-compilation and the installed-Mono regression checks completed successfully.
+The October 28, 2026 evening review targets Steam build 26281852 (installed
+5:19 p.m. Toronto), SHA-256 `7ce68615fbf5db153b12976208d49d73f54d75fec489ed80778ce95d0283329c`,
+MVID `19110632-9ec2-462b-bc28-0c400b4104b5`. The previous reviewed assembly
+was `ac975fe3...` / `da6422d0-3325-4c79-bfe4-ef9f5955c92b`.
+
+Direct Cecil instruction/exception-handler comparison of the baseline and candidate
+found no body changes in RunQueuedManualTradeAsync, its generated MoveNext,
+manual admission, ambiguity wait/reset, dispatch/gate loops, the three recovery
+barrier clients, API SendCoroutine, or auth session reset. The 5e41804 queue
+handoff fix remains necessary: native cleanup can throw before completing the
+tail. The installed-Mono harness reproduces that failure and verifies the fix.
+
+SellAsync/CoverAsync on ITradeBroker and both implementations now take a fifth
+Boolean, closeAll. StockManager's unchanged public entry signatures still serve
+TradeService; their core state machines compute closeAll as actual >= owned/short
+position and pass it through the changed closures. RemoteTradeBroker forwards it
+to the existing SendTrade close-all slot (previously false); LocalTradeBroker
+ignores it. No bridge broker call or recovery hook targets those changed signatures.
+An offline dispatch interception tests both flag values for both remote methods.
+The manifest now covers all six broker signatures.
+
+Other changed behavior includes local position-based GetAvailableShares, auto-action
+prediction/ordering and close-all handling, clearing auto-action predictions in
+CommitProgressResetBarrier, and remote player refresh. These changes do not justify
+rewriting native trade semantics. Recovery retains its ambiguity window, single
+budget, principal/generation fencing, owned-request drain and fresh-state requirement.
+Both queue and recovery hooks, including the API coroutine adapter, require the
+reviewed MVID and full assembly hash before installation; unknown binaries fail closed.
+
+Offline validation passed the compatibility manifest check, Release plugin/game-test
+build, and installed Mono/Harmony queue, recovery and request-ownership regressions.
+All 63 core and 10 Python client tests also passed (local fake-server sockets
+required permission beyond the restricted runner; .NET 10 runtime roll-forward
+was used). NuGet vulnerability-feed lookup was unavailable. No game process was launched or
+market action submitted. Live validation remains pending: after deliberate deployment
+and restart, confirm both protection hooks load, read-only snapshots agree with the
+UI, and observe real Unity request abort/disposal and reconnect in a controlled test.
+Online close-all acceptance and auto-action/IPO behavior are not proven by this harness.
+The ignored candidate has not been promoted over the prior baseline.
 
 ## Check a game patch
 

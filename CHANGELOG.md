@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Review Steam build 26281852 against the prior assembly and enable queue and
+  recovery protection only for its reviewed MVID and full SHA-256.
+- Guard the owned API coroutine adapter with the same build check; retain
+  fail-closed recovery and cleanup-failure queue handoff behavior.
+- Track new broker sell/cover closeAll signatures and test flag forwarding offline.
+  Live Unity networking and market acceptance remain pending validation.
+
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 

@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\plugin\ScreenStocksBridge\ScreenStocksBridge.csproj" />
+    <Reference Include="Assembly-CSharp"><HintPath>$(GameDir)\Screen Stocks_Data\Managed\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="0Harmony">
       <HintPath>$(GameDir)\BepInEx\core\0Harmony.dll</HintPath>
       <Private>false</Private>

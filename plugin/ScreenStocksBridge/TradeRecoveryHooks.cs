@@ -34,8 +34,7 @@ namespace ScreenStocksBridge
 
         internal static void Install(Harmony harmony)
         {
-            if (typeof(StockManager).Module.ModuleVersionId != new Guid("da6422d0-3325-4c79-bfe4-ef9f5955c92b"))
-                throw new InvalidOperationException("Trade recovery requires a reviewed game build.");
+            ReviewedGameBuild.Require();
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             foreach (var type in new[] { typeof(RemoteTradeBroker), typeof(RemoteUpgradesClient), typeof(RemoteLevelsClient) })
             {

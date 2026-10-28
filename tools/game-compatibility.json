@@ -4,8 +4,8 @@
   "contractStatus": "reviewed",
   "assemblyName": "Assembly-CSharp",
   "assemblyVersion": "0.0.0.0",
-  "moduleMvid": "da6422d0-3325-4c79-bfe4-ef9f5955c92b",
-  "sha256": "ac975fe30dad297c78b5c9adeccfde5a2fa4b2cbbb763000279326fd6d76c826",
+  "moduleMvid": "19110632-9ec2-462b-bc28-0c400b4104b5",
+  "sha256": "7ce68615fbf5db153b12976208d49d73f54d75fec489ed80778ce95d0283329c",
   "bepInExVersion": "5.4.23.6",
   "harmonyVersion": "2.9.0.0",
   "methods": [
@@ -160,7 +160,9 @@
       "type": "ScreenStocks.Net.RemoteUpgradesClient",
       "name": "Get",
       "returnType": "ScreenStocks.Net.UpgradeViewDto",
-      "parameters": ["StatType"]
+      "parameters": [
+        "StatType"
+      ]
     },
     {
       "type": "ScreenStocks.Net.ScreenStocksAuthManager",
@@ -172,19 +174,26 @@
       "type": "ScreenStocks.Net.LeaderboardClient",
       "name": "GetTopAsync",
       "returnType": "System.Threading.Tasks.Task`1<ScreenStocks.Net.WireLeaderboardResponse>",
-      "parameters": ["System.Int32"]
+      "parameters": [
+        "System.Int32"
+      ]
     },
     {
       "type": "ScreenStocks.Net.LeaderboardClient",
       "name": "GetAroundMeAsync",
       "returnType": "System.Threading.Tasks.Task`1<ScreenStocks.Net.WireLeaderboardResponse>",
-      "parameters": ["System.Int32", "ScreenStocks.Net.LeaderboardMode"]
+      "parameters": [
+        "System.Int32",
+        "ScreenStocks.Net.LeaderboardMode"
+      ]
     },
     {
       "type": "ScreenStocks.Net.LeaderboardClient",
       "name": "GetClansAsync",
       "returnType": "System.Threading.Tasks.Task`1<ScreenStocks.Net.WireClanLeaderboardResponse>",
-      "parameters": ["ScreenStocks.Net.LeaderboardMode"]
+      "parameters": [
+        "ScreenStocks.Net.LeaderboardMode"
+      ]
     },
     {
       "type": "OfflineProgressView",
@@ -211,49 +220,66 @@
       "type": "MarketNewsTickerUI",
       "name": "OrdinaryMessage",
       "returnType": "System.String",
-      "parameters": ["ScreenStocks.Net.MarketNewsEventDto"]
+      "parameters": [
+        "ScreenStocks.Net.MarketNewsEventDto"
+      ]
     },
     {
       "type": "MarketNewsTickerUI",
       "name": "ScheduledMessage",
       "returnType": "System.String",
-      "parameters": ["ScreenStocks.Net.ScheduledPriceAnnouncementDto"]
+      "parameters": [
+        "ScreenStocks.Net.ScheduledPriceAnnouncementDto"
+      ]
     },
     {
       "type": "MarketNewsTickerUI",
       "name": "SpawnText",
       "returnType": "UnityEngine.RectTransform",
-      "parameters": ["System.String", "System.String"]
+      "parameters": [
+        "System.String",
+        "System.String"
+      ]
     },
     {
       "type": "StockManager",
       "name": "SetChartActivityFocus",
       "returnType": "System.Void",
-      "parameters": ["System.String"]
+      "parameters": [
+        "System.String"
+      ]
     },
     {
       "type": "StockManager",
       "name": "GetEffectiveMaxVolume",
       "returnType": "BigNumber",
-      "parameters": ["System.String"]
+      "parameters": [
+        "System.String"
+      ]
     },
     {
       "type": "StockManager",
       "name": "GetHumanActivity",
       "returnType": "System.Collections.Generic.IReadOnlyList`1<HumanActivitySample>",
-      "parameters": ["System.String"]
+      "parameters": [
+        "System.String"
+      ]
     },
     {
       "type": "RemoteMarketDataSource",
       "name": "GetHistorySampleTicks",
       "returnType": "System.Collections.Generic.IReadOnlyList`1<System.Int64>",
-      "parameters": ["System.String"]
+      "parameters": [
+        "System.String"
+      ]
     },
     {
       "type": "GameManager",
       "name": "ClaimLevel",
       "returnType": "System.Boolean",
-      "parameters": ["System.Int32"]
+      "parameters": [
+        "System.Int32"
+      ]
     },
     {
       "type": "GameManager",
@@ -271,13 +297,95 @@
       "type": "ScreenStocks.Net.RemoteLevelsClient",
       "name": "FetchAsync",
       "returnType": "System.Threading.Tasks.Task`1<System.Boolean>",
-      "parameters": ["System.Boolean"]
+      "parameters": [
+        "System.Boolean"
+      ]
     },
     {
       "type": "AutoActionToastController",
       "name": "Init",
       "returnType": "System.Void",
-      "parameters": ["AutoAction"]
+      "parameters": [
+        "AutoAction"
+      ]
+    },
+    {
+      "type": "ITradeBroker",
+      "name": "SellAsync",
+      "returnType": "System.Threading.Tasks.Task`1<TradeResult>",
+      "parameters": [
+        "System.String",
+        "BigNumber",
+        "System.Guid",
+        "System.Single",
+        "System.Boolean"
+      ]
+    },
+    {
+      "type": "ITradeBroker",
+      "name": "CoverAsync",
+      "returnType": "System.Threading.Tasks.Task`1<TradeResult>",
+      "parameters": [
+        "System.String",
+        "BigNumber",
+        "System.Guid",
+        "System.Single",
+        "System.Boolean"
+      ]
+    },
+    {
+      "type": "LocalTradeBroker",
+      "name": "SellAsync",
+      "returnType": "System.Threading.Tasks.Task`1<TradeResult>",
+      "parameters": [
+        "System.String",
+        "BigNumber",
+        "System.Guid",
+        "System.Single",
+        "System.Boolean"
+      ]
+    },
+    {
+      "type": "LocalTradeBroker",
+      "name": "CoverAsync",
+      "returnType": "System.Threading.Tasks.Task`1<TradeResult>",
+      "parameters": [
+        "System.String",
+        "BigNumber",
+        "System.Guid",
+        "System.Single",
+        "System.Boolean"
+      ]
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "SellAsync",
+      "returnType": "System.Threading.Tasks.Task`1<TradeResult>",
+      "parameters": [
+        "System.String",
+        "BigNumber",
+        "System.Guid",
+        "System.Single",
+        "System.Boolean"
+      ]
+    },
+    {
+      "type": "RemoteTradeBroker",
+      "name": "CoverAsync",
+      "returnType": "System.Threading.Tasks.Task`1<TradeResult>",
+      "parameters": [
+        "System.String",
+        "BigNumber",
+        "System.Guid",
+        "System.Single",
+        "System.Boolean"
+      ]
+    },
+    {
+      "type": "StockManager",
+      "name": "get_CanStartManualTrade",
+      "returnType": "System.Boolean",
+      "parameters": []
     }
   ],
   "fields": [

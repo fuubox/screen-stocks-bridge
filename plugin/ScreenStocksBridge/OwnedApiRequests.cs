@@ -27,6 +27,7 @@ namespace ScreenStocksBridge
 
         internal static void Install(Harmony harmony)
         {
+            ReviewedGameBuild.Require();
             // Hook the non-generic coroutine entry point. Patching constructed
             // generic API methods would risk Mono's shared generic method bodies.
             var start = typeof(MonoBehaviour).GetMethod("StartCoroutine", new[] { typeof(IEnumerator) })
