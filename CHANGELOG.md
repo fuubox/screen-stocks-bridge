@@ -1,18 +1,30 @@
 # Changelog
 
-## Unreleased
-
-- Review Steam build 26281852 against the prior assembly and enable queue and
-  recovery protection only for its reviewed MVID and full SHA-256.
-- Guard the owned API coroutine adapter with the same build check; retain
-  fail-closed recovery and cleanup-failure queue handoff behavior.
-- Track new broker sell/cover closeAll signatures and test flag forwarding offline.
-  Live Unity networking and market acceptance remain pending validation.
-
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
 ## [Unreleased]
+
+## [0.14.4] - 2026-10-28
+
+### Compatibility
+
+- Review Screen Stocks Steam build 26281852 and update the supported fingerprint
+  to MVID `19110632-9ec2-462b-bc28-0c400b4104b5` and SHA-256
+  `7ce68615fbf5db153b12976208d49d73f54d75fec489ed80778ce95d0283329c`. Queue
+  and recovery hooks, including the owned API coroutine adapter, remain
+  fail-closed for any unreviewed game build.
+- Track the updated `SellAsync` and `CoverAsync` close-all signatures and forward
+  the game's `closeAll` flag through the remote broker.
+
+### Validation
+
+- Offline compatibility validation, the Release build, installed-Mono/Harmony
+  queue and recovery regressions, all 63 core tests, and all 10 Python client
+  tests passed.
+- Live acceptance remains pending for actual Unity networking, authentication
+  and scene reconnect, and online market behavior (including close-all,
+  auto-action, and IPO behavior). No live market action was submitted.
 
 ## [0.14.3] - 2026-10-28
 

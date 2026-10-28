@@ -108,7 +108,7 @@ Add a matching `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md`. The release 
 
 ## Publish a release
 
-1. Update the three version values and add the changelog section.
+1. Update all four version values and add the dated changelog section.
 2. Build and review the changes, then commit and push them to `main`.
 3. Create and push the matching semantic version tag. For example:
 
