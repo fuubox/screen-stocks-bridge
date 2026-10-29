@@ -270,7 +270,7 @@ namespace ScreenStocksBridge
         private void Update()
         {
             _tradeRecovery?.Update();
-            _humanActivityFocus.Update();
+            _humanActivityFocus.Update(message => Logger.LogInfo(message));
             if (GameManager.I != null && GameManager.I.Data != null &&
                 AutoActionUnlockHarmonyPatch.TryConsumeLevelDataRefresh())
             {
@@ -603,43 +603,17 @@ namespace ScreenStocksBridge
             _autoActionToasts.SetServer(null);
             if (!_humanActivityFocus.RestoreOnShutdown())
                 Logger.LogWarning("Could not restore the game's activity focus while shutting down the plugin.");
+            _humanActivityFocusIndicator.Dispose();
             _server?.Dispose();
             _server = null;
         }
 
-        private static GUIStyle? _humanActivityFocusOverlayStyle;
+        private readonly HumanActivityFocusIndicator _humanActivityFocusIndicator = new HumanActivityFocusIndicator();
 
         private void OnGUI()
         {
             _tradeRecovery?.DrawStatus();
-            var stockId = _humanActivityFocus.ActiveStockId;
-            if (string.IsNullOrEmpty(stockId)) return;
-
-            var content = new GUIContent("Activity focus override: " + stockId);
-            var style = _humanActivityFocusOverlayStyle;
-            if (style == null)
-            {
-                style = new GUIStyle(GUI.skin.label)
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                    fontSize = 20,
-                    fontStyle = FontStyle.Bold,
-                    wordWrap = false,
-                };
-                style.normal.textColor = Color.white;
-                _humanActivityFocusOverlayStyle = style;
-            }
-
-            var size = style.CalcSize(content);
-            var width = Mathf.Min(Mathf.Max(320f, size.x + 48f), Mathf.Max(64f, Screen.width - 32f));
-            var height = Mathf.Max(64f, size.y + 28f);
-            var rect = new Rect((Screen.width - width) / 2f, (Screen.height - height) / 2f, width, height);
-
-            var previousColor = GUI.color;
-            GUI.color = new Color(0.035f, 0.045f, 0.065f, 1f);
-            GUI.DrawTexture(rect, Texture2D.whiteTexture, ScaleMode.StretchToFill, false);
-            GUI.color = previousColor;
-            GUI.Label(rect, content, style);
+            _humanActivityFocusIndicator.Draw(_humanActivityFocus.ActiveStockId, message => Logger.LogInfo(message));
         }
 
         private static string CreateToken()

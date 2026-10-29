@@ -133,14 +133,30 @@ namespace ScreenStocksBridge
             return true;
         }
 
-        internal void Update()
+        internal void Update(Action<string>? log = null)
         {
             if (string.IsNullOrEmpty(_activeStockId)) return;
 
             var manager = StockManager.I;
-            if (manager == null || !TryReadFocus(manager, out var currentFocus) ||
-                !string.Equals(currentFocus, _activeStockId, StringComparison.Ordinal))
+            if (manager == null || !TryReadFocus(manager, out var currentFocus))
+            {
                 ClearOverrideState();
+                return;
+            }
+            if (string.Equals(currentFocus, _activeStockId, StringComparison.Ordinal)) return;
+
+            // Native stock navigation updates the activity focus too. Keep an explicit bridge
+            // override active while browsing; authenticated set/clear requests still replace it.
+            try
+            {
+                manager.SetChartActivityFocus(_activeStockId);
+                log?.Invoke("Restored activity override " + _activeStockId + " after graph navigation to " + currentFocus + ".");
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke("Could not retain activity override: " + ex.Message);
+                ClearOverrideState();
+            }
         }
 
         internal bool RestoreOnShutdown()

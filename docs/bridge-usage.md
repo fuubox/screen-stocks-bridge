@@ -328,7 +328,7 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 
 ## Read and subscribe to graph activity
 
-The game has one active human-activity focus. Set it explicitly with `bridge.set_human_activity_focus(stock_id)`; this changes the game's activity feed without changing the visible graph stock. While active, the game displays a centered, opaque `Activity focus override: STOCK_ID` overlay.
+The game has one active human-activity focus. Set it explicitly with `bridge.set_human_activity_focus(stock_id)`; this changes the game's activity feed without changing the visible graph stock. While active, the main stock graph displays a compact amber `OVERRIDE: ON` indicator inside the bottom-left of the human activity histogram band. When the focus matches the displayed stock, it instead shows a much smaller green `TRACKING` label. The indicator scales with the game UI and hides with the graph.
 
 ```python
 focus = bridge.set_human_activity_focus("TECH")
@@ -337,7 +337,7 @@ print(focus)  # {"active": True, "stockId": "TECH"}
 page = bridge.human_activity("TECH")
 ```
 
-Clear the override with `bridge.clear_human_activity_focus()`. The game returns to the activity focus associated with the graph stock selected before the override began. Manually selecting a different graph stock cancels the override and hides the label. The override is global to the running game, not tied to a Python connection; another authenticated client can replace or clear it, and disconnecting does not clear it.
+Clear the override with `bridge.clear_human_activity_focus()`. The game returns to the activity focus associated with the graph stock selected before the override began. Selecting a different graph stock keeps the override active; the indicator changes between `TRACKING` and `OVERRIDE: ON` according to whether the displayed stock matches. The override is global to the running game, not tied to a Python connection; another authenticated client can replace or clear it, and disconnecting does not clear it.
 
 The bridge permits at least five seconds between focus changes it requests. A request that comes too soon raises `BridgeError` with `code == "rate_limited"` and `retry_after_ms` set to the remaining milliseconds. Repeating the active focus is a no-op. Normal graph selection remains immediate.
 
