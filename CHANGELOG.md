@@ -5,12 +5,27 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.14.5] - 2026-10-29
+
 ### Added
 
-- Read-only `upgrades.quote` RPC and Python `quote_upgrade()` for fixed quantities,
-  explicit budgets, cash fractions, target levels, and target effective values.
-  Quotes include total cost, resulting value, affordability, and explicit cap or
-  calculation-limit reporting, with up to 5,000 levels evaluated per request.
+- Add the read-only `upgrades.quote` RPC and Python `quote_upgrade()` for fixed
+  quantities, explicit budgets, cash fractions, target levels, and target values.
+  Quotes report cost, resulting value, affordability, and cap or calculation
+  limits, evaluating up to 5,000 levels per request without submitting a purchase.
+
+### Improved
+
+- Show activity focus status in the stock histogram and retain an explicit focus
+  override while browsing other stocks.
+
+### Validation
+
+- Offline compatibility validation, the Release build, installed-Mono/Harmony
+  queue and recovery regressions, and all 12 Python client tests passed.
+- Live Unity acceptance for histogram display and focus behavior, networking,
+  authentication and scene reconnect, and online market behavior remains pending.
+  No live market action was submitted.
 
 ## [0.14.4] - 2026-10-28
 

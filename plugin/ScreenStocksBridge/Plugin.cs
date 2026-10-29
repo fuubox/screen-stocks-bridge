@@ -13,7 +13,7 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.14.4";
+        public const string PluginVersion = "0.14.5";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
