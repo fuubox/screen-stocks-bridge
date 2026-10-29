@@ -3,7 +3,25 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
-## [Unreleased]
+## [0.14.6] - 2026-10-29
+
+### Compatibility
+
+- Review Screen Stocks Steam build 26298415 and update the supported assembly
+  fingerprint to MVID `20f0cbb7-bcb4-4ccf-9354-ec2ae5d91b51` and SHA-256
+  `6f396487493579564e6739daea7413295eefbc559ccf3690c68fd602468cf3a1`.
+- Adapt the manual-trade queue Harmony hook to the game's new
+  `ManualTradeShape` signature while retaining the exception-safe queue-tail
+  handoff. This is an offline compatibility update, not a confirmation that the
+  game fixed the reported Buy/Short lockup.
+
+### Validation
+
+- Offline compatibility validation, Release build, installed-Mono/Harmony queue
+  and recovery regressions, and all 12 Python client tests passed locally. The
+  core test suite is awaiting GitHub Actions validation before tagging.
+- Live Unity networking, reconnect behavior, and market acceptance remain
+  unverified. No live market action was submitted.
 
 ## [0.14.5] - 2026-10-29
 

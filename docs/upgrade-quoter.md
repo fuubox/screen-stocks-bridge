@@ -6,8 +6,8 @@ purchase, or refresh data from the backend. Use it to compare quantities or find
 how many levels fit a budget before deciding whether to buy.
 
 This API requires a plugin and Python client containing `upgrades.quote` and
-`quote_upgrade()`. It is an unreleased addition after v0.14.4; installing the
-v0.14.4 release alone does not provide it.
+`quote_upgrade()`. It is available in release v0.14.5 and later; install matching
+plugin and Python client versions.
 
 ## Quote five additional levels
 

@@ -10,13 +10,13 @@ namespace ScreenStocksBridge
         internal static void Require()
         {
             var module = typeof(StockManager).Module;
-            if (module.ModuleVersionId != new Guid("19110632-9ec2-462b-bc28-0c400b4104b5"))
+            if (module.ModuleVersionId != new Guid("20f0cbb7-bcb4-4ccf-9354-ec2ae5d91b51"))
                 throw new InvalidOperationException("Trade protection requires a reviewed game build.");
             using (var stream = File.OpenRead(module.FullyQualifiedName))
             using (var sha = SHA256.Create())
             {
                 var hash = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
-                if (hash != "7ce68615fbf5db153b12976208d49d73f54d75fec489ed80778ce95d0283329c")
+                if (hash != "6f396487493579564e6739daea7413295eefbc559ccf3690c68fd602468cf3a1")
                     throw new InvalidOperationException("Trade protection game assembly hash differs from the reviewed build.");
             }
         }

@@ -21,12 +21,18 @@ namespace ScreenStocksBridge
             _tail = typeof(StockManager).GetField("_manualActionTail", flags)
                 ?? throw new MissingFieldException("StockManager", "_manualActionTail");
             var parameters = method.GetParameters();
+            var actionType = typeof(StockManager).GetNestedType("ManualTradeAction", flags)
+                ?? throw new MissingMemberException("StockManager.ManualTradeAction was not found.");
+            var shapeType = typeof(StockManager).GetNestedType("ManualTradeShape", flags)
+                ?? throw new MissingMemberException("StockManager.ManualTradeShape was not found.");
             if (_tail.FieldType != typeof(Task) || method.ReturnType != typeof(Task<bool>) ||
-                parameters.Length != 6 || parameters[2].Name != "preview")
+                parameters.Length != 4 || parameters[0].ParameterType != typeof(string) ||
+                parameters[1].ParameterType != typeof(Func<,>).MakeGenericType(actionType, typeof(Task<bool>)) ||
+                parameters[2].Name != "preview" ||
+                parameters[2].ParameterType != typeof(Action<>).MakeGenericType(actionType) ||
+                parameters[3].ParameterType != shapeType)
                 throw new InvalidOperationException("Manual trade queue signature has changed.");
             _previewType = parameters[2].ParameterType;
-            if (!_previewType.IsGenericType || _previewType.GetGenericTypeDefinition() != typeof(Action<>))
-                throw new InvalidOperationException("Manual trade preview signature has changed.");
             harmony.Patch(method,
                 prefix: new HarmonyMethod(typeof(ManualTradeQueueHarmonyPatch).GetMethod(nameof(Prefix),
                     BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(_previewType.GetGenericArguments())),

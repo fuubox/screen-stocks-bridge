@@ -94,6 +94,31 @@ UI, and observe real Unity request abort/disposal and reconnect in a controlled 
 Online close-all acceptance and auto-action/IPO behavior are not proven by this harness.
 The ignored candidate has not been promoted over the prior baseline.
 
+### October 29, 2026 game update: Steam build 26298415
+
+The installed `Assembly-CSharp.dll` has MVID
+`20f0cbb7-bcb4-4ccf-9354-ec2ae5d91b51` and SHA-256
+`6f396487493579564e6739daea7413295eefbc559ccf3690c68fd602468cf3a1`.
+BepInEx, Harmony, Mono.Cecil, and the Unity managed references are unchanged
+from build 26281852.
+
+`StockManager.RunQueuedManualTradeAsync` and `StartManualTrade` now take four
+arguments; the last is `ManualTradeShape`, replacing the previous predicate and
+two close-volume arguments. The native queue cap increased from 3 to 20 and the
+queue now tracks per-stock admission tails and unshown close/open state. The
+generated queue state machine changed substantially, but it still publishes
+`_manualActionTail` before invoking the preview callback. Its cleanup clears the
+pending registry before signaling the action completion source, so a cleanup
+exception can still leave that tail unresolved. The bridge's tail-settling
+Harmony wrapper remains necessary and now validates the four-argument contract.
+
+The reconnect, ambiguous-trade wait/reset, recovery-barrier, API request-session,
+and authentication session-boundary methods have no instruction or exception
+handler changes after normalizing generated state-machine names. The API
+`SendCoroutine` iterator name and fields used by the cancellation adapter remain
+unchanged. This is offline compatibility review only; live Unity networking,
+reconnect behavior, and market acceptance remain unverified.
+
 ## Check a game patch
 
 The trusted Windows runner must have the full Screen Stocks release and BepInEx installed. Set the repository Actions variable `SCREENSTOCKS_GAME_DIR` to that installation; the fallback path is `C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks`. A push to `main` or a manual run of the **Continuous integration** workflow checks the installed binaries against `tools/game-compatibility.json`, then builds the plugin against the installed assemblies. Pull requests do not execute repository code on this self-hosted runner.

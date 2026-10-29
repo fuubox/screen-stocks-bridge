@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $managed = Join-Path $GameDir 'Screen Stocks_Data\Managed'
 $assemblyPath = Join-Path $managed 'Assembly-CSharp.dll'
-$reviewedHash = 'ac975fe30dad297c78b5c9adeccfde5a2fa4b2cbbb763000279326fd6d76c826'
+$reviewedHash = '6f396487493579564e6739daea7413295eefbc559ccf3690c68fd602468cf3a1'
 if ((Get-FileHash $assemblyPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $reviewedHash) {
     throw 'Game fingerprint changed; review the harness before running it.'
 }
@@ -16,8 +16,9 @@ $assembly = [Reflection.Assembly]::LoadFrom($assemblyPath)
 $flags = [Reflection.BindingFlags]'Instance,Public,NonPublic'
 $stockType = $assembly.GetType('StockManager', $true)
 $actionType = $assembly.GetType('StockManager+ManualTradeAction', $true)
+$shapeType = $assembly.GetType('StockManager+ManualTradeShape', $true)
 $run = $stockType.GetMethod('RunQueuedManualTradeAsync', $flags)
-$zero = [Activator]::CreateInstance($assembly.GetType('BigNumber', $true))
+$queueLimit = 20
 
 Add-Type @'
 using System;
@@ -35,6 +36,10 @@ function New-TestManager {
     $stockType.GetField('_usingRemote', $flags).SetValue($manager, $true)
     $stockType.GetField('_heldManualStocks', $flags).SetValue($manager, [Collections.Generic.HashSet[string]]::new())
     $stockType.GetField('_pending', $flags).SetValue($manager, [Activator]::CreateInstance($assembly.GetType('PendingTradeRegistry')))
+    $stockType.GetField('_stockAdmissionTails', $flags).SetValue($manager, [Collections.Generic.Dictionary[string,Threading.Tasks.Task]]::new())
+    $stockType.GetField('_unshownCloseSides', $flags).SetValue($manager, [Collections.Generic.Dictionary[string,int]]::new())
+    $predictions = [Activator]::CreateInstance($assembly.GetType('ManualTradePredictionLedger'), [object[]]@($manager))
+    $stockType.GetField('_manualPredictions', $flags).SetValue($manager, $predictions)
     $stockType.GetField('_manualActionTail', $flags).SetValue($manager, [Threading.Tasks.Task]::CompletedTask)
     return $manager
 }
@@ -43,8 +48,9 @@ function Start-TestTrade($manager, $task, $id) {
     $parameter = [Linq.Expressions.Expression]::Parameter($actionType, 'action')
     $body = [Linq.Expressions.Expression]::Constant($task, [Threading.Tasks.Task[bool]])
     $execute = [Linq.Expressions.Expression]::Lambda($delegateType, $body, [Linq.Expressions.ParameterExpression[]]@($parameter)).Compile()
+    $shape = [Activator]::CreateInstance($shapeType)
     # Do not let PowerShell enumerate/unwrap the returned Task.
-    return ,$run.Invoke($manager, [object[]]@($id, $execute, $null, $null, $zero, $zero))
+    return ,$run.Invoke($manager, [object[]]@($id, $execute, $null, $shape))
 }
 function Assert-State($manager, $count, $allowed, $label) {
     $actualCount = $stockType.GetField('_queuedManualActions', $flags).GetValue($manager)
@@ -72,8 +78,8 @@ if ($wait.IsCompleted) { throw 'Parked command unexpectedly completed.' }
 $manager = New-TestManager
 $blocked = [ManualTradeLockHarness]::AwaitResult($wait)
 $tasks = @()
-foreach ($id in @('first', 'second', 'third')) { $tasks += ,(Start-TestTrade $manager $blocked $id) }
-Assert-State $manager 3 $false 'Unresolved broker command fills queue'
+for ($index = 0; $index -lt $queueLimit; $index++) { $tasks += ,(Start-TestTrade $manager $blocked "stock-$index") }
+Assert-State $manager $queueLimit $false 'Unresolved broker command fills queue'
 $brokerType.GetMethod('ResetPendingCommandForSessionBoundary', $flags).Invoke($broker, @())
 Assert-State $manager 0 $true 'Real session-boundary method releases waiters'
 if (@($tasks | Where-Object { $_.Status -ne 'RanToCompletion' }).Count) { throw 'Queue did not finish cleanly.' }
@@ -82,15 +88,14 @@ if (@($tasks | Where-Object { $_.Status -ne 'RanToCompletion' }).Count) { throw 
 $manager = New-TestManager
 $source = [Threading.Tasks.TaskCompletionSource[bool]]::new()
 $first = Start-TestTrade $manager $source.Task 'first'
-$second = Start-TestTrade $manager $source.Task 'second'
+$actions = @($first, (Start-TestTrade $manager $source.Task 'second'))
 $registry = $stockType.GetField('_pending', $flags).GetValue($manager)
 $subscriber = [Action[string]][Delegate]::CreateDelegate([Action[string]], [ManualTradeLockHarness].GetMethod('ThrowOnNotification'))
 $registry.GetType().GetField('OnPendingChanged', $flags).SetValue($registry, $subscriber)
 $source.SetResult($false)
 $registry.GetType().GetField('OnPendingChanged', $flags).SetValue($registry, $null)
-if (-not $first.IsFaulted -or $second.IsCompleted) { throw 'Expected a faulted first task and stranded second task.' }
-$third = Start-TestTrade $manager $source.Task 'third'
-$fourth = Start-TestTrade $manager $source.Task 'fourth'
-Assert-State $manager 3 $false 'Completed trade plus cleanup exception permanently poisons queue'
-if ($second.IsCompleted -or $third.IsCompleted -or $fourth.IsCompleted) { throw 'Poisoned queue unexpectedly drained.' }
+if (-not $first.IsFaulted -or $actions[1].IsCompleted) { throw 'Expected a faulted first task and stranded second task.' }
+for ($index = 2; $index -lt $queueLimit; $index++) { $actions += ,(Start-TestTrade $manager $source.Task "blocked-$index") }
+Assert-State $manager $queueLimit $false 'Completed trade plus cleanup exception permanently poisons queue'
+if (@($actions | Where-Object { $_.IsCompleted }).Count -ne 1) { throw 'Poisoned queue unexpectedly drained.' }
 Write-Output 'All checks passed against the installed game assembly. No live trades were submitted.'

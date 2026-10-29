@@ -4,8 +4,8 @@
   "contractStatus": "reviewed",
   "assemblyName": "Assembly-CSharp",
   "assemblyVersion": "0.0.0.0",
-  "moduleMvid": "19110632-9ec2-462b-bc28-0c400b4104b5",
-  "sha256": "7ce68615fbf5db153b12976208d49d73f54d75fec489ed80778ce95d0283329c",
+  "moduleMvid": "20f0cbb7-bcb4-4ccf-9354-ec2ae5d91b51",
+  "sha256": "6f396487493579564e6739daea7413295eefbc559ccf3690c68fd602468cf3a1",
   "bepInExVersion": "5.4.23.6",
   "harmonyVersion": "2.9.0.0",
   "methods": [
@@ -97,9 +97,18 @@
         "System.String",
         "System.Func`2<StockManager/ManualTradeAction,System.Threading.Tasks.Task`1<System.Boolean>>",
         "System.Action`1<StockManager/ManualTradeAction>",
-        "System.Func`1<System.Boolean>",
-        "BigNumber",
-        "BigNumber"
+        "StockManager/ManualTradeShape"
+      ]
+    },
+    {
+      "type": "StockManager",
+      "name": "StartManualTrade",
+      "returnType": "System.Threading.Tasks.Task`1<System.Boolean>",
+      "parameters": [
+        "System.String",
+        "System.Func`2<StockManager/ManualTradeAction,System.Threading.Tasks.Task`1<System.Boolean>>",
+        "System.Action`1<StockManager/ManualTradeAction>",
+        "StockManager/ManualTradeShape"
       ]
     },
     {

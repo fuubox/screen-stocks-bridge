@@ -11,7 +11,9 @@ using HarmonyLib;
 public static class QueueRegression
 {
     private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+    private const int QueueLimit = 20;
     private static Type _stock = null!;
+    private static Type _shape = null!;
     private static Assembly _game = null!;
 
     public static int Run()
@@ -20,6 +22,7 @@ public static class QueueRegression
         {
             _game = Assembly.Load("Assembly-CSharp");
             _stock = _game.GetType("StockManager", true);
+            _shape = _game.GetType("StockManager+ManualTradeShape", true);
             BrokerCloseRegression.Run();
             VerifyCleanup(false);
             var harmony = new Harmony("screenstocks.bridge.queue-regression");
@@ -49,6 +52,10 @@ public static class QueueRegression
         Set(manager, "_usingRemote", true);
         Set(manager, "_heldManualStocks", new HashSet<string>());
         Set(manager, "_pending", Activator.CreateInstance(_game.GetType("PendingTradeRegistry", true))!);
+        Set(manager, "_stockAdmissionTails", new Dictionary<string, Task>());
+        Set(manager, "_unshownCloseSides", new Dictionary<string, int>());
+        Set(manager, "_manualPredictions", Activator.CreateInstance(
+            _game.GetType("ManualTradePredictionLedger", true), new object?[] { manager })!);
         Set(manager, "_manualActionTail", Task.CompletedTask);
         return manager;
     }
@@ -62,11 +69,11 @@ public static class QueueRegression
         var parameter = Expression.Parameter(action, "action");
         var execute = Expression.Lambda(typeof(Func<,>).MakeGenericType(action, typeof(Task<bool>)),
             Expression.Constant(execution, typeof(Task<bool>)), parameter).Compile();
-        var zero = Activator.CreateInstance(_game.GetType("BigNumber", true));
+        var shape = Activator.CreateInstance(_shape);
         var previewDelegate = preview == null ? null : Expression.Lambda(typeof(Action<>).MakeGenericType(action),
             Expression.Invoke(Expression.Constant(preview)), parameter).Compile();
         return (Task<bool>)_stock.GetMethod("RunQueuedManualTradeAsync", Fields).Invoke(manager,
-            new object?[] { id, execute, previewDelegate, null, zero, zero });
+            new object?[] { id, execute, previewDelegate, shape });
     }
 
     private static void State(object manager, int queued, bool allowed)
@@ -80,33 +87,35 @@ public static class QueueRegression
     {
         var manager = NewManager();
         var source = new TaskCompletionSource<bool>();
-        var first = Start(manager, "first", source.Task);
-        var second = Start(manager, "second", source.Task);
-        var third = Start(manager, "third", source.Task);
-        State(manager, 3, false);
-        Require(!first.IsCompleted && !second.IsCompleted && !third.IsCompleted, "no premature tail completion");
+        var actions = new List<Task<bool>>();
+        for (var index = 0; index < QueueLimit; index++)
+            actions.Add(Start(manager, "stock-" + index, source.Task));
+        State(manager, QueueLimit, false);
+        Require(actions.TrueForAll(action => !action.IsCompleted), "no premature tail completion");
         var rejected = Start(manager, "full", source.Task);
         Require(rejected.Status == TaskStatus.RanToCompletion && !rejected.Result, "full queue rejects");
-        State(manager, 3, false);
+        State(manager, QueueLimit, false);
 
         var registry = _stock.GetField("_pending", Fields).GetValue(manager);
         Set(registry, "OnPendingChanged", new Action<string>(_ => throw new InvalidOperationException("Injected cleanup failure")));
         source.SetResult(false);
         Set(registry, "OnPendingChanged", null!);
+        var first = actions[0];
         Require(first.IsFaulted && first.Exception!.GetBaseException().Message == "Injected cleanup failure", "original exception survives");
         if (!patched)
         {
-            Require(!second.IsCompleted && !third.IsCompleted, "unpatched waiters stranded");
-            State(manager, 2, true);
-            Start(manager, "fourth", source.Task);
-            State(manager, 3, false);
+            Require(actions.GetRange(1, actions.Count - 1).TrueForAll(action => !action.IsCompleted), "unpatched waiters stranded");
+            State(manager, QueueLimit - 1, true);
+            Start(manager, "replacement", source.Task);
+            State(manager, QueueLimit, false);
             Console.WriteLine("PASS: unpatched cleanup reproduces permanent queue lock");
             return;
         }
 
-        try { Task.WhenAll(first, second, third).Wait(3000); } catch (AggregateException) { }
+        try { Task.WhenAll(actions).Wait(3000); } catch (AggregateException) { }
+        Set(registry, "OnPendingChanged", null!);
         State(manager, 0, true);
-        Require(second.IsFaulted && third.IsFaulted, "all faulted actions exit without stranding tails");
+        Require(actions.GetRange(1, actions.Count - 1).TrueForAll(action => action.IsCompleted), "waiting actions drain without stranding tails");
         var next = Start(manager, "next", Task.FromResult(true));
         Require(next.Status == TaskStatus.RanToCompletion && next.Result, "next healthy action succeeds");
         State(manager, 0, true);
