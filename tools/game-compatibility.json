@@ -4,8 +4,8 @@
   "contractStatus": "reviewed",
   "assemblyName": "Assembly-CSharp",
   "assemblyVersion": "0.0.0.0",
-  "moduleMvid": "20f0cbb7-bcb4-4ccf-9354-ec2ae5d91b51",
-  "sha256": "6f396487493579564e6739daea7413295eefbc559ccf3690c68fd602468cf3a1",
+  "moduleMvid": "dd09793d-9059-4247-9120-a2f8f1761f21",
+  "sha256": "c7f7be7089891d1740eb7b97b8a5c83d43c7cc73e82c468a7ad992700093a7d8",
   "bepInExVersion": "5.4.23.6",
   "harmonyVersion": "2.9.0.0",
   "methods": [
@@ -88,17 +88,6 @@
       "name": "get_HasAmbiguousTrade",
       "returnType": "System.Boolean",
       "parameters": []
-    },
-    {
-      "type": "StockManager",
-      "name": "RunQueuedManualTradeAsync",
-      "returnType": "System.Threading.Tasks.Task`1<System.Boolean>",
-      "parameters": [
-        "System.String",
-        "System.Func`2<StockManager/ManualTradeAction,System.Threading.Tasks.Task`1<System.Boolean>>",
-        "System.Action`1<StockManager/ManualTradeAction>",
-        "StockManager/ManualTradeShape"
-      ]
     },
     {
       "type": "StockManager",
@@ -564,12 +553,6 @@
       "type": "StockManager",
       "name": "_remoteTradeBroker",
       "fieldType": "RemoteTradeBroker",
-      "public": false
-    },
-    {
-      "type": "StockManager",
-      "name": "_manualActionTail",
-      "fieldType": "System.Threading.Tasks.Task",
       "public": false
     },
     {

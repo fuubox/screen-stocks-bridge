@@ -3,6 +3,29 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [0.14.7] - 2026-10-29
+
+### Compatibility
+
+- Review Screen Stocks Steam build 26302063 and update the supported assembly
+  fingerprint to MVID `dd09793d-9059-4247-9120-a2f8f1761f21` and SHA-256
+  `c7f7be7089891d1740eb7b97b8a5c83d43c7cc73e82c468a7ad992700093a7d8`.
+- Remove the manual-trade queue-tail Harmony workaround. The game now completes
+  the queue tail in a `finally` even when pending-trade cleanup throws.
+- Keep the separate bounded reconnect and trade-recovery hooks. The game's
+  ambiguous-trade wait is unchanged, so an uncertain server result still needs
+  recovery and authoritative state refresh before trading resumes.
+- The game now uses its run-peak accessor for IPO eligibility; the bridge already
+  reads the native `CanIPO()` result.
+
+### Validation
+
+- Offline assembly/API review, the compatibility checker, plugin Release build,
+  installed-Mono queue/recovery regressions, all 70 core tests, and all 12 Python
+  client tests passed against build 26302063. Live Unity networking, reconnect
+  behavior, and market acceptance remain unverified. No live market action was
+  submitted.
+
 ## [0.14.6] - 2026-10-29
 
 ### Compatibility

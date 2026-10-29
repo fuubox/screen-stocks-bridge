@@ -4,7 +4,7 @@ Screen Stocks Bridge is a BepInEx plugin and Python client for reading live game
 
 The plugin listens on `127.0.0.1` only. It does not enable or use the game's official `modSupport` file API, and it does not write bridge snapshots, trade requests, results, or market exports to disk. BepInEx still writes its normal config and log files, and the game can save its own settings. In online mode, the game remains responsible for processing and validating actions submitted through its normal methods. Trades and auto actions can change the shared online market.
 
-The bridge has offline-reviewed compatibility with Screen Stocks Steam build 26298415. Live Unity networking, reconnect behavior, and market acceptance remain unverified; offline checks do not replace live-game acceptance checks.
+The bridge has offline-reviewed compatibility with Screen Stocks Steam build 26302063. The game now releases its manual-trade queue tail from cleanup `finally` blocks, so the bridge no longer patches that queue. Separate bounded reconnect and recovery hooks remain because the game's ambiguous-trade wait is still unresolved until the original request is reconciled. Live Unity networking, reconnect behavior, and market acceptance remain unverified; offline checks do not replace live-game acceptance checks.
 
 ## Install the plugin
 

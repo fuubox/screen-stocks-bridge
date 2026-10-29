@@ -20,11 +20,11 @@ dotnet build tests/ScreenStocksBridge.Game.Tests/ScreenStocksBridge.Game.Tests.c
 python tools/test-game-trade-queue.py
 ```
 
-The runner embeds the game's installed Mono runtime in an isolated process and
-uses its installed Harmony library to apply the production queue patch. It first
-reproduces the unpatched cleanup lock, then checks that the patch preserves active
-waits and original exceptions, drains faulted actions, handles reentrant previews,
-and permits later healthy actions. It also checks the bridge's recovery guard.
+The runner embeds the game's installed Mono runtime in an isolated process. It
+checks that the game's native queue cleanup releases queued actions even when a
+pending-state notification throws, while preserving the original action fault.
+It also checks dispatch and preview failures, reentrant previews, the bridge's
+recovery guard, and session recovery. No Unity scene or HTTP/trade request is used.
 It uses synthetic objects and never launches the game or dispatches HTTP/trades.
 The ordinary `dotnet test` runner does not execute this project; matching the
 game's Mono/Harmony runtime is necessary for this check.
@@ -112,12 +112,37 @@ pending registry before signaling the action completion source, so a cleanup
 exception can still leave that tail unresolved. The bridge's tail-settling
 Harmony wrapper remains necessary and now validates the four-argument contract.
 
-The reconnect, ambiguous-trade wait/reset, recovery-barrier, API request-session,
-and authentication session-boundary methods have no instruction or exception
-handler changes after normalizing generated state-machine names. The API
-`SendCoroutine` iterator name and fields used by the cancellation adapter remain
-unchanged. This is offline compatibility review only; live Unity networking,
-reconnect behavior, and market acceptance remain unverified.
+At that point, the reconnect, ambiguous-trade wait/reset, recovery-barrier, API
+request-session, and authentication session-boundary methods had no instruction
+or exception-handler changes. The next game update below supersedes this
+compatibility baseline.
+
+### October 29, 2026 game update: Steam build 26302063
+
+The installed `Assembly-CSharp.dll` has MVID
+`dd09793d-9059-4247-9120-a2f8f1761f21` and SHA-256
+`c7f7be7089891d1740eb7b97b8a5c83d43c7cc73e82c468a7ad992700093a7d8`. BepInEx,
+Harmony, Mono.Cecil, and the Unity managed references are unchanged from build
+26298415.
+
+The `RunQueuedManualTradeAsync` state machine now nests its cleanup in `finally`
+blocks. `done.TrySetResult` runs from a `finally` even when preview cleanup or
+`PendingTradeRegistry.ClearPending` throws, and the outer `finally` still releases
+the per-stock admission tail and decrements `_queuedManualActions`. This closes
+the queue-poisoning path that required the bridge's manual queue-tail Harmony
+workaround on build 26298415. The workaround has been removed.
+
+The ambiguous wait still returns the pending command's completion task, and its
+instruction body is unchanged. The bridge's bounded reconnect and recovery hooks
+remain installed; their reflected fields, barrier methods, reset methods, and
+`SendCoroutine` iterator name/fields are present and unchanged. The API coroutine
+adapter still cancels only bridge-owned requests and fences old session results.
+
+The game changed `CanIPO()` to use `GetRunPeakNetWorthForIpo()` instead of reading
+`GameData.roundPeakNetWorth` directly. The bridge uses the game's native
+`CanIPO()` result, so no custom IPO calculation was needed. This update is offline
+compatibility review only; live Unity networking, reconnect behavior, and market
+acceptance remain unverified.
 
 ## Check a game patch
 

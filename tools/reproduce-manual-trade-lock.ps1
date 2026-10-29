@@ -1,13 +1,13 @@
 # Runs installed managed methods on isolated, synthetic objects. No game process,
 # HTTP requests, credentials, saves, or installed files are accessed or changed.
-# For patched regression checks use tools/test-game-trade-queue.py.
+# Exercises the current game's native queue cleanup and session recovery without a live game.
 param(
     [string]$GameDir = 'C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks'
 )
 $ErrorActionPreference = 'Stop'
 $managed = Join-Path $GameDir 'Screen Stocks_Data\Managed'
 $assemblyPath = Join-Path $managed 'Assembly-CSharp.dll'
-$reviewedHash = '6f396487493579564e6739daea7413295eefbc559ccf3690c68fd602468cf3a1'
+$reviewedHash = 'c7f7be7089891d1740eb7b97b8a5c83d43c7cc73e82c468a7ad992700093a7d8'
 if ((Get-FileHash $assemblyPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $reviewedHash) {
     throw 'Game fingerprint changed; review the harness before running it.'
 }
@@ -24,9 +24,11 @@ Add-Type @'
 using System;
 using System.Threading.Tasks;
 public static class ManualTradeLockHarness {
+    private static int _notificationFailure = 1;
     public static async Task<bool> AwaitResult(Task task) { await task; return false; }
-    public static void ThrowOnNotification(string stock) {
-        throw new InvalidOperationException("Injected pending-state subscriber failure");
+    public static void ThrowOnceOnNotification(string stock) {
+        if (System.Threading.Interlocked.Exchange(ref _notificationFailure, 0) == 1)
+            throw new InvalidOperationException("Injected pending-state subscriber failure");
     }
 }
 '@
@@ -84,18 +86,20 @@ $brokerType.GetMethod('ResetPendingCommandForSessionBoundary', $flags).Invoke($b
 Assert-State $manager 0 $true 'Real session-boundary method releases waiters'
 if (@($tasks | Where-Object { $_.Status -ne 'RanToCompletion' }).Count) { throw 'Queue did not finish cleanly.' }
 
-# A notification exception during ClearPending skips done.TrySetResult.
+# A notification exception during ClearPending must still release the native queue tail.
 $manager = New-TestManager
 $source = [Threading.Tasks.TaskCompletionSource[bool]]::new()
 $first = Start-TestTrade $manager $source.Task 'first'
-$actions = @($first, (Start-TestTrade $manager $source.Task 'second'))
+$actions = @($first)
+for ($index = 1; $index -lt $queueLimit; $index++) { $actions += ,(Start-TestTrade $manager $source.Task "queued-$index") }
 $registry = $stockType.GetField('_pending', $flags).GetValue($manager)
-$subscriber = [Action[string]][Delegate]::CreateDelegate([Action[string]], [ManualTradeLockHarness].GetMethod('ThrowOnNotification'))
+$subscriber = [Action[string]][Delegate]::CreateDelegate([Action[string]], [ManualTradeLockHarness].GetMethod('ThrowOnceOnNotification'))
 $registry.GetType().GetField('OnPendingChanged', $flags).SetValue($registry, $subscriber)
 $source.SetResult($false)
+$allActions = [Threading.Tasks.Task]::WhenAll([Threading.Tasks.Task[]]$actions)
+try { $allActions.Wait(3000) | Out-Null } catch [AggregateException] { }
 $registry.GetType().GetField('OnPendingChanged', $flags).SetValue($registry, $null)
-if (-not $first.IsFaulted -or $actions[1].IsCompleted) { throw 'Expected a faulted first task and stranded second task.' }
-for ($index = 2; $index -lt $queueLimit; $index++) { $actions += ,(Start-TestTrade $manager $source.Task "blocked-$index") }
-Assert-State $manager $queueLimit $false 'Completed trade plus cleanup exception permanently poisons queue'
-if (@($actions | Where-Object { $_.IsCompleted }).Count -ne 1) { throw 'Poisoned queue unexpectedly drained.' }
+if (-not $first.IsFaulted) { throw 'Injected cleanup failure did not remain visible on the original action.' }
+if (@($actions | Where-Object { -not $_.IsCompleted }).Count) { throw 'Native queue tails did not drain after cleanup failure.' }
+Assert-State $manager 0 $true 'Native cleanup exception releases queue tails'
 Write-Output 'All checks passed against the installed game assembly. No live trades were submitted.'

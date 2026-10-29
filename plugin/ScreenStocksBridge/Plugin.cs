@@ -13,7 +13,7 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.14.6";
+        public const string PluginVersion = "0.14.7";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
@@ -27,7 +27,6 @@ namespace ScreenStocksBridge
         private Harmony? _harmony;
         private Harmony? _autoActionUnlockHarmony;
         private Harmony? _levelUnlockRefreshHarmony;
-        private Harmony? _manualTradeQueueHarmony;
         private Harmony? _tradeRecoveryHarmony;
         private TradeRecoveryService? _tradeRecovery;
         private Harmony? _transactionHistoryHarmony;
@@ -110,19 +109,6 @@ namespace ScreenStocksBridge
             }
 
             Logger.LogInfo("Screen Stocks Python Bridge " + PluginVersion + " initialized.");
-
-            try
-            {
-                _manualTradeQueueHarmony = new Harmony(PluginGuid + ".manual-trade-queue");
-                ManualTradeQueueHarmonyPatch.Install(_manualTradeQueueHarmony);
-                Logger.LogInfo("Installed exception-safe manual trade queue completion.");
-            }
-            catch (Exception ex)
-            {
-                _manualTradeQueueHarmony?.UnpatchSelf();
-                _manualTradeQueueHarmony = null;
-                Logger.LogWarning("Could not protect manual trade queue completion: " + ex.Message);
-            }
 
             try
             {
@@ -577,8 +563,6 @@ namespace ScreenStocksBridge
             _tradeRecoveryHarmony?.UnpatchSelf();
             _tradeRecoveryHarmony = null;
             OwnedApiRequests.Warning = null;
-            _manualTradeQueueHarmony?.UnpatchSelf();
-            _manualTradeQueueHarmony = null;
             OfflineProgressHarmonyPatch.CaptureService = null;
             OfflineProgressHarmonyPatch.AutoClose = false;
             TransactionHistoryHarmonyPatch.CaptureService = null;

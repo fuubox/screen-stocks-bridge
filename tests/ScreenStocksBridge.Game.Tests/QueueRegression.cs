@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
-using HarmonyLib;
 
-// Invoked in an isolated process using the game's own Mono and Harmony builds.
+// Invoked in an isolated process using the game's own Mono runtime.
 // No Unity scene, credentials, HTTP dispatch, save data, or live game is used.
 public static class QueueRegression
 {
@@ -24,23 +24,15 @@ public static class QueueRegression
             _stock = _game.GetType("StockManager", true);
             _shape = _game.GetType("StockManager+ManualTradeShape", true);
             BrokerCloseRegression.Run();
-            VerifyCleanup(false);
-            var harmony = new Harmony("screenstocks.bridge.queue-regression");
-            try
-            {
-                var plugin = Assembly.Load("ScreenStocksBridge");
-                var patch = plugin.GetType("ScreenStocksBridge.ManualTradeQueueHarmonyPatch", true);
-                patch.GetMethod("Install", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, new object[] { harmony });
-                VerifyCleanup(true);
-                VerifyExecutionFault();
-                VerifyReentrantPreview();
-                VerifyPreviewFault();
-                VerifyRecoveryGuard(plugin);
-            }
-            finally { harmony.UnpatchSelf(); }
+            var plugin = Assembly.Load("ScreenStocksBridge");
+            VerifyNativeCleanup();
+            VerifyExecutionFault();
+            VerifyReentrantPreview();
+            VerifyPreviewFault();
+            VerifyRecoveryGuard(plugin);
             SessionRecoveryRegression.Run(_game);
             OwnedRequestRegression.Run(_game);
-            Console.WriteLine("PASS: installed Mono/Harmony patch regression checks");
+            Console.WriteLine("PASS: installed Mono native queue and recovery regression checks");
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
@@ -83,7 +75,7 @@ public static class QueueRegression
         Require((bool)_stock.GetProperty("CanStartManualTrade").GetValue(manager) == allowed, "admission state");
     }
 
-    private static void VerifyCleanup(bool patched)
+    private static void VerifyNativeCleanup()
     {
         var manager = NewManager();
         var source = new TaskCompletionSource<bool>();
@@ -97,29 +89,24 @@ public static class QueueRegression
         State(manager, QueueLimit, false);
 
         var registry = _stock.GetField("_pending", Fields).GetValue(manager);
-        Set(registry, "OnPendingChanged", new Action<string>(_ => throw new InvalidOperationException("Injected cleanup failure")));
+        var injected = 0;
+        Set(registry, "OnPendingChanged", new Action<string>(_ =>
+        {
+            if (Interlocked.Exchange(ref injected, 1) == 0)
+                throw new InvalidOperationException("Injected cleanup failure");
+        }));
         source.SetResult(false);
+        try { Require(Task.WhenAll(actions).Wait(3000), "native queue drains after cleanup failure"); }
+        catch (AggregateException) { }
         Set(registry, "OnPendingChanged", null!);
         var first = actions[0];
         Require(first.IsFaulted && first.Exception!.GetBaseException().Message == "Injected cleanup failure", "original exception survives");
-        if (!patched)
-        {
-            Require(actions.GetRange(1, actions.Count - 1).TrueForAll(action => !action.IsCompleted), "unpatched waiters stranded");
-            State(manager, QueueLimit - 1, true);
-            Start(manager, "replacement", source.Task);
-            State(manager, QueueLimit, false);
-            Console.WriteLine("PASS: unpatched cleanup reproduces permanent queue lock");
-            return;
-        }
-
-        try { Task.WhenAll(actions).Wait(3000); } catch (AggregateException) { }
-        Set(registry, "OnPendingChanged", null!);
         State(manager, 0, true);
-        Require(actions.GetRange(1, actions.Count - 1).TrueForAll(action => action.IsCompleted), "waiting actions drain without stranding tails");
+        Require(actions.GetRange(1, actions.Count - 1).TrueForAll(action => action.Status == TaskStatus.RanToCompletion), "waiting actions drain without stranding tails");
         var next = Start(manager, "next", Task.FromResult(true));
         Require(next.Status == TaskStatus.RanToCompletion && next.Result, "next healthy action succeeds");
         State(manager, 0, true);
-        Console.WriteLine("PASS: patch preserves active waits, releases faulted tails, and permits subsequent trades");
+        Console.WriteLine("PASS: native cleanup finally releases queue tails after a cleanup exception");
     }
 
     private static void VerifyExecutionFault()
