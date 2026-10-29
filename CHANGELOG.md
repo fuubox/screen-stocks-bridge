@@ -18,8 +18,8 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 ### Validation
 
 - Offline compatibility validation, Release build, installed-Mono/Harmony queue
-  and recovery regressions, and all 12 Python client tests passed locally. The
-  core test suite is awaiting GitHub Actions validation before tagging.
+  and recovery regressions, core tests, and Python client tests passed. GitHub
+  Actions also validated the plugin against build 26298415.
 - Live Unity networking, reconnect behavior, and market acceptance remain
   unverified. No live market action was submitted.
 
