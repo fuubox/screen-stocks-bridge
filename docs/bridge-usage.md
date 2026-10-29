@@ -562,7 +562,7 @@ The plugin can claim available per-level rewards directly, without Python or a b
 
 In online mode, the game sends the claim to its server and remains authoritative. Set `AutoClaimLevelRewards` to `false` if you prefer to claim rewards manually. This feature is local plugin behavior: it adds no Python API method and does not use the game's file-based mod API.
 
-## Discover and purchase upgrades
+## Discover, quote, and purchase upgrades
 
 `bridge.upgrades()` reads the game's live upgrade catalog. The catalog is discovered from the current game data, so clients should use the returned `upgradeId` values rather than assuming that every game build has the same list. Each record includes the game's `displayName` and `description`, whether it is hidden, its `currentLevel`, `currentValue`, and whether it is maxed. In online mode, the bridge uses the game's remote upgrade view for the current cap and next-level change when that view is available; this can differ from the local catalog after a game update. It falls back to the local catalog when no remote upgrade view is available. `hasMaxLevel` distinguishes finite upgrades from unlimited ones. For a finite upgrade, `maxLevel` and `remainingLevels` are numbers; for an unlimited upgrade they are `None` in Python/`null` in JSON. A maxed upgrade has `nextValue` and `nextPrice` set to `None`/`null`. Prices are strings to preserve large game values exactly. `currentValue` is the game's effective value, including level and IPO bonuses. `nextValue` applies the next catalog level's change to that current effective value.
 
@@ -578,6 +578,17 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
 ```
 
 `purchase_upgrade(upgrade_id, quantity=1)` asks the running game to process the purchase by calling its in-process `GameManager.PurchaseUpgrades` method. The bridge does not contact the game's backend directly. In online mode, the game method may send the purchase to its server, which remains authoritative. Quantity must be from 1 to 1000. The game's affordability and maximum-level checks still apply. A successful RPC response means the game accepted the purchase request for processing; it can be optimistic, partially fulfilled, or later corrected by the server. `levelBefore` and `levelAfter` are observations around submission, not a completion receipt. Refresh the catalog to see the latest level and maxed state.
+
+`quote_upgrade(upgrade_id, ...)` previews a scenario without buying anything. For **five additional levels**, use `quantity=5`:
+
+```python
+quote = bridge.quote_upgrade("DividendGain", quantity=5)
+print(quote["quantity"], quote["totalCost"], quote["resultingValue"])
+```
+
+Alternatively, choose `budget="1000000.25"`, `cash_fraction=0.5` (half-cash), `cash_fraction=1` (maximum affordable), `target_level=100`, or `target_value=2.5`. Supply one selector; omitting all selectors quotes one level. The result reports the resolved quantity, total cost, resulting effective value, affordability, remaining cash, and why calculation stopped. Upgrade caps can reduce the quantity, and `max_levels` bounds evaluation to at most 5,000 additional levels. Inspect `truncated` before treating a budget quote as the full maximum affordable quantity.
+
+See the dedicated [upgrade quoter guide](upgrade-quoter.md) for complete Python and raw RPC examples, response fields, value-target direction, money precision, limits, errors, and the distinction between quoting and purchasing. The RPC method is `upgrades.quote`; the existing purchase API's 1–1,000 quantity limit is unchanged.
 
 The catalog description is the game's own description when provided. These short hints summarize the apparent effect of the built-in upgrade IDs; the game description and live values remain authoritative for a particular build:
 
@@ -619,6 +630,7 @@ Live verification on the pre-release build confirmed that `upgrades.snapshot` re
 | `market.human_activity.clear_focus` | Clear the override and restore the previous graph stock's activity focus |
 | `trade.submit` | Submit one allowlisted manual trade |
 | `upgrades.snapshot` | Discover upgrade descriptions, levels, values, limits, and next prices |
+| `upgrades.quote` | Preview quantities, total costs, and effective values without purchasing |
 | `upgrades.purchase` | Ask the running game to process an upgrade purchase |
 | `auto_actions.snapshot` | Read auto-action slots and state |
 | `auto_actions.add` | Add an action if the game reports a free slot |

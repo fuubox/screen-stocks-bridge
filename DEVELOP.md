@@ -55,6 +55,7 @@ Restart the game to load it. Keep the game's official `modSupport` setting off; 
 | `python/src/screenstocks_bridge/` | Python client, protocol errors, and optional typed views |
 | `examples/` | Small scripts that use the installed Python client |
 | `docs/bridge-usage.md` | User-facing API, market data, trades, upgrades, actions, and cooldown reference |
+| `docs/upgrade-quoter.md` | Upgrade quote selectors, response schema, precision, calculation limits, and purchase semantics |
 | `docs/testing-and-game-compatibility.md` | Automated checks and game-patch review procedure |
 | `.github/workflows/ci.yml` | PR-safe Python/core checks and trusted game-runner compatibility build |
 | `.github/workflows/release.yml` | Tagged Windows plugin build and GitHub Release publication |

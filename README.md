@@ -62,6 +62,10 @@ with BridgeClient(
 
 ## API guide
 
+The [upgrade quoter guide](docs/upgrade-quoter.md) covers read-only previews for
+additional levels, budgets, cash fractions, and target levels or values, including
+total cost, resulting value, and calculation limits.
+
 See the [bridge usage guide](docs/bridge-usage.md) for market and stock discovery, current net worth and the saved net-worth chart, ticker-news and auto-action toast subscriptions, the captured welcome-back summary, graph activity, cooldowns, trades, upgrades, auto actions, and complete examples. The plugin automatically claims available level rewards and captures then closes the welcome-back screen by default. To change either behavior, set `AutoClaimLevelRewards` or `AutoCloseOfflineSummary` under `[QualityOfLife]` in `BepInEx\config\screenstocks.bridge.cfg`, then restart the game.
 
 ## Troubleshooting

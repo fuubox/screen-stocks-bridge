@@ -5,6 +5,13 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Added
+
+- Read-only `upgrades.quote` RPC and Python `quote_upgrade()` for fixed quantities,
+  explicit budgets, cash fractions, target levels, and target effective values.
+  Quotes include total cost, resulting value, affordability, and explicit cap or
+  calculation-limit reporting, with up to 5,000 levels evaluated per request.
+
 ## [0.14.4] - 2026-10-28
 
 ### Compatibility

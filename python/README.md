@@ -42,7 +42,14 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 The client supports market-state and stats reads, market, ticker-news, and auto-action toast
 subscriptions, leaderboard requests, transaction-history and net-worth chart reads,
 activity reads and subscriptions, explicit single-stock activity-focus controls,
-trades, upgrade purchases, auto-action controls, and IPO state and trigger requests.
+trades, upgrade quotes and purchases, auto-action controls, and IPO state and trigger requests.
+Use `quote_upgrade("DividendGain", cash_fraction=0.5)` to preview how many levels
+fit half your cash, their total cost, and the resulting effective value without
+buying anything. Other selectors are `quantity`, `budget` (a decimal string),
+`target_level`, and `target_value`. Inspect `truncated` and `stopReason` when the
+quote reaches its calculation bound (up to 5,000 levels).
+For `quantity=5` (+5 levels), response fields, raw RPC examples, and error handling,
+see the [upgrade quoter guide](https://github.com/fuubox/screen-stocks-bridge/blob/main/docs/upgrade-quoter.md).
 Use `ipo_snapshot()` to check readiness and the dynamic requirement, and
 `trigger_ipo()` to ask the game to perform an eligible IPO. Request a game-supported
 leaderboard with `leaderboard("current")`,
