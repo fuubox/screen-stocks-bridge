@@ -262,6 +262,43 @@ class BridgeClientTests(unittest.TestCase):
         self.assertEqual("auto_actions.unsubscribe_toasts", unsubscribe_request["method"])
 
 
+class UpgradeQuoteClientTests(unittest.TestCase):
+    def test_quote_selectors_preserve_budget_and_use_read_only_method(self) -> None:
+        from unittest.mock import Mock
+        client = BridgeClient()
+        client.request = Mock(return_value={"quantity": 3})
+        cases = [
+            ({}, {"mode": "quantity", "quantity": 1}),
+            ({"quantity": 6000}, {"mode": "quantity", "quantity": 6000}),
+            ({"budget": "12345678901234567890.123456"},
+             {"mode": "budget", "budget": "12345678901234567890.123456"}),
+            ({"cash_fraction": 0.5}, {"mode": "cash_fraction", "cashFraction": 0.5}),
+            ({"cash_fraction": 1}, {"mode": "cash_fraction", "cashFraction": 1}),
+            ({"target_level": 0}, {"mode": "target_level", "targetLevel": 0}),
+            ({"target_value": -2.5}, {"mode": "target_value", "targetValue": -2.5}),
+        ]
+        for kwargs, expected in cases:
+            with self.subTest(kwargs=kwargs):
+                self.assertEqual({"quantity": 3}, client.quote_upgrade("DividendGain", **kwargs))
+                client.request.assert_called_with("upgrades.quote", {
+                    "upgradeId": "DividendGain", "maxLevels": 5000, **expected,
+                })
+
+    def test_invalid_quote_inputs_never_send_a_request(self) -> None:
+        from unittest.mock import Mock
+        client = BridgeClient()
+        client.request = Mock()
+        for kwargs in [
+            {"quantity": 1, "budget": "100"}, {"quantity": 0}, {"quantity": True},
+            {"budget": 100}, {"cash_fraction": 0}, {"cash_fraction": 1.1},
+            {"cash_fraction": float("nan")}, {"target_value": float("inf")},
+            {"target_level": -1}, {"max_levels": 5001}, {"max_levels": True},
+        ]:
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                client.quote_upgrade("DividendGain", **kwargs)
+        client.request.assert_not_called()
+
+
 class StockModelTests(unittest.TestCase):
     def test_effective_max_volume_is_exact_and_distinct_from_other_volumes(self) -> None:
         stock = Stock.from_dict({

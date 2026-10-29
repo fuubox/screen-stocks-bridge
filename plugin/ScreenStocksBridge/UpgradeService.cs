@@ -73,6 +73,8 @@ namespace ScreenStocksBridge
 
             var definition = FindDefinition(game.Upgrades.stats, stat);
             if (definition == null) return ProtocolJson.Error(request.id, "upgrade_not_found", "No upgrade with that ID exists in the current catalog.");
+            if (method == "upgrades.quote")
+                return UpgradeQuoteService.Handle(request, game, definition, stat);
             var quantity = args?.quantity ?? 1;
             if (!RequestValidation.IsValidUpgradeQuantity(quantity))
                 return ProtocolJson.Error(request.id, "invalid_quantity", "quantity must be between 1 and 1000.");

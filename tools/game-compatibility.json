@@ -10,6 +10,18 @@
   "harmonyVersion": "2.9.0.0",
   "methods": [
     {
+      "type": "GameManager",
+      "name": "GetUpgradePriceAtLevel",
+      "returnType": "BigNumber",
+      "parameters": ["StatType", "System.Int32"]
+    },
+    {
+      "type": "GameManager",
+      "name": "GetUpgradeMaxLevelForBuy",
+      "returnType": "System.Int32",
+      "parameters": ["StatType"]
+    },
+    {
       "type": "ScreenStocks.Net.ScreenStocksAuthManager",
       "name": "ResetPendingPlayerCommandsForSessionBoundary",
       "returnType": "System.Void",
@@ -389,6 +401,30 @@
     }
   ],
   "fields": [
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "baseValue",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "valuePerLevel",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "basePrice",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.UpgradeViewDto",
+      "name": "priceMultiplier",
+      "fieldType": "System.Single",
+      "public": true
+    },
     {
       "type": "StockManager",
       "name": "_queuedManualActions",

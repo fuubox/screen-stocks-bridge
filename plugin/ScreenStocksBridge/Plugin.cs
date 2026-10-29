@@ -508,7 +508,7 @@ namespace ScreenStocksBridge
                 connection.Send(_trades.Submit(request, connection), false);
                 return;
             }
-            if (request.method == "upgrades.snapshot" || request.method == "upgrades.purchase")
+            if (request.method == "upgrades.snapshot" || request.method == "upgrades.purchase" || request.method == "upgrades.quote")
             {
                 connection.Send(_upgrades.Handle(request.method, request), false);
                 return;

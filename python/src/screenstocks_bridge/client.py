@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import queue
 import socket
 import threading
@@ -242,6 +243,47 @@ class BridgeClient:
     def upgrades(self) -> dict[str, Any]:
         """Return the game's dynamically discovered upgrade catalog and current levels."""
         return self.request("upgrades.snapshot")
+
+    def quote_upgrade(
+        self, upgrade_id: str, *, quantity: int | None = None,
+        budget: str | None = None, cash_fraction: float | None = None,
+        target_level: int | None = None, target_value: float | None = None,
+        max_levels: int = 5000,
+    ) -> dict[str, Any]:
+        """Preview upgrade cost and effective value without submitting a purchase.
+
+        Choose one selector; omitting all selectors quotes one level. Budget is
+        a decimal string (up to six fractional digits). cash_fraction=1 quotes
+        max affordable; 0.5 quotes half-cash. Inspect truncated and stopReason.
+        Fixed quantities and targets may quote more than current cash can buy.
+        This does not change purchase_upgrade's 1–1000 quantity limit.
+        """
+        selectors = {
+            "quantity": quantity, "budget": budget, "cash_fraction": cash_fraction,
+            "target_level": target_level, "target_value": target_value,
+        }
+        selected = [(key, value) for key, value in selectors.items() if value is not None]
+        if len(selected) > 1:
+            raise ValueError("Choose exactly one upgrade quote selector.")
+        mode, value = selected[0] if selected else ("quantity", 1)
+        if isinstance(max_levels, bool) or not isinstance(max_levels, int) or not 1 <= max_levels <= 5000:
+            raise ValueError("max_levels must be an integer between 1 and 5000.")
+        if mode in {"quantity", "target_level"}:
+            minimum = 1 if mode == "quantity" else 0
+            if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= 2147483647:
+                raise ValueError(f"{mode} must be an integer between {minimum} and 2147483647.")
+        if mode == "budget" and not isinstance(value, str):
+            raise ValueError("budget must be a decimal string to preserve precision.")
+        if mode in {"cash_fraction", "target_value"}:
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ValueError(f"{mode} must be a finite number.")
+            if mode == "cash_fraction" and not 0.000001 <= value <= 1:
+                raise ValueError("cash_fraction must be between 0.000001 and 1.")
+        field = {"cash_fraction": "cashFraction", "target_level": "targetLevel",
+                 "target_value": "targetValue"}.get(mode, mode)
+        return self.request("upgrades.quote", {
+            "upgradeId": upgrade_id, "mode": mode, field: value, "maxLevels": max_levels,
+        })
 
     def purchase_upgrade(self, upgrade_id: str, quantity: int = 1) -> dict[str, Any]:
         """Ask the running game to process an upgrade through its in-process method.

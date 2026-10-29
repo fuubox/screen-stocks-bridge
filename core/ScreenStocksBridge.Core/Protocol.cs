@@ -18,6 +18,11 @@ namespace ScreenStocksBridge
         public string stockId = string.Empty;
         public string upgradeId = string.Empty;
         public int quantity = 1;
+        public string budget = string.Empty;
+        public double cashFraction = 0d;
+        public int targetLevel = -1;
+        public double targetValue = double.NaN;
+        public int maxLevels = 5000;
         public float percent = 0f;
         public int slotIndex = -1;
         public string actionType = string.Empty;

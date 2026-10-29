@@ -216,6 +216,28 @@ namespace ScreenStocksBridge
             return json.Append("]}").ToString();
         }
 
+        internal static string SerializeUpgradeQuote(UpgradeQuoteDto value)
+        {
+            return new StringBuilder(512).Append("{\"upgradeId\":").Append(Quote(value.upgradeId))
+                .Append(",\"mode\":").Append(Quote(value.mode))
+                .Append(",\"quantity\":").Append(value.quantity.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"levelBefore\":").Append(value.levelBefore.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"levelAfter\":").Append(value.levelAfter.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"currentValue\":").Append(Number(value.currentValue))
+                .Append(",\"resultingValue\":").Append(Number(value.resultingValue))
+                .Append(",\"totalCost\":").Append(Quote(value.totalCost))
+                .Append(",\"cashBefore\":").Append(Quote(value.cashBefore))
+                .Append(",\"remainingCash\":").Append(Quote(value.remainingCash))
+                .Append(",\"budget\":").Append(value.budget == null ? "null" : Quote(value.budget))
+                .Append(",\"affordable\":").Append(Bool(value.affordable))
+                .Append(",\"capReached\":").Append(Bool(value.capReached))
+                .Append(",\"truncated\":").Append(Bool(value.truncated))
+                .Append(",\"targetReached\":").Append(value.targetReached.HasValue ? Bool(value.targetReached.Value) : "null")
+                .Append(",\"calculationLimit\":").Append(value.calculationLimit.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"stopReason\":").Append(Quote(value.stopReason))
+                .Append(",\"valueSource\":").Append(Quote(value.valueSource)).Append('}').ToString();
+        }
+
         internal static string SerializeUpgrades(UpgradesSnapshotDto value)
         {
             var json = new StringBuilder(512).Append("{\"ready\":").Append(Bool(value.ready)).Append(",\"upgrades\":[");
