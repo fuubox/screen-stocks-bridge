@@ -39,6 +39,7 @@ namespace ScreenStocksBridge
         private Harmony? _netWorthHistoryHarmony;
         private Harmony? _newsTickerHarmony;
         private Harmony? _autoActionToastHarmony;
+        private bool _tradeRecoveryGameHooksInstalled;
         private readonly StateService _state = new StateService();
         private readonly StatsService _stats = new StatsService();
         private readonly OfflineProgressCaptureService _offlineProgress = new OfflineProgressCaptureService();
@@ -58,6 +59,18 @@ namespace ScreenStocksBridge
         private float _nextLevelClaimAt;
         private string _lastSnapshot = string.Empty;
         private readonly Dictionary<string, string> _lastHumanActivitySnapshots = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        private bool HasNonApiPatchesActive =>
+            _tradeRecoveryGameHooksInstalled ||
+            _harmony != null ||
+            _autoActionUnlockHarmony != null ||
+            _autoActionGraphMarkerHarmony != null ||
+            _purchaseMarkerUnstackHarmony != null ||
+            _levelUnlockRefreshHarmony != null ||
+            _transactionHistoryHarmony != null ||
+            _netWorthHistoryHarmony != null ||
+            _newsTickerHarmony != null ||
+            _autoActionToastHarmony != null;
 
         private void Awake()
         {
@@ -133,6 +146,7 @@ namespace ScreenStocksBridge
                 OwnedApiRequests.Warning = LogWarning;
                 OwnedApiRequests.Install(_tradeRecoveryHarmony);
                 TradeRecoveryHooks.Install(_tradeRecoveryHarmony);
+                _tradeRecoveryGameHooksInstalled = true;
                 _tradeRecovery = new TradeRecoveryService(LogWarning);
                 Logger.LogInfo("Installed bounded trade recovery (30 seconds pending, 15 seconds to recover).");
             }
@@ -140,6 +154,7 @@ namespace ScreenStocksBridge
             {
                 _tradeRecoveryHarmony?.UnpatchSelf();
                 _tradeRecoveryHarmony = null;
+                _tradeRecoveryGameHooksInstalled = false;
                 OwnedApiRequests.Warning = null;
                 Logger.LogWarning("Automatic trade recovery is unavailable: " + ex.Message);
             }
@@ -585,6 +600,7 @@ namespace ScreenStocksBridge
             _tradeRecovery = null;
             _tradeRecoveryHarmony?.UnpatchSelf();
             _tradeRecoveryHarmony = null;
+            _tradeRecoveryGameHooksInstalled = false;
             OwnedApiRequests.Warning = null;
             OfflineProgressHarmonyPatch.CaptureService = null;
             OfflineProgressHarmonyPatch.AutoClose = false;
@@ -694,7 +710,8 @@ namespace ScreenStocksBridge
         {
             _tradeRecovery?.DrawStatus();
             _humanActivityFocusIndicator.Draw(_humanActivityFocus.ActiveStockId,
-                ShowTrackingDebugText.Value, ShowOverrideText.Value, message => Logger.LogInfo(message));
+                ShowTrackingDebugText.Value, ShowOverrideText.Value, HasNonApiPatchesActive,
+                message => Logger.LogInfo(message));
         }
 
         private static string CreateToken()

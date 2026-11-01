@@ -14,17 +14,20 @@ namespace ScreenStocksBridge
         private UILineGraph? _graph;
         private StockGraphVisualizer? _visualizer;
         private GUIStyle? _style;
+        private GUIStyle? _watermarkStyle;
         private float _nextSearchAt;
         private string _lastReportedFocus = string.Empty;
 
         internal void Draw(string activeStockId, bool showTrackingDebugText, bool showOverrideText,
-            Action<string> log)
+            bool showPatchWatermark, Action<string> log)
         {
-            if (string.IsNullOrEmpty(activeStockId) || (!showTrackingDebugText && !showOverrideText))
+            var hasFocus = !string.IsNullOrEmpty(activeStockId);
+            if (!showPatchWatermark && (!hasFocus || (!showTrackingDebugText && !showOverrideText)))
             {
                 _lastReportedFocus = string.Empty;
                 return;
             }
+            if (!hasFocus) _lastReportedFocus = string.Empty;
             if ((_graph == null || !_graph.isActiveAndEnabled || !_graph.gameObject.activeInHierarchy) &&
                 Time.unscaledTime >= _nextSearchAt)
             {
@@ -68,11 +71,13 @@ namespace ScreenStocksBridge
             var bandHeight = height * Mathf.Clamp01(fraction);
             if (width <= 2f || bandHeight <= 2f) return;
             var band = new Rect(min.x, Screen.height - min.y - bandHeight, width, bandHeight);
-            var tracking = _visualizer != null &&
+            var tracking = hasFocus && _visualizer != null &&
                 string.Equals(activeStockId, _visualizer.CurrentStockId, StringComparison.Ordinal);
-            if (tracking ? !showTrackingDebugText : !showOverrideText) return;
-            var text = tracking ? "TRACKING" : "OVERRIDE: ON";
-            if (_lastReportedFocus != activeStockId)
+            var statusText = hasFocus && (tracking ? showTrackingDebugText : showOverrideText)
+                ? tracking ? "TRACKING" : "OVERRIDE: ON"
+                : null;
+            if (!showPatchWatermark && statusText == null) return;
+            if (hasFocus && _lastReportedFocus != activeStockId)
             {
                 log("Activity indicator: focus=" + activeStockId + ", displayed=" + _visualizer?.CurrentStockId +
                     ", histogram screen rect=" + band);
@@ -81,17 +86,43 @@ namespace ScreenStocksBridge
 
             var scale = width / 480f;
             var padding = Mathf.Min(4f * scale, bandHeight * 0.1f);
+            var rect = new Rect(padding, padding, width - 2f * padding, bandHeight - 2f * padding);
+            var trackingFontSize = Mathf.Max(6, Mathf.RoundToInt(8f * scale));
+            var watermarkStyle = _watermarkStyle ?? (_watermarkStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.LowerLeft,
+                wordWrap = false,
+                padding = new RectOffset(),
+            });
             var style = _style ?? (_style = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.LowerLeft,
                 wordWrap = false,
                 padding = new RectOffset(),
             });
+            watermarkStyle.fontStyle = FontStyle.Normal;
+            watermarkStyle.fontSize = trackingFontSize;
             style.fontStyle = tracking ? FontStyle.Normal : FontStyle.Bold;
-            style.fontSize = Mathf.Max(6, Mathf.RoundToInt((tracking ? 8f : 14f) * scale));
-            var content = new GUIContent(text);
-            while (style.fontSize > 4 && (style.CalcSize(content).x > width - 2f * padding ||
-                style.CalcSize(content).y > bandHeight - 2f * padding)) style.fontSize--;
+            style.fontSize = statusText == null || tracking
+                ? trackingFontSize
+                : Mathf.Max(6, Mathf.RoundToInt(14f * scale));
+            var watermarkContent = new GUIContent("BRIDGE-MOD");
+            var statusContent = statusText == null ? null : new GUIContent(statusText);
+            var gap = Mathf.Min(2f * scale, rect.height * 0.05f);
+            while ((showPatchWatermark && watermarkStyle.fontSize > 4) ||
+                   (statusContent != null && style.fontSize > 4))
+            {
+                var watermarkSize = showPatchWatermark ? watermarkStyle.CalcSize(watermarkContent) : Vector2.zero;
+                var statusSize = statusContent == null ? Vector2.zero : style.CalcSize(statusContent);
+                var combinedHeight = (showPatchWatermark ? watermarkSize.y : 0f) +
+                    (statusContent == null ? 0f : statusSize.y +
+                        (showPatchWatermark && statusContent != null ? gap : 0f));
+                if ((!showPatchWatermark || watermarkSize.x <= rect.width) &&
+                    (statusContent == null || statusSize.x <= rect.width) && combinedHeight <= rect.height)
+                    break;
+                if (showPatchWatermark && watermarkStyle.fontSize > 4) watermarkStyle.fontSize--;
+                if (statusContent != null && style.fontSize > 4) style.fontSize--;
+            }
 
             // Clip drawing to the histogram's screen bounds, independent of the game's TMP masks.
             var previousColor = GUI.color;
@@ -99,11 +130,26 @@ namespace ScreenStocksBridge
             GUI.BeginGroup(band);
             try
             {
-                var rect = new Rect(padding, padding, width - 2f * padding, bandHeight - 2f * padding);
-                style.normal.textColor = Color.black;
-                GUI.Label(new Rect(rect.x + 1f, rect.y + 1f, rect.width, rect.height), content, style);
-                style.normal.textColor = tracking ? new Color(0.35f, 0.9f, 0.5f, 1f) : new Color(1f, 0.78f, 0.3f, 1f);
-                GUI.Label(rect, content, style);
+                var watermarkColor = new Color(0.72f, 0.8f, 0.88f, 0.75f);
+                var statusColor = tracking ? new Color(0.35f, 0.9f, 0.5f, 1f) : new Color(1f, 0.78f, 0.3f, 1f);
+                if (showPatchWatermark && statusContent != null)
+                {
+                    var watermarkHeight = watermarkStyle.CalcSize(watermarkContent).y;
+                    var statusHeight = style.CalcSize(statusContent).y;
+                    var top = rect.y + Mathf.Max(0f, rect.height - watermarkHeight - statusHeight - gap);
+                    DrawLabel(new Rect(rect.x, top, rect.width, watermarkHeight), watermarkContent,
+                        watermarkStyle, watermarkColor);
+                    DrawLabel(new Rect(rect.x, top + watermarkHeight + gap, rect.width, statusHeight),
+                        statusContent, style, statusColor);
+                }
+                else if (showPatchWatermark)
+                {
+                    DrawLabel(rect, watermarkContent, watermarkStyle, watermarkColor);
+                }
+                else if (statusContent != null)
+                {
+                    DrawLabel(rect, statusContent, style, statusColor);
+                }
             }
             finally
             {
@@ -112,11 +158,20 @@ namespace ScreenStocksBridge
             }
         }
 
+        private static void DrawLabel(Rect rect, GUIContent content, GUIStyle style, Color color)
+        {
+            style.normal.textColor = Color.black;
+            GUI.Label(new Rect(rect.x + 1f, rect.y + 1f, rect.width, rect.height), content, style);
+            style.normal.textColor = color;
+            GUI.Label(rect, content, style);
+        }
+
         public void Dispose()
         {
             _graph = null;
             _visualizer = null;
             _style = null;
+            _watermarkStyle = null;
         }
     }
 }

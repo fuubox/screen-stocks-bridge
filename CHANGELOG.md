@@ -22,6 +22,8 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 - Add independent graph-focus label controls: `Graph.ShowTrackingDebugText`
   opts in to the debug label, while `Graph.ShowOverrideText` defaults on and
   can be disabled.
+- Show a `BRIDGE-MOD` watermark above graph-focus status text whenever a
+  non-API game patch is active. API-only hooks do not trigger the watermark.
 
 ## [0.14.7] - 2026-10-29
 

@@ -83,6 +83,10 @@ UnstackPurchaseMarkersWithin15Ticks = true
   `ShowOverrideText` is enabled by default; set it to `false` to hide the
   `OVERRIDE: ON` label when activity focus differs from the displayed stock.
 
+When at least one non-API game patch is active, a `BRIDGE-MOD` watermark appears
+above the status label at the same size as `TRACKING`. It is independent of the
+two label settings; API use alone does not show it.
+
 For example, add these lines under `[Graph]` to show `TRACKING` and hide the
 override label:
 
