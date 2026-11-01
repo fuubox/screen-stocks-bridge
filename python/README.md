@@ -3,7 +3,8 @@
 The `screenstocks-bridge` package is a Python client for the local API exposed
 by the Screen Stocks Bridge BepInEx plugin. It requires the plugin to be
 installed in the game and the game to be running. The package itself does not
-install or contact the game backend; it connects to the plugin on loopback.
+contact the game's online server; it connects to the plugin in the local game
+process over loopback.
 
 ## Install
 
@@ -65,7 +66,7 @@ only the samples the game currently retains in memory; they do not fetch older
 history from the game's server, and the bridge makes no guarantee about the
 retained history's total depth or time span.
 `stats_snapshot()` similarly reads values already held in local game memory; it
-does not refresh rank or make any game/backend request.
+does not refresh rank or cause an online request.
 
 For a complete, runnable auto-action toast listener—including the event schema,
 callback threading, cleanup, and error handling—see [Subscribe to auto-action

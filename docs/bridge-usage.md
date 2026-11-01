@@ -10,7 +10,7 @@ The official support mechanism discussed earlier is tied to the game's `modSuppo
 
 ### Network boundary
 
-The bridge itself does not connect to the game's backend or implement its network protocol. Its socket listener binds only to `127.0.0.1` for the local Python client. For commands, the plugin calls in-process game methods such as `StockManager` trade methods, `GameManager.PurchaseUpgrades`, or the level-claim method. In online mode those game methods may send requests to the game's server themselves; that network traffic belongs to the game, not to a backend client implemented by this plugin.
+The bridge communicates with the running local game over a socket bound only to `127.0.0.1`; it does not implement the game's online-server protocol or contact the game server directly. For commands, the plugin calls in-process game methods such as `StockManager` trade methods, `GameManager.PurchaseUpgrades`, or the level-claim method. In online mode, the game may send its own requests to the game server as part of those methods.
 
 ## Connect from Python
 
@@ -42,9 +42,10 @@ The plugin's listener port is configurable in `BepInEx\config\screenstocks.bridg
 ```ini
 [Bridge]
 Port = 48721
+MaxClientConnections = 4
 ```
 
-Edit `Port` while the game is closed, then restart the game for the setting to take effect. The plugin accepts ports from 1 through 65535 and binds only to `127.0.0.1`. If the selected port is unavailable, the listener fails to start and reports the error in the BepInEx log. When using a non-default port, pass the same value to `BridgeClient`, for example `BridgeClient(host="127.0.0.1", port=49321, token="YOUR_TOKEN")`, or set `SCREENSTOCKS_PORT` when running the example scripts.
+Edit these settings while the game is closed, then restart the game for changes to take effect. `Port` accepts values from 1 through 65535. `MaxClientConnections` defaults to 4 and accepts values from 1 through 256; it controls the number of simultaneous local TCP clients. Each connected client starts two background threads, so increasing the limit can add load and make the game lag, especially if many clients stay connected. The plugin binds only to `127.0.0.1`. If the selected port is unavailable, the listener fails to start and reports the error in the BepInEx log. When using a non-default port, pass the same value to `BridgeClient`, for example `BridgeClient(host="127.0.0.1", port=49321, token="YOUR_TOKEN")`, or set `SCREENSTOCKS_PORT` when running the example scripts.
 
 Under `[QualityOfLife]`, `AutoCloseOfflineSummary = true` (the default) captures and then closes the game's welcome-back screen. Set it to `false` to leave that screen open; the plugin still captures its data for the API.
 
@@ -59,7 +60,7 @@ When the game displays its welcome-back screen, the plugin captures the structur
 - `showEarnings`: whether the game marked the earnings section for display.
 - `positionChanges`: per-stock results with `stockId`, `isLong`, exact `cashChange` as a decimal string, and `percentChange`.
 
-The API is queryable even if the welcome-back screen appeared before Python connected. This feature only captures data the running game passes to its in-process screen; the bridge does not request extra history or contact the game's backend.
+The API is queryable even if the welcome-back screen appeared before Python connected. This feature only captures data the running game passes to its in-process screen; the bridge does not request extra history or contact the game server.
 
 ```python
 with BridgeClient(token="YOUR_TOKEN") as bridge:
@@ -75,7 +76,7 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 
 `bridge.ipo_snapshot()` reads the current in-memory IPO state. It reports whether the IPO catalog is ready, whether going public is unlocked, whether the game's own `CanIPO()` check passes, the raw and effective IPO counts, the current run's peak net worth, and the required net worth. Large net-worth values are decimal strings. Requirements and unlocks can come from the game's runtime/server catalog; scripts should use these values instead of assuming a fixed level-50 gate.
 
-`bridge.trigger_ipo()` asks the game to perform an IPO. The bridge checks that IPO data is ready, the unlock is active, and the game reports the player eligible, then calls the game's own `GameManager.TriggerIPO()` method. The game remains responsible for the progress reset and online synchronization; the bridge does not call a backend endpoint. The response status `submitted` means the in-process method was invoked, not that a server-side reset has completed. Refresh `ipo_snapshot()` to observe the updated count and state.
+`bridge.trigger_ipo()` asks the game to perform an IPO. The bridge checks that IPO data is ready, the unlock is active, and the game reports the player eligible, then calls the game's own `GameManager.TriggerIPO()` method. The game remains responsible for the progress reset and online synchronization; the bridge does not contact the game server directly. The response status `submitted` means the in-process method was invoked, not that the game server has completed its part. Refresh `ipo_snapshot()` to observe the updated count and state.
 
 An IPO resets the current run according to the game's rules. Call `trigger_ipo()` only when you intend to do that. The installed test save is still locked, so the trigger path has been build-checked but not executed in a live game.
 
@@ -121,7 +122,7 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
 
 `bridge.net_worth_history(range="last_24_hours")` returns the samples used by the game's saved net-worth chart. Supported ranges are `last_24_hours`, `last_7_days`, and `last_14_days` (short forms `24h`, `7d`, and `14d` are accepted). Each sample has `at` (the timestamp string supplied by the game) and `netWorth` (a numeric chart value); the response also includes `intervalMinutes` so callers know the chart's sampling interval.
 
-Unlike `snapshot().netWorth`, chart history is not already part of the live player snapshot. On a cache miss or stale cache, the bridge asks the game's own `NetWorthHistoryClient` for the selected range. The plugin does not implement or connect to a backend endpoint itself. The game may make its normal online request through that client.
+Unlike `snapshot().netWorth`, chart history is not already part of the live player snapshot. On a cache miss or stale cache, the bridge asks the game's own `NetWorthHistoryClient` for the selected range. The plugin does not implement or connect to a game-server endpoint itself. The running game may make its normal online request through that client.
 
 The game says its graph updates every five minutes. The bridge keeps each range's result in memory for 300 seconds by default and enforces a shared minimum 300-second gap between chart requests, across ranges. This prevents bridge requests from refreshing the chart more often than the game's stated cadence, including when callers switch ranges. Both values can be raised, but not lowered below those safeguards, under `[NetWorthHistory]` in `BepInEx/config/screenstocks.bridge.cfg`:
 
@@ -145,7 +146,7 @@ For typed access, use `Snapshot.from_dict(data).net_worth` for the exact current
 
 ## Read lifetime stats and progression
 
-`bridge.stats_snapshot()` reads the stats already held in the running game's `GameData`. It does not open the Stats page, refresh the leaderboard, or make a game/backend request. There is no bridge request throttle for this endpoint because it only reads local memory. The game's own normal sync and UI refresh behavior can update these fields independently.
+`bridge.stats_snapshot()` reads the stats already held in the running game's `GameData`. It does not open the Stats page, refresh the leaderboard, or cause an online request. There is no bridge request throttle for this endpoint because it only reads local memory. The game's own normal sync and UI refresh behavior can update these fields independently.
 
 The response includes `netWorth` (the same current calculation available from `snapshot()`), lifetime buying and shorting profits, `highestNetWorth`, `totalPlaytime`, `highestRanking`, trade totals, XP and money totals, the current `clan`, and `ownedGenerators`.
 
@@ -212,7 +213,7 @@ For a matching type, the bridge serializes every listed field. Source string fie
 | `data.reminderOffsetMs` | integer | Game-provided reminder offset, in milliseconds; this is an offset, not a timestamp. |
 | `data.direction` | string | Game-provided direction for a scheduled-price item. Treat it as a source string; the bridge does not constrain its values. |
 
-The event is emitted only if a client is subscribed when the ticker text is spawned. The plugin does not retain items when nobody is listening, replay headlines from before subscription, or provide a history query. It also does not poll or make backend requests to obtain news; the feed reflects only the game's in-memory session and normal ticker rendering. Headlines may be sparse, and scheduled announcements are included only when the game naturally renders them. Do not create extra game/backend activity just to make this feed produce an event.
+The event is emitted only if a client is subscribed when the ticker text is spawned. The plugin does not retain items when nobody is listening, replay headlines from before subscription, or provide a history query. It also does not poll the game or make online requests to obtain news; the feed reflects only the game's in-memory session and normal ticker rendering. Headlines may be sparse, and scheduled announcements are included only when the game naturally renders them. Do not create extra game or server activity just to make this feed produce an event.
 
 If the plugin cannot install the ticker hooks for the current game build, `subscribe_news()` raises `BridgeError` with code `news_unavailable`. The manifest protects the known method signatures and DTO fields, but a successful signature check cannot prove the game's behavior is unchanged after a patch.
 
@@ -282,7 +283,7 @@ finally:
 
 ## Request a leaderboard
 
-`bridge.leaderboard(mode, radius=None, count=None)` asks the running game to use its own in-process leaderboard client. The bridge does not implement leaderboard endpoints or connect to the game's backend itself; in online mode, the game may make its normal online request. These results are requested data, not a dump of leaderboard history already stored in the bridge.
+`bridge.leaderboard(mode, radius=None, count=None)` asks the running game to use its own in-process leaderboard client. The bridge does not implement leaderboard endpoints or contact the game server directly; in online mode, the game may make its normal online request. These results are requested data, not a dump of leaderboard history already stored in the bridge.
 
 Supported modes match the game's leaderboard screens:
 
@@ -312,7 +313,7 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 
 `bridge.transaction_history(filter="both", limit=100)` asks the game's in-process transaction-history client for up to 100 recent entries. Filters are `manual`, `both`, and `auto_action`. Each entry includes `id`, `occurredAt`, `stockId`, `side`, `source`, `realizedReturn`, and `realizedPercent`. `realizedReturn` is returned as the game's raw `BigNumberWire` mantissa/exponent string (for example, `{m=8.086,e=8}`), not converted to a decimal string. This is the game's bounded recent-history response, not a complete archive.
 
-The bridge does not connect to the backend itself. The game may make its normal online request through its own client. A successful request from the Transactions screen also seeds the bridge's in-memory cache, so a Python read can reuse it. Otherwise the bridge requests data when its cache is missing or older than the configured freshness period. Results stay in memory only.
+The bridge does not contact the game server directly. The running game may make its normal online request through its own client. A successful request from the Transactions screen also seeds the bridge's in-memory cache, so a Python read can reuse it. Otherwise the bridge requests data when its cache is missing or older than the configured freshness period. Results stay in memory only.
 
 `cached` indicates a cached response; `stale` indicates it is older than the configured freshness period. A stale result is returned while a request is already in flight or the bridge request interval has not elapsed. `ageSeconds` reports its age, `fetchedAtUnixSeconds` records when the game response reached the bridge, and `retryAfterMs` is zero unless a refresh must wait. If no cached result exists while requests are being paced, the call raises `BridgeError` with `retry_after_ms` when available.
 
@@ -341,9 +342,9 @@ Clear the override with `bridge.clear_human_activity_focus()`. The game returns 
 
 The bridge permits at least five seconds between focus changes it requests. A request that comes too soon raises `BridgeError` with `code == "rate_limited"` and `retry_after_ms` set to the remaining milliseconds. Repeating the active focus is a no-op. Normal graph selection remains immediate.
 
-`bridge.human_activity(stock_id, limit=32, before_tick=None)` retrieves a page of in-memory graph activity for a visible stock. The page contains `stockId`, `fullScaleImpact`, `samples`, `hasMore`, and `nextBeforeTick`. `fullScaleImpact` is the backend-provided normalization reference used by the game's chart; it is `null` when the game has no aligned activity samples for that stock (for example, when it is not the game's focused activity stock). A nonempty list of zero-valued samples still has a scale value. If the backend scale is non-finite or non-positive, the game uses `0.2` as a fallback. The scale is a reference, not a maximum impact value.
+`bridge.human_activity(stock_id, limit=32, before_tick=None)` retrieves a page of in-memory graph activity for a visible stock. The page contains `stockId`, `fullScaleImpact`, `samples`, `hasMore`, and `nextBeforeTick`. `fullScaleImpact` is the game-server-provided normalization reference used by the game's chart; it is `null` when the game has no aligned activity samples for that stock (for example, when it is not the game's focused activity stock). A nonempty list of zero-valued samples still has a scale value. If the game-server-provided scale is non-finite or non-positive, the game uses `0.2` as a fallback. The scale is a reference, not a maximum impact value.
 
-Each sample matches a graph/history tick and contains `sampleTick`, `up`, `down`, `total`, `net`, `upImpact`, `downImpact`, `totalImpact`, and `netImpact`. The game receives `bucketId`, `up`, `down`, `upImpact`, and `downImpact` in backend activity buckets and copies the values into its in-memory model without rescaling them. It discards buckets with a negative ID or count, or with a non-finite or negative impact, then aligns valid buckets to price-history ticks. There is no client-side upper bound on impact values beyond requiring them to be finite. If multiple buckets align to the same graph sample, the game adds their values together. It derives `total = up + down`, `net = up - down`, `totalImpact = upImpact + downImpact`, and `netImpact = upImpact - downImpact`. These are aggregated bucket values, not individual trade records or player identities.
+Each sample matches a graph/history tick and contains `sampleTick`, `up`, `down`, `total`, `net`, `upImpact`, `downImpact`, `totalImpact`, and `netImpact`. The game receives `bucketId`, `up`, `down`, `upImpact`, and `downImpact` in activity buckets from the game server and copies the values into its in-memory model without rescaling them. It discards buckets with a negative ID or count, or with a non-finite or negative impact, then aligns valid buckets to price-history ticks. There is no client-side upper bound on impact values beyond requiring them to be finite. If multiple buckets align to the same graph sample, the game adds their values together. It derives `total = up + down`, `net = up - down`, `totalImpact = upImpact + downImpact`, and `netImpact = upImpact - downImpact`. These are aggregated bucket values, not individual trade records or player identities.
 
 The game groups neighboring graph samples into visible bars when drawing the chart. When impact data is present, it normalizes grouped impacts against `fullScaleImpact` and clamps bar height to the chart's visual limit; if the visible data has no positive impacts, the chart scales by activity counts instead. Neither display path caps the underlying impact values. Thus a visible bar can combine multiple aligned samples, and values above `fullScaleImpact` can still exist even though the bar cannot grow past its display limit. For typed access, convert a response with `HumanActivityPage.from_dict(data)`; its `.samples` are `HumanActivity` records and `.full_scale_impact` is the scale reference (or `None` when unavailable). The default and maximum page size is 32; `before_tick` is an exclusive cursor for older samples.
 
@@ -367,7 +368,7 @@ bridge.clear_human_activity_focus()
 
 ## Submit individual trades
 
-Each `bridge.trade(action, stock_id, percent=None)` call asks the running game to execute one action using its in-process `StockManager` trade methods. Supported actions are `buy_max`, `buy_percent`, `short_max`, `short_percent`, `sell_max`, `sell_percent`, `cover_max`, `cover_percent`, `close_max`, and `close_percent`. Percentage actions accept values greater than 0 and up to 100. The bridge does not call the game's backend directly; an online game method may contact its server as part of normal game operation.
+Each `bridge.trade(action, stock_id, percent=None)` call asks the running game to execute one action using its in-process `StockManager` trade methods. Supported actions are `buy_max`, `buy_percent`, `short_max`, `short_percent`, `sell_max`, `sell_percent`, `cover_max`, `cover_percent`, `close_max`, and `close_percent`. Percentage actions accept values greater than 0 and up to 100. The bridge does not contact the game server directly; an online game method may contact its server as part of normal game operation.
 
 ```python
 response = bridge.trade("buy_percent", "STOCK_ID", percent=10)
@@ -437,7 +438,7 @@ Auto-action cooldown duration is reported even when no action is on cooldown. Ea
 
 Call `bridge.auto_actions()` for the current auto-action snapshot. Slot capacity and add availability are queried dynamically from the game manager; do not assume a fixed slot count. The result includes `slotLimit`, `configuredCount`, `canAddAction`, the global `active` state, whether auto actions are `unlocked`, and all configured actions keyed by their game-provided `slotIndex`.
 
-The game controls the unlock gate. In remote mode, the plugin preserves the game's `serverAutoActionsUnlocked` flag and pending claimed-reward prediction. It also handles a stale or missing server flag after the authoritative level catalog has loaded: if that catalog confirms a claimed reward whose definition unlocks auto actions, the gate reports unlocked. Until level data is available, the fallback is not used. `auto_actions().unlocked` reports this in-memory gate; it does not make a request to the game's backend.
+The game controls the unlock gate. In remote mode, the plugin preserves the game's `serverAutoActionsUnlocked` flag and pending claimed-reward prediction. It also handles a stale or missing server flag after the authoritative level catalog has loaded: if that catalog confirms a claimed reward whose definition unlocks auto actions, the gate reports unlocked. Until level data is available, the fallback is not used. `auto_actions().unlocked` reports this in-memory gate; it does not make an online request.
 
 The Python client provides:
 
@@ -453,7 +454,7 @@ Configuring an action does not by itself enable global auto actions. Enabling an
 
 ## Subscribe to auto-action completion toasts
 
-`bridge.subscribe_auto_action_toasts(callback)` subscribes the current connection to `auto_action.toast` events. The plugin observes the game's `AutoActionToastController.Init(AutoAction)` UI path: when the game initializes a toast, the bridge forwards the text and action details represented by that toast. It does not poll the game or request anything from the backend. Each client connection has its own subscription; subscribe and unsubscribe on the same `BridgeClient` instance.
+`bridge.subscribe_auto_action_toasts(callback)` subscribes the current connection to `auto_action.toast` events. The plugin observes the game's `AutoActionToastController.Init(AutoAction)` UI path: when the game initializes a toast, the bridge forwards the text and action details represented by that toast. It does not poll the game or request anything from the game server. Each client connection has its own subscription; subscribe and unsubscribe on the same `BridgeClient` instance.
 
 The callback receives the normal event envelope. A representative event is:
 
@@ -577,7 +578,7 @@ with BridgeClient(host="127.0.0.1", port=48721, token="YOUR_TOKEN") as bridge:
     print(result)  # status is submitted; refresh upgrades() for the observed level
 ```
 
-`purchase_upgrade(upgrade_id, quantity=1)` asks the running game to process the purchase by calling its in-process `GameManager.PurchaseUpgrades` method. The bridge does not contact the game's backend directly. In online mode, the game method may send the purchase to its server, which remains authoritative. Quantity must be from 1 to 1000. The game's affordability and maximum-level checks still apply. A successful RPC response means the game accepted the purchase request for processing; it can be optimistic, partially fulfilled, or later corrected by the server. `levelBefore` and `levelAfter` are observations around submission, not a completion receipt. Refresh the catalog to see the latest level and maxed state.
+`purchase_upgrade(upgrade_id, quantity=1)` asks the running game to process the purchase by calling its in-process `GameManager.PurchaseUpgrades` method. The bridge does not contact the game server directly. In online mode, the game method may send the purchase to its server, which remains authoritative. Quantity must be from 1 to 1000. The game's affordability and maximum-level checks still apply. A successful RPC response means the game accepted the purchase request for processing; it can be optimistic, partially fulfilled, or later corrected by the server. `levelBefore` and `levelAfter` are observations around submission, not a completion receipt. Refresh the catalog to see the latest level and maxed state.
 
 `quote_upgrade(upgrade_id, ...)` previews a scenario without buying anything. For **five additional levels**, use `quantity=5`:
 

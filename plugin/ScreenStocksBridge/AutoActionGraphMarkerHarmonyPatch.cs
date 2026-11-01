@@ -179,6 +179,9 @@ namespace ScreenStocksBridge
 
             var historyCount = history.Count;
             var firstGlobalIndex = Math.Max(0L, totalSamples - historyCount);
+            if (!TryGetSearchEndIndex(stockManager, settings.StockId, historyCount, out var searchEnd))
+                return false;
+
             var visibleCount = GetVisiblePointCount(historyCount);
             var firstVisibleIndex = Math.Max(0, historyCount - visibleCount);
             var searchStart = firstVisibleIndex;
@@ -189,18 +192,19 @@ namespace ScreenStocksBridge
                 if (capturedLocalIndex >= firstVisibleIndex && capturedLocalIndex < historyCount)
                     searchStart = (int)capturedLocalIndex;
             }
+            if (searchStart >= searchEnd) return false;
 
             var isAbove = settings.Condition == ActionCondition.Above;
-            var crossingFound = TryFindConditionCrossing(history, searchStart, settings.TargetPrice,
+            var crossingFound = TryFindConditionCrossing(history, searchStart, searchEnd, settings.TargetPrice,
                 isAbove, enteringCondition: true, firstMatch: capture.IsPrediction, out var localIndex);
             if (!crossingFound)
             {
-                crossingFound = TryFindConditionCrossing(history, searchStart, settings.TargetPrice,
+                crossingFound = TryFindConditionCrossing(history, searchStart, searchEnd, settings.TargetPrice,
                     isAbove, enteringCondition: false, firstMatch: capture.IsPrediction, out localIndex);
             }
 
             if (!crossingFound)
-                localIndex = FindClosestPoint(history, searchStart, settings.TargetPrice, isAbove);
+                localIndex = FindClosestPoint(history, searchStart, searchEnd, settings.TargetPrice, isAbove);
 
             if (localIndex < 0 || localIndex >= historyCount || !IsFinitePositive(history[localIndex])) return false;
 
@@ -210,10 +214,11 @@ namespace ScreenStocksBridge
         }
 
         private static bool TryFindConditionCrossing(IReadOnlyList<float> history, int startIndex,
-            float targetPrice, bool isAbove, bool enteringCondition, bool firstMatch, out int localIndex)
+            int endExclusive, float targetPrice, bool isAbove, bool enteringCondition, bool firstMatch,
+            out int localIndex)
         {
             localIndex = -1;
-            for (var index = startIndex + 1; index < history.Count; index++)
+            for (var index = startIndex + 1; index < endExclusive; index++)
             {
                 var previousPrice = history[index - 1];
                 var currentPrice = history[index];
@@ -235,14 +240,14 @@ namespace ScreenStocksBridge
             return localIndex >= 0;
         }
 
-        private static int FindClosestPoint(IReadOnlyList<float> history, int startIndex,
+        private static int FindClosestPoint(IReadOnlyList<float> history, int startIndex, int endExclusive,
             float targetPrice, bool isAbove)
         {
             var closestIndex = -1;
             var closestDistance = double.PositiveInfinity;
             var hasConditionMatch = false;
 
-            for (var index = startIndex; index < history.Count; index++)
+            for (var index = startIndex; index < endExclusive; index++)
             {
                 var candidatePrice = history[index];
                 if (!IsFinitePositive(candidatePrice)) continue;
@@ -264,6 +269,41 @@ namespace ScreenStocksBridge
             }
 
             return closestIndex;
+        }
+
+        private static bool TryGetSearchEndIndex(StockManager stockManager, string stockId, int historyCount,
+            out int endExclusive)
+        {
+            endExclusive = historyCount;
+            try
+            {
+                var source = stockManager.Source;
+                if (source == null) return false;
+
+                // Local market sources have no separate server stream; their full history is authoritative.
+                if (!(source is RemoteMarketDataSource remoteSource))
+                    return true;
+
+                var serverTick = source.ServerTick;
+                var sampleTicks = remoteSource.GetHistorySampleTicks(stockId);
+                if (sampleTicks == null || sampleTicks.Count != historyCount)
+                    return false;
+
+                for (var index = sampleTicks.Count - 1; index >= 0; index--)
+                {
+                    if (sampleTicks[index] > serverTick) continue;
+                    endExclusive = index + 1;
+                    return true;
+                }
+
+                // Do not fall back to later client-side samples if no server-confirmed point is retained.
+                return false;
+            }
+            catch
+            {
+                // A stale or unavailable remote-history boundary is safer to skip than to search past it.
+                return false;
+            }
         }
 
         private static bool IsConditionMet(float price, float targetPrice, bool isAbove)

@@ -2,7 +2,7 @@
 
 The upgrade quoter previews the cost and effective value of an upgrade scenario
 using state already held by the running game. It does not spend money, submit a
-purchase, or refresh data from the backend. Use it to compare quantities or find
+purchase, or request updated data from the game server. Use it to compare quantities or find
 how many levels fit a budget before deciding whether to buy.
 
 This API requires a plugin and Python client containing `upgrades.quote` and

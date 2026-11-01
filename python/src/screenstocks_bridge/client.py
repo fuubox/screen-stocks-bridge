@@ -104,7 +104,7 @@ class BridgeClient:
     def stats_snapshot(self) -> dict[str, Any]:
         """Return lifetime stats and progression values already held in game memory.
 
-        This is a local read and does not trigger a leaderboard or backend refresh.
+        This is a local read and does not trigger a leaderboard or online refresh.
         """
         return self.request("stats.snapshot")
 

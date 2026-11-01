@@ -12,8 +12,12 @@ namespace ScreenStocksBridge
     internal sealed class BridgeServer : IDisposable
     {
         internal const int MaxFrameBytes = 128 * 1024;
+        internal const int DefaultMaxClientConnections = 4;
+        internal const int MinMaxClientConnections = 1;
+        internal const int MaxMaxClientConnections = 256;
         private readonly int _port;
         private readonly string _token;
+        private readonly int _maxClientConnections;
         private readonly MainThreadQueue _requests = new MainThreadQueue(128);
         private readonly object _gate = new object();
         private readonly List<BridgeConnection> _clients = new List<BridgeConnection>();
@@ -21,12 +25,18 @@ namespace ScreenStocksBridge
         private Thread? _acceptThread;
         private volatile bool _stopping;
 
-        internal BridgeServer(int port, string token) { _port = port; _token = token; }
+        internal BridgeServer(int port, string token, int maxClientConnections)
+        {
+            _port = port;
+            _token = token;
+            _maxClientConnections = Math.Max(MinMaxClientConnections,
+                Math.Min(MaxMaxClientConnections, maxClientConnections));
+        }
 
         internal void Start()
         {
             _listener = new TcpListener(IPAddress.Loopback, _port);
-            _listener.Start(4);
+            _listener.Start(_maxClientConnections);
             _acceptThread = new Thread(AcceptLoop) { IsBackground = true, Name = "ScreenStocksBridge.Accept" };
             _acceptThread.Start();
         }
@@ -128,7 +138,7 @@ namespace ScreenStocksBridge
                 lock (_gate)
                 {
                     PruneClosed();
-                    if (_clients.Count >= 4) { tcp.Close(); continue; }
+                    if (_clients.Count >= _maxClientConnections) { tcp.Close(); continue; }
                     var connection = new BridgeConnection(tcp, RemoveClient);
                     _clients.Add(connection);
                     connection.Start(ReadLoop, ClientEnded);

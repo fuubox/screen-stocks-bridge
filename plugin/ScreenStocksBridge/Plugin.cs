@@ -13,9 +13,10 @@ namespace ScreenStocksBridge
     {
         public const string PluginGuid = "screenstocks.bridge";
         public const string PluginName = "Screen Stocks Python Bridge";
-        public const string PluginVersion = "0.14.7";
+        public const string PluginVersion = "0.15.0";
 
         internal ConfigEntry<int> BridgePort { get; private set; } = null!;
+        internal ConfigEntry<int> MaxClientConnections { get; private set; } = null!;
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
         internal ConfigEntry<bool> AutoClaimLevelRewards { get; private set; } = null!;
         internal ConfigEntry<bool> AutoCloseOfflineSummary { get; private set; } = null!;
@@ -114,6 +115,8 @@ namespace ScreenStocksBridge
             if (normalizedNetWorthHistoryConfig) Config.Save();
             _netWorthHistory = new NetWorthHistoryService(this);
             BridgePort = Config.Bind("Bridge", "Port", 48721, "Loopback TCP port used by the Python bridge.");
+            MaxClientConnections = Config.Bind("Bridge", "MaxClientConnections", BridgeServer.DefaultMaxClientConnections,
+                "Maximum simultaneous local API clients (1-256). Each connected client adds two threads and may make the game lag. Restart after changing it.");
             BridgeToken = Config.Bind("Bridge", "Token", string.Empty, "Secret required by local Python clients.");
             AutoClaimLevelRewards = Config.Bind("QualityOfLife", "AutoClaimLevelRewards", true,
                 "Automatically claim available level rewards through the game's normal level-reward API.");
@@ -123,7 +126,7 @@ namespace ScreenStocksBridge
                 "On server confirmation, reposition auto-action graph dots using each slot's trigger settings and visible price history. Disabled by default.");
             CorrectAutoActionGraphMarkers.SettingChanged += OnAutoActionGraphMarkerSettingChanged;
             UnstackPurchaseMarkersWithin15Ticks = Config.Bind("Graph", "UnstackPurchaseMarkersWithin15Ticks", false,
-                "For stock graph dots within 15 ticks, bump short-related markers up and buy-related markers down. This changes graph display only.");
+                "For same-side graph dots within 15 ticks, bump sell-side markers up and buy-side markers down by at most one marker diameter. Dual-flag markers inherit the side of their x-aligned action marker. This changes graph display only.");
             UnstackPurchaseMarkersWithin15Ticks.SettingChanged += OnPurchaseMarkerUnstackSettingChanged;
             ShowTrackingDebugText = Config.Bind("Graph", "ShowTrackingDebugText", false,
                 "Show the debug TRACKING label when the activity focus matches the displayed stock graph. Disabled by default.");
@@ -236,9 +239,19 @@ namespace ScreenStocksBridge
                 Logger.LogError("Bridge.Port must be between 1 and 65535; listener was not started.");
                 return;
             }
+            if (MaxClientConnections.Value < BridgeServer.MinMaxClientConnections ||
+                MaxClientConnections.Value > BridgeServer.MaxMaxClientConnections)
+            {
+                var configuredValue = MaxClientConnections.Value;
+                MaxClientConnections.Value = Math.Max(BridgeServer.MinMaxClientConnections,
+                    Math.Min(BridgeServer.MaxMaxClientConnections, configuredValue));
+                Config.Save();
+                Logger.LogWarning("Bridge.MaxClientConnections must be between " + BridgeServer.MinMaxClientConnections +
+                    " and " + BridgeServer.MaxMaxClientConnections + "; using " + MaxClientConnections.Value + ".");
+            }
             try
             {
-                _server = new BridgeServer(BridgePort.Value, BridgeToken.Value);
+                _server = new BridgeServer(BridgePort.Value, BridgeToken.Value, MaxClientConnections.Value);
                 _server.Start();
                 _newsTicker.SetServer(_server);
                 _autoActionToasts.SetServer(_server);

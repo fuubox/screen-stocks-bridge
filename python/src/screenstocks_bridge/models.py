@@ -74,7 +74,7 @@ class Stock:
 
 @dataclass(frozen=True)
 class HumanActivityPage:
-    """One graph-aligned page and its backend-provided chart scale reference."""
+    """One graph-aligned page and its game-server-provided chart scale reference."""
 
     stock_id: str
     samples: list[HumanActivity]

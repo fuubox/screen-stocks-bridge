@@ -5,20 +5,38 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-01
+
 ### Fixed
 
 - Reposition remote auto-action graph dots on server confirmation using the
   slot's configured Above/Below condition and trigger price against visible
-  graph history when the opt-in `Graph.CorrectAutoActionMarkers` setting is
-  enabled. The setting is disabled by default. Match predicted dots by slot and
-  execution marker so nearby actions do not move each other's dots.
+  graph history no later than the latest received server sample when the opt-in
+  `Graph.CorrectAutoActionMarkers` setting is enabled. The setting is disabled
+  by default. Match predicted dots by slot and execution marker so nearby
+  actions do not move each other's dots.
 - Add the independent, disabled-by-default
-  `Graph.UnstackPurchaseMarkersWithin15Ticks` setting. It offsets every nearby
-  stock graph dot vertically during drawing, bumping short-related markers up
-  and buy-related markers down without changing their stored tick or price.
+  `Graph.UnstackPurchaseMarkersWithin15Ticks` setting. It offsets markers only
+  when at least two same-trade-side markers are within 15 ticks, bumping
+  sell-side markers up and buy-side markers down. Short covers are buy-side;
+  a dual-flag marker inherits the side of its x-aligned buy or short marker, so
+  covers sit below their buy-side companion. Opposite-side overlap alone does
+  not move either marker. Offset distance is limited to one marker diameter
+  per side; stored ticks and prices remain unchanged.
+- Keep vertical unstacking within the graph's visible marker area. Markers whose
+  prices are outside the visible range stay hidden as in the native renderer,
+  instead of being pulled onto the top or bottom edge.
+- Classify vertical marker offsets by buy/sell trade side rather than position
+  side, so short covers move with buys and long closes with sells.
+- Resolve dual-flag graph markers from their x-aligned action marker, keeping a
+  short cover in the buy-side stack and below its paired buy marker.
 
 ### Added
 
+- Make the maximum simultaneous loopback API connections configurable with
+  `Bridge.MaxClientConnections` (default `4`, range `1` through `256`). Each
+  connected client uses two background threads and can add game performance
+  overhead.
 - Add independent graph-focus label controls: `Graph.ShowTrackingDebugText`
   opts in to the debug label, while `Graph.ShowOverrideText` defaults on and
   can be disabled.
@@ -290,7 +308,7 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
   `subscribe_auto_action_toasts()` and `auto_action.toast` events.
 - Toast text and structured action context: stock ID, action type, condition,
   and target price. The bridge forwards the game's localized TextMeshPro text
-  without polling or making backend requests.
+  without polling or making online requests to the game server.
 - End-user documentation with a complete listener example, event schema,
   callback-thread guidance, cleanup, and compatibility troubleshooting.
 
@@ -310,7 +328,7 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 - Python news ticker subscriptions with localized rendered headlines and
   structured market or scheduled-price announcement fields.
 - Ticker capture reuses the game's in-memory rendering path without additional
-  backend requests or polling for news.
+  game-server requests or polling for news.
 
 ### Verified
 
@@ -323,7 +341,7 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 - Transaction history snapshots through the Python bridge, with both, manual,
   and auto_action filters and a configurable result limit up to 100.
 - Cached transaction reads with stale-state reporting and minimum-enforced cache
-  and backend-request intervals to prevent configuration from hammering the game.
+  and game-server request intervals to prevent configuration from hammering the game.
 - Larger bridge frames to carry complete transaction snapshots.
 
 ### Verified
@@ -395,9 +413,9 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
   current and next values, next price, hidden state, and finite/unlimited/maxed
   status.
 - Upgrade purchases delegated to the game's in-process purchase method, with a
-  bounded quantity and explicit `submitted` status. The plugin does not connect
-  directly to the backend; online requests are made by the game and remain
-  server-authoritative.
+  bounded quantity and explicit `submitted` status. The plugin does not contact
+  the game server directly; online requests are made by the running game and
+  remain server-authoritative.
 - Python `upgrades()` and `purchase_upgrade()` convenience methods and guide
   hints describing the effects of the built-in upgrade IDs.
 

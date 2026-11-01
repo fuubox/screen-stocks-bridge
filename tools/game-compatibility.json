@@ -440,6 +440,18 @@
       ]
     },
     {
+      "type": "StockManager",
+      "name": "get_Source",
+      "returnType": "IMarketDataSource",
+      "parameters": []
+    },
+    {
+      "type": "IMarketDataSource",
+      "name": "get_ServerTick",
+      "returnType": "System.Int64",
+      "parameters": []
+    },
+    {
       "type": "UILineGraph",
       "name": "DrawPurchaseMarkers",
       "returnType": "System.Void",

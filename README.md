@@ -39,7 +39,7 @@ The PyPI package contains only the Python client. Install the BepInEx plugin sep
 
 The default listener is `127.0.0.1:48721`. On first launch, the plugin generates an access token. Find it in the BepInEx log or in `BepInEx\config\screenstocks.bridge.cfg`.
 
-To change the listener port, close the game and edit `Port` under `[Bridge]` in `BepInEx\config\screenstocks.bridge.cfg`, then restart the game. The plugin binds only to `127.0.0.1`. Use the same port in your Python client.
+To change the listener port or the maximum number of simultaneous API client connections, close the game and edit `Port` or `MaxClientConnections` under `[Bridge]` in `BepInEx\config\screenstocks.bridge.cfg`, then restart the game. `MaxClientConnections` defaults to `4` and accepts values from `1` to `256`. Each connected client adds two background threads, so raising the limit can increase load and make the game lag. The plugin binds only to `127.0.0.1`. Use the same port in your Python client.
 
 ```powershell
 $env:SCREENSTOCKS_HOST = "127.0.0.1"
@@ -74,10 +74,19 @@ UnstackPurchaseMarkersWithin15Ticks = true
 
 - `CorrectAutoActionMarkers` repositions a remote auto-action dot when the
   server confirms it, using that action slot's trigger price, condition, and
-  visible graph history to infer the closest logical point.
+  visible graph history to infer the closest logical point. The search stops
+  at the latest server-confirmed price sample received at confirmation, so later
+  client-side samples cannot pull the inferred marker forward.
 - `UnstackPurchaseMarkersWithin15Ticks` separates nearby graph dots vertically:
-  short-related markers move up, and buy-related markers move down. It affects
-  graph display only; stored marker ticks and prices are unchanged.
+  sell-side markers move up, and buy-side markers move down when at least two
+  markers from the same trade side are within the window. Short covers count as
+  buy-side. A marker with both `IsBuy` and `IsShort` set takes its side from the
+  pure buy or short marker at the same rendered X; a paired cover is placed
+  below its buy-side companion. Overlapping opposite-side markers do not move
+  each other.
+  Offsets stay within one marker diameter per side, so very dense same-side
+  groups can still partially overlap.
+  It affects graph display only; stored marker ticks and prices are unchanged.
 - The activity-focus labels are controlled independently. `ShowTrackingDebugText`
   is an opt-in (default `false`) for the `TRACKING` debug label.
   `ShowOverrideText` is enabled by default; set it to `false` to hide the
