@@ -60,6 +60,32 @@ with BridgeClient(
     print(state["cash"], state["netWorth"], state["stocks"])
 ```
 
+## Optional graph settings
+
+Both graph display patches are disabled by default. To enable one or both, edit
+`BepInEx\config\screenstocks.bridge.cfg` and set the desired options under
+`[Graph]`:
+
+```ini
+[Graph]
+CorrectAutoActionMarkers = true
+UnstackPurchaseMarkersWithin15Ticks = true
+```
+
+- `CorrectAutoActionMarkers` repositions a remote auto-action dot when the
+  server confirms it, using that action slot's trigger price, condition, and
+  visible graph history to infer the closest logical point.
+- `UnstackPurchaseMarkersWithin15Ticks` separates nearby graph dots vertically:
+  short-related markers move up, and buy-related markers move down. It affects
+  graph display only; stored marker ticks and prices are unchanged.
+
+Restart the game after editing the config file. These are Screen Stocks Bridge
+patches to the graph display. If marker behavior is wrong while either option
+is enabled, turn it off and report the issue to the [Screen Stocks Bridge issue
+tracker](https://github.com/fuubox/screen-stocks-bridge/issues). Please don't
+report bugs caused by these opt-in settings to the original Screen Stocks
+developer.
+
 ## API guide
 
 The [upgrade quoter guide](docs/upgrade-quoter.md) covers read-only previews for
