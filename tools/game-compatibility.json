@@ -396,6 +396,63 @@
       "name": "get_CanStartManualTrade",
       "returnType": "System.Boolean",
       "parameters": []
+    },
+    {
+      "type": "AutoActionManager",
+      "name": "AddRemoteExecutionMarker",
+      "returnType": "System.Void",
+      "parameters": [
+        "AutoAction",
+        "System.Nullable`1<System.Single>"
+      ]
+    },
+    {
+      "type": "AutoActionManager",
+      "name": "AddRemoteExecutionMarkers",
+      "returnType": "System.Void",
+      "parameters": [
+        "System.Collections.Generic.IReadOnlyList`1<AutoAction>",
+        "System.Collections.Generic.IReadOnlyList`1<AutoAction>"
+      ]
+    },
+    {
+      "type": "StockManager",
+      "name": "GetMarkers",
+      "returnType": "System.Collections.Generic.List`1<UILineGraph/PurchaseMarker>",
+      "parameters": [
+        "System.String"
+      ]
+    },
+    {
+      "type": "StockManager",
+      "name": "GetPriceHistory",
+      "returnType": "System.Collections.Generic.IReadOnlyList`1<System.Single>",
+      "parameters": [
+        "System.String"
+      ]
+    },
+    {
+      "type": "StockManager",
+      "name": "GetTotalTickCount",
+      "returnType": "System.Int64",
+      "parameters": [
+        "System.String"
+      ]
+    },
+    {
+      "type": "UILineGraph",
+      "name": "DrawPurchaseMarkers",
+      "returnType": "System.Void",
+      "parameters": [
+        "UnityEngine.UI.VertexHelper",
+        "UnityEngine.Rect"
+      ]
+    },
+    {
+      "type": "GameManager",
+      "name": "get_Settings",
+      "returnType": "GameSettingsSO",
+      "parameters": []
     }
   ],
   "fields": [
@@ -700,6 +757,60 @@
       "public": true
     },
     {
+      "type": "AutoAction",
+      "name": "lastExecutionMarker",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "GameSettingsSO",
+      "name": "chartVisibleTicks",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "GameSettingsSO",
+      "name": "historyLength",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "ActionCondition",
+      "name": "Above",
+      "fieldType": "ActionCondition",
+      "public": true
+    },
+    {
+      "type": "ActionCondition",
+      "name": "Below",
+      "fieldType": "ActionCondition",
+      "public": true
+    },
+    {
+      "type": "AutoActionType",
+      "name": "Buy",
+      "fieldType": "AutoActionType",
+      "public": true
+    },
+    {
+      "type": "AutoActionType",
+      "name": "Short",
+      "fieldType": "AutoActionType",
+      "public": true
+    },
+    {
+      "type": "AutoActionType",
+      "name": "CloseBuy",
+      "fieldType": "AutoActionType",
+      "public": true
+    },
+    {
+      "type": "AutoActionType",
+      "name": "CloseShort",
+      "fieldType": "AutoActionType",
+      "public": true
+    },
+    {
       "type": "ScreenStocks.Net.WireLeaderboardResponse",
       "name": "totalRanked",
       "fieldType": "System.Int64",
@@ -948,6 +1059,66 @@
     {
       "type": "ScreenStocks.Net.UpgradeViewDto",
       "name": "maxed",
+      "fieldType": "System.Boolean",
+      "public": true
+    },
+    {
+      "type": "UILineGraph",
+      "name": "_purchaseMarkers",
+      "fieldType": "System.Collections.Generic.List`1<UILineGraph/PurchaseMarker>",
+      "public": false
+    },
+    {
+      "type": "UILineGraph",
+      "name": "_visibleDataCount",
+      "fieldType": "System.Int32",
+      "public": false
+    },
+    {
+      "type": "UILineGraph",
+      "name": "_firstVisibleTick",
+      "fieldType": "System.Int64",
+      "public": false
+    },
+    {
+      "type": "UILineGraph",
+      "name": "_minValue",
+      "fieldType": "System.Single",
+      "public": false
+    },
+    {
+      "type": "UILineGraph",
+      "name": "_maxValue",
+      "fieldType": "System.Single",
+      "public": false
+    },
+    {
+      "type": "UILineGraph",
+      "name": "_purchaseMarkerRadius",
+      "fieldType": "System.Single",
+      "public": false
+    },
+    {
+      "type": "UILineGraph",
+      "name": "_purchaseMarkerStrokeWidth",
+      "fieldType": "System.Single",
+      "public": false
+    },
+    {
+      "type": "UILineGraph/PurchaseMarker",
+      "name": "DataIndex",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "UILineGraph/PurchaseMarker",
+      "name": "Price",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "UILineGraph/PurchaseMarker",
+      "name": "IsShort",
       "fieldType": "System.Boolean",
       "public": true
     }

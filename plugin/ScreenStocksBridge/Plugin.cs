@@ -19,6 +19,8 @@ namespace ScreenStocksBridge
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
         internal ConfigEntry<bool> AutoClaimLevelRewards { get; private set; } = null!;
         internal ConfigEntry<bool> AutoCloseOfflineSummary { get; private set; } = null!;
+        internal ConfigEntry<bool> CorrectAutoActionGraphMarkers { get; private set; } = null!;
+        internal ConfigEntry<bool> UnstackPurchaseMarkersWithin15Ticks { get; private set; } = null!;
         internal ConfigEntry<int> TransactionHistoryCacheSeconds { get; private set; } = null!;
         internal ConfigEntry<int> TransactionHistoryMinimumRequestIntervalSeconds { get; private set; } = null!;
         internal ConfigEntry<int> NetWorthHistoryCacheSeconds { get; private set; } = null!;
@@ -26,6 +28,8 @@ namespace ScreenStocksBridge
         private BridgeServer? _server;
         private Harmony? _harmony;
         private Harmony? _autoActionUnlockHarmony;
+        private Harmony? _autoActionGraphMarkerHarmony;
+        private Harmony? _purchaseMarkerUnstackHarmony;
         private Harmony? _levelUnlockRefreshHarmony;
         private Harmony? _tradeRecoveryHarmony;
         private TradeRecoveryService? _tradeRecovery;
@@ -100,6 +104,12 @@ namespace ScreenStocksBridge
                 "Automatically claim available level rewards through the game's normal level-reward API.");
             AutoCloseOfflineSummary = Config.Bind("QualityOfLife", "AutoCloseOfflineSummary", true,
                 "Capture the welcome-back summary for the bridge, then close its screen automatically.");
+            CorrectAutoActionGraphMarkers = Config.Bind("Graph", "CorrectAutoActionMarkers", false,
+                "On server confirmation, reposition auto-action graph dots using each slot's trigger settings and visible price history. Disabled by default.");
+            CorrectAutoActionGraphMarkers.SettingChanged += OnAutoActionGraphMarkerSettingChanged;
+            UnstackPurchaseMarkersWithin15Ticks = Config.Bind("Graph", "UnstackPurchaseMarkersWithin15Ticks", false,
+                "For stock graph dots within 15 ticks, bump short-related markers up and buy-related markers down. This changes graph display only.");
+            UnstackPurchaseMarkersWithin15Ticks.SettingChanged += OnPurchaseMarkerUnstackSettingChanged;
 
             if (string.IsNullOrWhiteSpace(BridgeToken.Value))
             {
@@ -155,6 +165,9 @@ namespace ScreenStocksBridge
                 _autoActionUnlockHarmony = null;
                 Logger.LogWarning("Could not hook the remote auto-action unlock check: " + ex.Message);
             }
+
+            ConfigureAutoActionGraphMarkerCorrection();
+            ConfigurePurchaseMarkerUnstacking();
 
             try
             {
@@ -558,6 +571,10 @@ namespace ScreenStocksBridge
 
         private void OnDestroy()
         {
+            if (CorrectAutoActionGraphMarkers != null)
+                CorrectAutoActionGraphMarkers.SettingChanged -= OnAutoActionGraphMarkerSettingChanged;
+            if (UnstackPurchaseMarkersWithin15Ticks != null)
+                UnstackPurchaseMarkersWithin15Ticks.SettingChanged -= OnPurchaseMarkerUnstackSettingChanged;
             _tradeRecovery?.Dispose();
             _tradeRecovery = null;
             _tradeRecoveryHarmony?.UnpatchSelf();
@@ -570,6 +587,12 @@ namespace ScreenStocksBridge
             _transactionHistoryHarmony = null;
             _autoActionUnlockHarmony?.UnpatchSelf();
             _autoActionUnlockHarmony = null;
+            AutoActionGraphMarkerHarmonyPatch.Clear();
+            _autoActionGraphMarkerHarmony?.UnpatchSelf();
+            _autoActionGraphMarkerHarmony = null;
+            PurchaseMarkerUnstackHarmonyPatch.Enabled = false;
+            _purchaseMarkerUnstackHarmony?.UnpatchSelf();
+            _purchaseMarkerUnstackHarmony = null;
             _levelUnlockRefreshHarmony?.UnpatchSelf();
             _levelUnlockRefreshHarmony = null;
             NetWorthHistoryHarmonyPatch.CaptureService = null;
@@ -590,6 +613,73 @@ namespace ScreenStocksBridge
             _humanActivityFocusIndicator.Dispose();
             _server?.Dispose();
             _server = null;
+        }
+
+        private void OnAutoActionGraphMarkerSettingChanged(object sender, EventArgs eventArgs)
+        {
+            ConfigureAutoActionGraphMarkerCorrection();
+        }
+
+        private void ConfigureAutoActionGraphMarkerCorrection()
+        {
+            if (CorrectAutoActionGraphMarkers.Value)
+            {
+                if (_autoActionGraphMarkerHarmony != null) return;
+
+                try
+                {
+                    _autoActionGraphMarkerHarmony = new Harmony(PluginGuid + ".auto-action-graph-markers");
+                    AutoActionGraphMarkerHarmonyPatch.Install(_autoActionGraphMarkerHarmony);
+                    Logger.LogInfo("Installed auto-action graph marker correction from slot settings and price history.");
+                }
+                catch (Exception ex)
+                {
+                    AutoActionGraphMarkerHarmonyPatch.Clear();
+                    _autoActionGraphMarkerHarmony?.UnpatchSelf();
+                    _autoActionGraphMarkerHarmony = null;
+                    Logger.LogWarning("Could not hook auto-action graph marker correction: " + ex.Message);
+                }
+
+                return;
+            }
+
+            AutoActionGraphMarkerHarmonyPatch.Clear();
+            _autoActionGraphMarkerHarmony?.UnpatchSelf();
+            _autoActionGraphMarkerHarmony = null;
+        }
+
+        private void OnPurchaseMarkerUnstackSettingChanged(object sender, EventArgs eventArgs)
+        {
+            ConfigurePurchaseMarkerUnstacking();
+        }
+
+        private void ConfigurePurchaseMarkerUnstacking()
+        {
+            if (UnstackPurchaseMarkersWithin15Ticks.Value)
+            {
+                if (_purchaseMarkerUnstackHarmony != null) return;
+
+                try
+                {
+                    PurchaseMarkerUnstackHarmonyPatch.Enabled = true;
+                    _purchaseMarkerUnstackHarmony = new Harmony(PluginGuid + ".purchase-marker-unstacking");
+                    PurchaseMarkerUnstackHarmonyPatch.Install(_purchaseMarkerUnstackHarmony);
+                    Logger.LogInfo("Installed purchase-marker unstacking within a 15-tick window.");
+                }
+                catch (Exception ex)
+                {
+                    PurchaseMarkerUnstackHarmonyPatch.Enabled = false;
+                    _purchaseMarkerUnstackHarmony?.UnpatchSelf();
+                    _purchaseMarkerUnstackHarmony = null;
+                    Logger.LogWarning("Could not hook purchase-marker unstacking: " + ex.Message);
+                }
+
+                return;
+            }
+
+            PurchaseMarkerUnstackHarmonyPatch.Enabled = false;
+            _purchaseMarkerUnstackHarmony?.UnpatchSelf();
+            _purchaseMarkerUnstackHarmony = null;
         }
 
         private readonly HumanActivityFocusIndicator _humanActivityFocusIndicator = new HumanActivityFocusIndicator();

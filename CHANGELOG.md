@@ -3,6 +3,20 @@
 Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 `MAJOR.MINOR.PATCH`; release tags use the matching `vMAJOR.MINOR.PATCH` format.
 
+## [Unreleased]
+
+### Fixed
+
+- Reposition remote auto-action graph dots on server confirmation using the
+  slot's configured Above/Below condition and trigger price against visible
+  graph history when the opt-in `Graph.CorrectAutoActionMarkers` setting is
+  enabled. The setting is disabled by default. Match predicted dots by slot and
+  execution marker so nearby actions do not move each other's dots.
+- Add the independent, disabled-by-default
+  `Graph.UnstackPurchaseMarkersWithin15Ticks` setting. It offsets every nearby
+  stock graph dot vertically during drawing, bumping short-related markers up
+  and buy-related markers down without changing their stored tick or price.
+
 ## [0.14.7] - 2026-10-29
 
 ### Compatibility
