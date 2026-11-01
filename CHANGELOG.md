@@ -17,6 +17,12 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
   stock graph dot vertically during drawing, bumping short-related markers up
   and buy-related markers down without changing their stored tick or price.
 
+### Added
+
+- Add independent graph-focus label controls: `Graph.ShowTrackingDebugText`
+  opts in to the debug label, while `Graph.ShowOverrideText` defaults on and
+  can be disabled.
+
 ## [0.14.7] - 2026-10-29
 
 ### Compatibility

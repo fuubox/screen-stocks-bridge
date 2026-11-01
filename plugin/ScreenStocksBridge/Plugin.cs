@@ -21,6 +21,8 @@ namespace ScreenStocksBridge
         internal ConfigEntry<bool> AutoCloseOfflineSummary { get; private set; } = null!;
         internal ConfigEntry<bool> CorrectAutoActionGraphMarkers { get; private set; } = null!;
         internal ConfigEntry<bool> UnstackPurchaseMarkersWithin15Ticks { get; private set; } = null!;
+        internal ConfigEntry<bool> ShowTrackingDebugText { get; private set; } = null!;
+        internal ConfigEntry<bool> ShowOverrideText { get; private set; } = null!;
         internal ConfigEntry<int> TransactionHistoryCacheSeconds { get; private set; } = null!;
         internal ConfigEntry<int> TransactionHistoryMinimumRequestIntervalSeconds { get; private set; } = null!;
         internal ConfigEntry<int> NetWorthHistoryCacheSeconds { get; private set; } = null!;
@@ -110,6 +112,10 @@ namespace ScreenStocksBridge
             UnstackPurchaseMarkersWithin15Ticks = Config.Bind("Graph", "UnstackPurchaseMarkersWithin15Ticks", false,
                 "For stock graph dots within 15 ticks, bump short-related markers up and buy-related markers down. This changes graph display only.");
             UnstackPurchaseMarkersWithin15Ticks.SettingChanged += OnPurchaseMarkerUnstackSettingChanged;
+            ShowTrackingDebugText = Config.Bind("Graph", "ShowTrackingDebugText", false,
+                "Show the debug TRACKING label when the activity focus matches the displayed stock graph. Disabled by default.");
+            ShowOverrideText = Config.Bind("Graph", "ShowOverrideText", true,
+                "Show OVERRIDE: ON when the activity focus differs from the displayed stock graph. Enabled by default.");
 
             if (string.IsNullOrWhiteSpace(BridgeToken.Value))
             {
@@ -687,7 +693,8 @@ namespace ScreenStocksBridge
         private void OnGUI()
         {
             _tradeRecovery?.DrawStatus();
-            _humanActivityFocusIndicator.Draw(_humanActivityFocus.ActiveStockId, message => Logger.LogInfo(message));
+            _humanActivityFocusIndicator.Draw(_humanActivityFocus.ActiveStockId,
+                ShowTrackingDebugText.Value, ShowOverrideText.Value, message => Logger.LogInfo(message));
         }
 
         private static string CreateToken()

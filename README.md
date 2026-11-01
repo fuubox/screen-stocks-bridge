@@ -78,6 +78,18 @@ UnstackPurchaseMarkersWithin15Ticks = true
 - `UnstackPurchaseMarkersWithin15Ticks` separates nearby graph dots vertically:
   short-related markers move up, and buy-related markers move down. It affects
   graph display only; stored marker ticks and prices are unchanged.
+- The activity-focus labels are controlled independently. `ShowTrackingDebugText`
+  is an opt-in (default `false`) for the `TRACKING` debug label.
+  `ShowOverrideText` is enabled by default; set it to `false` to hide the
+  `OVERRIDE: ON` label when activity focus differs from the displayed stock.
+
+For example, add these lines under `[Graph]` to show `TRACKING` and hide the
+override label:
+
+```ini
+ShowTrackingDebugText = true
+ShowOverrideText = false
+```
 
 Restart the game after editing the config file. These are Screen Stocks Bridge
 patches to the graph display. If marker behavior is wrong while either option

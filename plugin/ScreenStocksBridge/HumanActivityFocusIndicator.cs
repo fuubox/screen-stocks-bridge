@@ -17,9 +17,10 @@ namespace ScreenStocksBridge
         private float _nextSearchAt;
         private string _lastReportedFocus = string.Empty;
 
-        internal void Draw(string activeStockId, Action<string> log)
+        internal void Draw(string activeStockId, bool showTrackingDebugText, bool showOverrideText,
+            Action<string> log)
         {
-            if (string.IsNullOrEmpty(activeStockId))
+            if (string.IsNullOrEmpty(activeStockId) || (!showTrackingDebugText && !showOverrideText))
             {
                 _lastReportedFocus = string.Empty;
                 return;
@@ -69,6 +70,7 @@ namespace ScreenStocksBridge
             var band = new Rect(min.x, Screen.height - min.y - bandHeight, width, bandHeight);
             var tracking = _visualizer != null &&
                 string.Equals(activeStockId, _visualizer.CurrentStockId, StringComparison.Ordinal);
+            if (tracking ? !showTrackingDebugText : !showOverrideText) return;
             var text = tracking ? "TRACKING" : "OVERRIDE: ON";
             if (_lastReportedFocus != activeStockId)
             {
