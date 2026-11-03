@@ -49,6 +49,8 @@ Edit these settings while the game is closed, then restart the game for changes 
 
 Under `[QualityOfLife]`, `AutoCloseOfflineSummary = true` (the default) captures and then closes the game's welcome-back screen. Set it to `false` to leave that screen open; the plugin still captures its data for the API.
 
+`SingleLineAutoActionToasts = false` (the default) keeps the game's normal auto-action completion toast appearance. Set it to `true` to show those toasts as a single line of text, with no image backgrounds or outlines. Long text is truncated with an ellipsis. Restart the game after changing the setting. This affects only the auto-action completion toasts handled by `AutoActionToastController`.
+
 ## Read the welcome-back summary
 
 When the game displays its welcome-back screen, the plugin captures the structured values supplied to that screen before closing it. The most recent capture stays in plugin memory for the current game session. It is not written to disk, and a later welcome-back screen replaces it.

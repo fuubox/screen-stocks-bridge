@@ -5,6 +5,12 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Added
+
+- Add the opt-in QualityOfLife.SingleLineAutoActionToasts setting. It shows
+  auto-action completion toasts on one line without image backgrounds or
+  outlines, truncating long text with an ellipsis.
+
 ## [0.15.0] - 2026-11-01
 
 ### Fixed

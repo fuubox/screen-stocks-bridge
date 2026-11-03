@@ -20,6 +20,7 @@ namespace ScreenStocksBridge
         internal ConfigEntry<string> BridgeToken { get; private set; } = null!;
         internal ConfigEntry<bool> AutoClaimLevelRewards { get; private set; } = null!;
         internal ConfigEntry<bool> AutoCloseOfflineSummary { get; private set; } = null!;
+        internal ConfigEntry<bool> SingleLineAutoActionToasts { get; private set; } = null!;
         internal ConfigEntry<bool> CorrectAutoActionGraphMarkers { get; private set; } = null!;
         internal ConfigEntry<bool> UnstackPurchaseMarkersWithin15Ticks { get; private set; } = null!;
         internal ConfigEntry<bool> ShowTrackingDebugText { get; private set; } = null!;
@@ -40,6 +41,7 @@ namespace ScreenStocksBridge
         private Harmony? _netWorthHistoryHarmony;
         private Harmony? _newsTickerHarmony;
         private Harmony? _autoActionToastHarmony;
+        private Harmony? _autoActionToastStyleHarmony;
         private bool _tradeRecoveryGameHooksInstalled;
         private readonly StateService _state = new StateService();
         private readonly StatsService _stats = new StatsService();
@@ -71,7 +73,8 @@ namespace ScreenStocksBridge
             _transactionHistoryHarmony != null ||
             _netWorthHistoryHarmony != null ||
             _newsTickerHarmony != null ||
-            _autoActionToastHarmony != null;
+            _autoActionToastHarmony != null ||
+            _autoActionToastStyleHarmony != null;
 
         private void Awake()
         {
@@ -122,6 +125,8 @@ namespace ScreenStocksBridge
                 "Automatically claim available level rewards through the game's normal level-reward API.");
             AutoCloseOfflineSummary = Config.Bind("QualityOfLife", "AutoCloseOfflineSummary", true,
                 "Capture the welcome-back summary for the bridge, then close its screen automatically.");
+            SingleLineAutoActionToasts = Config.Bind("QualityOfLife", "SingleLineAutoActionToasts", false,
+                "Show auto-action completion toasts as one text line without panel backgrounds or borders. Takes effect after restarting the game.");
             CorrectAutoActionGraphMarkers = Config.Bind("Graph", "CorrectAutoActionMarkers", false,
                 "On server confirmation, reposition auto-action graph dots using each slot's trigger settings and visible price history. Disabled by default.");
             CorrectAutoActionGraphMarkers.SettingChanged += OnAutoActionGraphMarkerSettingChanged;
@@ -192,6 +197,7 @@ namespace ScreenStocksBridge
 
             ConfigureAutoActionGraphMarkerCorrection();
             ConfigurePurchaseMarkerUnstacking();
+            ConfigureSingleLineAutoActionToasts();
 
             try
             {
@@ -643,11 +649,31 @@ namespace ScreenStocksBridge
             _autoActionToastHarmony?.UnpatchSelf();
             _autoActionToastHarmony = null;
             _autoActionToasts.SetServer(null);
+            _autoActionToastStyleHarmony?.UnpatchSelf();
+            _autoActionToastStyleHarmony = null;
             if (!_humanActivityFocus.RestoreOnShutdown())
                 Logger.LogWarning("Could not restore the game's activity focus while shutting down the plugin.");
             _humanActivityFocusIndicator.Dispose();
             _server?.Dispose();
             _server = null;
+        }
+
+        private void ConfigureSingleLineAutoActionToasts()
+        {
+            if (!SingleLineAutoActionToasts.Value) return;
+
+            try
+            {
+                _autoActionToastStyleHarmony = new Harmony(PluginGuid + ".single-line-auto-action-toasts");
+                AutoActionToastStyleHarmonyPatch.Install(_autoActionToastStyleHarmony);
+                Logger.LogInfo("Installed the single-line auto-action toast style.");
+            }
+            catch (Exception ex)
+            {
+                _autoActionToastStyleHarmony?.UnpatchSelf();
+                _autoActionToastStyleHarmony = null;
+                Logger.LogWarning("Could not apply the single-line auto-action toast style: " + ex.Message);
+            }
         }
 
         private void OnAutoActionGraphMarkerSettingChanged(object sender, EventArgs eventArgs)
