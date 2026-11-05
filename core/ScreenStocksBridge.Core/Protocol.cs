@@ -17,6 +17,9 @@ namespace ScreenStocksBridge
         public int schemaVersion = 0;
         public string snapshotId = string.Empty;
         public int offset = 0;
+        public double rateHz = 0;
+        public string generation = string.Empty;
+        public long afterSequence = 0;
         public string action = string.Empty;
         public string stockId = string.Empty;
         public string upgradeId = string.Empty;

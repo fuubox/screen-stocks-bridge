@@ -103,6 +103,7 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 - `netWorth`: the game's current net-worth calculation as an exact decimal string. This comes from the running game's in-memory `CalculateNetWorth()` value, so it is part of the ordinary snapshot and does not request chart history.
 - `dividendIncomePerMinute`: the game's calculated aggregate dividend income rate as an exact decimal string. It includes owned positions and the effective Dividend Gain upgrade multiplier.
 - `dividendPayoutPerCycle`: the exact amount calculated for one dividend payout cycle. This matches the amount used by the game's Dividends display; the game derives it from its per-minute calculation and the effective payout interval.
+- `marketClock`: synchronized server-time evidence and the local-settings dividend schedule; timer fields are null when unsynchronized. See [market clock and streams](market-streams.md).
 - `stocks`: stocks visible to the current player and edition. Each record includes `stockId`, `name`, current `price`, `unlocked`, `basePrice`, `priceCap`, `dividendRate`, `baseDividendRate`, `maxVolume`, `effectiveMaxVolume`, and `availableShares`. `dividendRate` applies the game's current dividend payout multipliers; `baseDividendRate` preserves the stock definition's unmodified rate. The per-stock rate does not include price, player holdings, or payout interval, so use the top-level dividend totals to read actual income.
 - `positions`: the player's long and short holdings and average prices.
 - `cooldowns` and `autoActions`: trade cooldown and auto-action state described below.
@@ -181,7 +182,7 @@ The three volume fields describe different values:
 
 With the typed Python model, `stock.effective_max_volume` is a string; convert to `int` when integer arithmetic is appropriate. The raw snapshot dictionary exposes the same exact string at `stock["effectiveMaxVolume"]`.
 
-For change notifications, `bridge.subscribe_market(callback)` delivers `market.updated` events containing a new snapshot. Updates are sampled up to four times per second and sent when the snapshot changes.
+For change notifications, `bridge.subscribe_market(callback)` delivers `market.updated` events containing a new snapshot. The global cadence defaults to 4 Hz and can be changed with `set_market_rate(rate_hz)`; only material changes produce full snapshots. Clock progression and cooldown countdowns are carried by the separate clock stream. See the [market stream guide](market-streams.md) for synchronized dividend timing, global instant raw-price mode, closed one-second candles, cursor replay, and loss reporting.
 
 ## Subscribe to ticker news
 
@@ -600,6 +601,11 @@ Live verification on the pre-release build confirmed that `upgrades.snapshot` re
 | `state.snapshot` | Read current market/player state, cooldowns, and auto actions |
 | `stats.snapshot` | Read in-memory stats, progression totals, clan, and owned generators without a server request |
 | `state.subscribe` | Subscribe to `market.updated` events |
+| `market.stream_status` | Read global cadence, instant mode and source status |
+| `market.set_rate` | Set the finite positive global snapshot cadence |
+| `market.set_instant` | Toggle global raw websocket price forwarding |
+| `market.candles.subscribe` | Replay retained closed candles and subscribe by generation/sequence |
+| `market.candles.unsubscribe` | Stop this connection's candle stream |
 | `news.subscribe` | Subscribe to newly rendered ticker headlines |
 | `news.unsubscribe` | Stop this connection's ticker headline events |
 | `leaderboard.snapshot` | Request one game-supported player or clan leaderboard, subject to cache and cooldown |

@@ -9,3 +9,6 @@ __all__ = ["AutoAction", "AutoActions", "BridgeClient", "BridgeError", "Cooldown
 
 from .activity import ActivityBucket, ActivityReplica, ActivityResyncRequired, ActivitySnapshot
 __all__ += ["ActivityBucket", "ActivityReplica", "ActivityResyncRequired", "ActivitySnapshot"]
+
+from .market import MarketCandle, MarketClock
+__all__ += ["MarketCandle", "MarketClock"]

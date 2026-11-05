@@ -48,6 +48,9 @@ def main():
         b"UnityEngine.Time::get_realtimeSinceStartup", ctypes.cast(unity_time, ptr))
     bind("mono_add_internal_call", None, string, ptr)(
         b"UnityEngine.Time::get_unscaledTime", ctypes.cast(unity_time, ptr))
+    unity_time_double = ctypes.CFUNCTYPE(ctypes.c_double)(lambda: 0.0)
+    bind("mono_add_internal_call", None, string, ptr)(
+        b"UnityEngine.Time::get_realtimeSinceStartupAsDouble", ctypes.cast(unity_time_double, ptr))
     # Activity focus checks use Unity's managed null comparison on a synthetic
     # manager with a nonzero cached pointer. Initialize Object's offset constant;
     # no native object memory is read by these managed checks.

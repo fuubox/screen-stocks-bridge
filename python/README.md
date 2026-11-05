@@ -97,3 +97,11 @@ Use `offline_summary()` to read the latest welcome-back summary captured during
 the current game session. The plugin captures it in memory before automatically
 closing the screen; set `AutoCloseOfflineSummary = false` in the BepInEx config
 to leave the screen open while retaining API access.
+
+Market snapshots now include synchronized clock evidence and dividend schedule
+metadata. `set_market_rate(rate_hz)` changes the global snapshot cadence;
+`set_instant_mode(enabled)` independently enables the original raw websocket price
+messages. `subscribe_candles(callback, generation="", after_sequence=0)` replays
+retained one-second closed candles and receives new revisions. `MarketClock` and
+`MarketCandle` provide typed views. See the [market stream guide](../docs/market-streams.md)
+for baseline bootstrap, source timestamps, cursor gaps, and delivery loss.

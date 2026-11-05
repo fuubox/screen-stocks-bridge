@@ -168,12 +168,26 @@ After reviewing a patch and refreshing the tracked compatibility manifest, promo
 
 If the game changes in a way that breaks the bridge, keep the compatibility check failing until the code is adapted and reviewed. Do not weaken it by replacing the expected hash alone.
 
+## Market stream offline checks
+
+The isolated Mono runner also exercises the installed price-vector apply path,
+raw-message capture context, cached baseline bootstrap before new vectors,
+separate candle replay, HTTP fallback, accepted passive payouts, epoch/boundary
+deduplication, and per-stream queue loss accounting. It verifies that delivery
+metadata is outside the original source JSON and that mixed activity/market
+connections preserve activity's disconnect-on-overflow rule. The runner supplies
+Unity's deterministic double clock getter in addition to the existing synthetic
+clock/null-check support. It does not run Unity JSON decoding or real networking;
+controlled accepted native DTOs exercise the actual apply/publication methods.
+Core tests cover source-time OHLC, late revisions, retention/cursor gaps, clock
+units and synchronization, and material snapshot equality.
+
 ## In-game smoke checks
 
 Use a development installation with the game open. These checks are manual because they require the real game state and should not submit market actions automatically:
 
 - Plugin loads and binds only to `127.0.0.1` on the configured port.
-- `state.snapshot` reports readiness and visible stock IDs/values on the market screen.
+- `state.snapshot` reports readiness, visible stock IDs/values, and clock provenance on the market screen. `market.clock` advances approximately once per second while subscribed; unsynchronized timer fields are null. Deliberately enable instant mode and verify full snapshot/baseline ordering and raw price events, then turn it off. A separate candle subscription produces closed bars and can replay recent updates by generation/sequence. Observe fallback/recovery only if it naturally occurs; do not force server traffic or payout events.
 - `news.subscribe` succeeds; while subscribed, verify an ordinary `market` ticker event when one naturally renders. Verify a `scheduled_price` event only if the game naturally renders one during the check; it can be rare or time-dependent, so do not force game-server requests or delay routine smoke tests waiting for it. Confirm event text and structured stock ID come from the rendered item, then unsubscribe and confirm that connection stops receiving ticker events. A later subscription does not replay earlier items.
 - Activity v2 snapshots expose native accepted buckets, aligned samples, and honest source evidence. Subscriptions do not change focus. A connection-owned pin survives graph navigation without clearing the source; explicit takeover respects the five-second limit; unpin/disconnect immediately follows the current graph. Confirm resynchronization after connection loss. Complete the linked desk migration before cutover.
 - `offline_summary.snapshot` returns unavailable before a welcome-back summary has been captured, and returns the captured values after a session displays it. Verify the auto-close setting separately when testing the Harmony hook.

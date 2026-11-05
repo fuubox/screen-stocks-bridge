@@ -48,6 +48,7 @@ namespace ScreenStocksBridge
         private readonly NewsTickerService _newsTicker = new NewsTickerService();
         private readonly AutoActionToastService _autoActionToasts = new AutoActionToastService();
         private readonly ActivityModule _activity = new ActivityModule();
+        private MarketStreamModule? _marketStreams;
         private readonly AutoActionsService _autoActions = new AutoActionsService();
         private readonly TradeService _trades = new TradeService();
         private readonly UpgradeService _upgrades = new UpgradeService();
@@ -55,13 +56,11 @@ namespace ScreenStocksBridge
         private NetWorthHistoryService _netWorthHistory = null!;
         private LeaderboardService _leaderboards = null!;
         private readonly IpoService _ipo = new IpoService();
-        private float _nextSnapshotAt;
         private float _nextAutoActionUiRefreshAt;
         private float _nextLevelClaimAt;
-        private string _lastSnapshot = string.Empty;
 
         private bool HasNonApiPatchesActive =>
-            _activity.Available ||
+            _activity.Available || _marketStreams?.Available == true ||
             _tradeRecoveryGameHooksInstalled ||
             _harmony != null ||
             _autoActionUnlockHarmony != null ||
@@ -78,6 +77,9 @@ namespace ScreenStocksBridge
         {
             try { _activity.Install(); }
             catch (Exception ex) { Logger.LogWarning("Activity v2 unavailable: " + ex.Message); }
+            _marketStreams = new MarketStreamModule(_state, () => _server);
+            try { _marketStreams.Install(); }
+            catch (Exception ex) { Logger.LogWarning("Market stream hooks unavailable: " + ex.Message); }
             _leaderboards = new LeaderboardService(this);
             TransactionHistoryCacheSeconds = Config.Bind("TransactionHistory", "CacheSeconds", 60,
                 "How long transaction-history results stay fresh in memory. Values below 60 are raised to 60; larger values are allowed.");
@@ -345,24 +347,7 @@ namespace ScreenStocksBridge
             _netWorthHistory.Update();
             _trades.Update();
             TryAutoClaimLevelReward();
-            if (server == null || !server.HasMarketSubscribers ||
-                Time.unscaledTime < _nextSnapshotAt) return;
-            _nextSnapshotAt = Time.unscaledTime + 0.25f;
-
-            if (server.HasMarketSubscribers)
-            {
-                var snapshotDto = _state.CreateSnapshot();
-                if (snapshotDto.ready)
-                {
-                    var snapshot = BridgeJson.SerializeSnapshot(snapshotDto);
-                    if (!string.Equals(snapshot, _lastSnapshot, StringComparison.Ordinal))
-                    {
-                        _lastSnapshot = snapshot;
-                        server.Publish("market.updated", snapshot);
-                    }
-                }
-            }
-
+            _marketStreams?.Update();
 
         }
 
@@ -449,8 +434,7 @@ namespace ScreenStocksBridge
             {
                 connection.IsSubscribed = true;
                 connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"subscribed\"}", string.Empty), false);
-                var snapshot = _state.CreateSnapshot();
-                if (snapshot.ready) connection.Send(ProtocolJson.Event("market.updated", BridgeJson.SerializeSnapshot(snapshot)), true);
+                _marketStreams?.SubscribeState(connection);
                 return;
             }
             if (request.method == "news.subscribe")
@@ -487,6 +471,12 @@ namespace ScreenStocksBridge
             {
                 connection.IsAutoActionToastSubscribed = false;
                 connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"unsubscribed\"}", string.Empty), false);
+                return;
+            }
+            if (request.method == "market.set_rate" || request.method == "market.set_instant" ||
+                request.method == "market.stream_status" || request.method.StartsWith("market.candles.", StringComparison.Ordinal))
+            {
+                _marketStreams?.Handle(request, connection);
                 return;
             }
             if (request.method.StartsWith("market.human_activity", StringComparison.Ordinal))
@@ -577,6 +567,7 @@ namespace ScreenStocksBridge
             _autoActionToasts.SetServer(null);
             _autoActionToastStyleHarmony?.UnpatchSelf();
             _autoActionToastStyleHarmony = null;
+            _marketStreams?.Dispose();
             _activity.Dispose();
             _humanActivityFocusIndicator.Dispose();
             _server?.Dispose();

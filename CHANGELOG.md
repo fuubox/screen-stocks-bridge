@@ -5,7 +5,23 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Changed
+
+- Replace activity v1 with the breaking, explicitly negotiated activity v2
+  contract: native accepted buckets and aligned samples, source receipt evidence,
+  bounded immutable snapshots, ordered revisions/removals, and required resync
+  on stream loss. Follow the graph by default; pins belong to connections and
+  require explicit takeover. Disconnect/unpin releases immediately to the current
+  graph. Python gains typed snapshots and an atomic replica. Desk migration is
+  required before cutover; viewport rendering remains consumer-owned.
+
 ### Added
+
+- Add synchronized market clock/dividend schedule evidence and authoritative
+  payout confirmations; globally configurable snapshot cadence with material-only
+  updates; independent raw-price instant mode with exact cached baseline bootstrap;
+  canonical source-time one-second OHLC candles with 15-second revision replay;
+  feed status and per-stream delivery/loss evidence; Python helpers and typed views.
 
 - Add the opt-in QualityOfLife.SingleLineAutoActionToasts setting. It shows
   auto-action completion toasts on one line without image backgrounds or

@@ -17,6 +17,7 @@ namespace ScreenStocksBridge
                 return snapshot;
 
             snapshot.ready = true;
+            snapshot.marketClock = MarketStreamModule.ReadClockJson();
             snapshot.serverTick = manager.Source.ServerTick;
             snapshot.cash = FormatBigNumber(game.Money);
             snapshot.netWorth = FormatBigNumber(game.CalculateNetWorth());

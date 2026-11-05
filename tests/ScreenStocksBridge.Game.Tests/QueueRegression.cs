@@ -26,6 +26,7 @@ public static class QueueRegression
             BrokerCloseRegression.Run();
             var plugin = Assembly.Load("ScreenStocksBridge");
             ActivityRegression.Run();
+            MarketStreamRegression.Run();
             VerifyNativeCleanup();
             VerifyExecutionFault();
             VerifyReentrantPreview();

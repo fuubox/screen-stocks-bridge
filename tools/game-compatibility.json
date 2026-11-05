@@ -531,6 +531,81 @@
       "parameters": [
         "System.Boolean"
       ]
+    },
+    {
+      "type": "RemoteMarketDataSource",
+      "name": "HandleRealtimePrices",
+      "returnType": "System.Void",
+      "parameters": [
+        "ScreenStocks.Net.PricesResponse"
+      ]
+    },
+    {
+      "type": "ScreenStocks.Net.ServerClock",
+      "name": "get_NowMs",
+      "returnType": "System.Int64",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.ServerClock",
+      "name": "get_IsSynchronized",
+      "returnType": "System.Boolean",
+      "parameters": []
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksRealtimeClient",
+      "name": "ProcessMessage",
+      "returnType": "System.Void",
+      "parameters": [
+        "System.String",
+        "System.Int64"
+      ]
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksRealtimeClient",
+      "name": "PublishPriceVector",
+      "returnType": "System.Void",
+      "parameters": [
+        "ScreenStocks.Net.RealtimePriceVectorData"
+      ]
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksRealtimeClient",
+      "name": "SetReady",
+      "returnType": "System.Void",
+      "parameters": [
+        "System.Boolean"
+      ]
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksRealtimeClient",
+      "name": "add_OnPlayerDataReset",
+      "returnType": "System.Void",
+      "parameters": [
+        "System.Action`1<System.Int64>"
+      ]
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksRealtimeClient",
+      "name": "remove_OnPlayerDataReset",
+      "returnType": "System.Void",
+      "parameters": [
+        "System.Action`1<System.Int64>"
+      ]
+    },
+    {
+      "type": "GameManager",
+      "name": "HandleRealtimePassivePayout",
+      "returnType": "System.Void",
+      "parameters": [
+        "ScreenStocks.Net.RealtimePassivePayoutData"
+      ]
+    },
+    {
+      "type": "GameSettingsSO",
+      "name": "get_MarketEpochUnixMilliseconds",
+      "returnType": "System.Int64",
+      "parameters": []
     }
   ],
   "fields": [
@@ -1240,6 +1315,120 @@
       "type": "StockManager",
       "name": "_humanActivityClient",
       "fieldType": "HumanActivityClient",
+      "public": false
+    },
+    {
+      "type": "GameSettingsSO",
+      "name": "tickRateMs",
+      "fieldType": "System.Int32",
+      "public": true
+    },
+    {
+      "type": "GameSettingsSO",
+      "name": "marketEpochUnixSeconds",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "GameSettingsSO",
+      "name": "globalDividendIntervalSeconds",
+      "fieldType": "System.Single",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.RealtimePassivePayoutData",
+      "name": "dataEpoch",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.RealtimePassivePayoutData",
+      "name": "boundary",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.RealtimePassivePayoutData",
+      "name": "dividendAmount",
+      "fieldType": "ScreenStocks.Net.BigNumberWire",
+      "public": true
+    },
+    {
+      "type": "RemoteMarketDataSource",
+      "name": "_realtime",
+      "fieldType": "ScreenStocks.Net.ScreenStocksRealtimeClient",
+      "public": false
+    },
+    {
+      "type": "ScreenStocks.Net.PricesResponse",
+      "name": "serverTimeMs",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.PricesResponse",
+      "name": "tick",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.PricesResponse",
+      "name": "stocks",
+      "fieldType": "System.Collections.Generic.List`1<ScreenStocks.Net.WireStockPrice>",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.RealtimePriceVectorData",
+      "name": "layoutRevision",
+      "fieldType": "System.String",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.RealtimePriceVectorData",
+      "name": "prices",
+      "fieldType": "System.Collections.Generic.List`1<System.Single>",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.RealtimePriceVectorData",
+      "name": "stockIds",
+      "fieldType": "System.Collections.Generic.List`1<System.String>",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.RealtimePriceVectorData",
+      "name": "serverTimeMs",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.RealtimePriceVectorData",
+      "name": "tick",
+      "fieldType": "System.Int64",
+      "public": true
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksRealtimeClient",
+      "name": "_priceLayoutStockIds",
+      "fieldType": "System.Collections.Generic.List`1<System.String>",
+      "public": false
+    },
+    {
+      "type": "GameManager",
+      "name": "_appliedInitialServerState",
+      "fieldType": "System.Boolean",
+      "public": false
+    },
+    {
+      "type": "GameManager",
+      "name": "_lastSeenDataEpoch",
+      "fieldType": "System.Int64",
+      "public": false
+    },
+    {
+      "type": "GameManager",
+      "name": "_lastSeenDividendBoundary",
+      "fieldType": "System.Int64",
       "public": false
     }
   ]

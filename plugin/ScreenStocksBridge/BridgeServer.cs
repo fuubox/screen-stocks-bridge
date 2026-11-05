@@ -42,6 +42,7 @@ namespace ScreenStocksBridge
         }
 
         internal int Drain(Action<BridgeRequest, BridgeConnection> handler, int maximum) => _requests.Drain(handler, maximum);
+        internal BridgeConnection[] Connections { get { lock (_gate) return _clients.ToArray(); } }
         internal bool HasMarketSubscribers
         {
             get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.IsSubscribed) return true; } return false; }
@@ -57,11 +58,9 @@ namespace ScreenStocksBridge
 
         internal void Publish(string eventName, string rawData)
         {
-            var frame = ProtocolJson.Event(eventName, rawData);
-            if (Encoding.UTF8.GetByteCount(frame) > MaxFrameBytes) return;
             BridgeConnection[] clients;
             lock (_gate) clients = _clients.ToArray();
-            foreach (var client in clients) if (client.IsSubscribed && !client.IsClosed) client.Send(frame, true);
+            foreach (var client in clients) if (client.IsSubscribed && !client.IsClosed) client.SendStream(eventName, rawData);
         }
 
         internal void PublishNewsTicker(string rawData)
@@ -191,6 +190,9 @@ namespace ScreenStocksBridge
         private readonly Action<BridgeConnection> _onClosed;
         private readonly object _sendGate = new object();
         private readonly Queue<OutboundFrame> _outbound = new Queue<OutboundFrame>();
+        private readonly Dictionary<string, long> _streamSequences = new Dictionary<string, long>(StringComparer.Ordinal);
+        private readonly Dictionary<string, long> _streamDrops = new Dictionary<string, long>(StringComparer.Ordinal);
+        private bool _lossPending;
         private readonly AutoResetEvent _wake = new AutoResetEvent(false);
         private volatile bool _closed;
         private Thread? _writer;
@@ -200,6 +202,8 @@ namespace ScreenStocksBridge
         internal bool IsSubscribed { get; set; }
         internal string SessionId { get; } = Guid.NewGuid().ToString("N");
         internal bool IsActivitySubscribed { get; set; }
+        internal bool IsCandleSubscribed { get; set; }
+        internal string? RawLayoutRevision { get; set; }
         internal bool IsNewsSubscribed { get; set; }
         internal bool IsAutoActionToastSubscribed { get; set; }
         internal BridgeConnection(TcpClient tcp, Action<BridgeConnection> onClosed)
@@ -218,14 +222,21 @@ namespace ScreenStocksBridge
         internal void MarkAuthenticated() { _tcp.ReceiveTimeout = 0; }
 
         internal void SendActivity(string rawData) => Send(ProtocolJson.Event("activity.changed", rawData), true);
+        internal void SendStream(string name, string rawData) => Send(ProtocolJson.Event(name, rawData), true, name);
 
-        internal void Send(string json, bool isEvent)
+        internal void Send(string json, bool isEvent, string? streamName = null)
         {
             if (_closed) return;
             var bytes = Encoding.UTF8.GetByteCount(json);
-            if (bytes > BridgeServer.MaxFrameBytes) { Close(); return; }
+            if (bytes + (streamName == null ? 0 : 512) > BridgeServer.MaxFrameBytes) { Close(); return; }
             lock (_sendGate)
             {
+                var sequence = 0L;
+                if (streamName != null)
+                {
+                    _streamSequences.TryGetValue(streamName, out sequence);
+                    _streamSequences[streamName] = ++sequence;
+                }
                 if (_outbound.Count >= 64)
                 {
                     // A dropped activity chunk invalidates the replica even if the
@@ -238,15 +249,15 @@ namespace ScreenStocksBridge
                         while (_outbound.Count > 0)
                         {
                             var frame = _outbound.Dequeue();
-                            if (!removed && frame.IsEvent) { removed = true; continue; }
+                            if (!removed && frame.IsEvent) { removed = true; RecordDrop(frame.StreamName); continue; }
                             copy.Enqueue(frame);
                         }
                         while (copy.Count > 0) _outbound.Enqueue(copy.Dequeue());
-                        if (!removed) return;
+                        if (!removed) { RecordDrop(streamName); _wake.Set(); return; }
                     }
                     else { Close(); return; }
                 }
-                _outbound.Enqueue(new OutboundFrame(json, isEvent));
+                _outbound.Enqueue(new OutboundFrame(json, isEvent, streamName, sequence));
             }
             _wake.Set();
         }
@@ -258,7 +269,24 @@ namespace ScreenStocksBridge
                 while (!_closed)
                 {
                     OutboundFrame? frame = null;
-                    lock (_sendGate) if (_outbound.Count > 0) frame = _outbound.Dequeue();
+                    string? loss = null;
+                    lock (_sendGate)
+                    {
+                        if (_lossPending) { loss = LossJson(); _lossPending = false; }
+                        else if (_outbound.Count > 0) frame = _outbound.Dequeue();
+                        if (frame?.StreamName != null)
+                        {
+                            _streamDrops.TryGetValue(frame.StreamName, out var drops);
+                            frame = new OutboundFrame(frame.Json.Substring(0, frame.Json.Length - 1) +
+                                ",\"delivery\":{\"generation\":" + BridgeJson.Quote(SessionId) + ",\"stream\":" + BridgeJson.Quote(frame.StreamName) +
+                                ",\"sequence\":" + frame.Sequence + ",\"droppedEvents\":" + drops + "}}", true);
+                        }
+                    }
+                    if (loss != null)
+                    {
+                        var lossBytes = Encoding.UTF8.GetBytes(loss + "\n");
+                        Stream.Write(lossBytes, 0, lossBytes.Length); Stream.Flush(); continue;
+                    }
                     if (frame == null) { _wake.WaitOne(250); continue; }
                     var bytes = Encoding.UTF8.GetBytes(frame.Json + "\n");
                     Stream.Write(bytes, 0, bytes.Length);
@@ -277,11 +305,29 @@ namespace ScreenStocksBridge
             _onClosed(this);
         }
 
+        private void RecordDrop(string? stream)
+        {
+            stream = stream ?? "other";
+            _streamDrops.TryGetValue(stream, out var count);
+            _streamDrops[stream] = count + 1;
+            _lossPending = true;
+        }
+
+        private string LossJson()
+        {
+            var items = new List<string>();
+            foreach (var pair in _streamDrops) items.Add(BridgeJson.Quote(pair.Key) + ":" + pair.Value);
+            return ProtocolJson.Event("stream.loss", "{\"origin\":\"bridge\",\"generation\":" + BridgeJson.Quote(SessionId) + ",\"droppedEvents\":{" + string.Join(",", items) + "}}");
+        }
+
         private sealed class OutboundFrame
         {
             internal readonly string Json;
             internal readonly bool IsEvent;
-            internal OutboundFrame(string json, bool isEvent) { Json = json; IsEvent = isEvent; }
+            internal readonly string? StreamName;
+            internal readonly long Sequence;
+            internal OutboundFrame(string json, bool isEvent, string? streamName = null, long sequence = 0)
+            { Json = json; IsEvent = isEvent; StreamName = streamName; Sequence = sequence; }
         }
     }
 }

@@ -6,6 +6,7 @@ namespace ScreenStocksBridge
     [Serializable]
     public sealed class StateSnapshotDto
     {
+        public string marketClock = "null";
         public bool ready;
         public long serverTick;
         public string cash = "0";

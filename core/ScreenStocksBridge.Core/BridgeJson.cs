@@ -10,6 +10,7 @@ namespace ScreenStocksBridge
         {
             var json = new StringBuilder(1024);
             json.Append("{\"ready\":").Append(Bool(value.ready))
+                .Append(",\"marketClock\":").Append(value.marketClock)
                 .Append(",\"serverTick\":").Append(value.serverTick.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"cash\":").Append(Quote(value.cash))
                 .Append(",\"netWorth\":").Append(Quote(value.netWorth))

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import math
 import queue
 import socket
 import threading
@@ -30,6 +31,9 @@ class BridgeClient:
         self._callbacks_lock = threading.Lock()
         self._callbacks: list[Callable[[dict[str, Any]], None]] = []
         self._activity_subscribed = False
+        self._loss_lock = threading.Lock()
+        self._local_stream_drops: dict[str, int] = {}
+        self._local_loss_pending = threading.Event()
         self._events: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=128)
         self._trade_events: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=128)
         self._closed = threading.Event()
@@ -248,6 +252,38 @@ class BridgeClient:
         """Clear the global activity-focus override and restore the prior game focus."""
         return self.request("market.human_activity.clear_focus")
 
+    def set_market_rate(self, rate_hz: float) -> dict[str, Any]:
+        """Set the global snapshot sampling cadence; finite positive rates only."""
+        if isinstance(rate_hz, bool) or not math.isfinite(rate_hz) or rate_hz <= 0:
+            raise ValueError("rate_hz must be finite and positive")
+        return self.request("market.set_rate", {"rateHz": rate_hz})
+
+    def set_instant_mode(self, enabled: bool) -> dict[str, Any]:
+        """Toggle global raw-price forwarding independently of snapshot cadence."""
+        if not isinstance(enabled, bool):
+            raise ValueError("enabled must be boolean")
+        return self.request("market.set_instant", {"enabled": enabled})
+
+    def market_stream_status(self) -> dict[str, Any]:
+        return self.request("market.stream_status")
+
+    def subscribe_candles(self, callback: Callable[[dict[str, Any]], None], *,
+                          generation: str = "", after_sequence: int = 0) -> dict[str, Any]:
+        """Replay retained closed-candle revisions, then receive market.candle events.
+
+        Inspect the reply's gap flag. Candle generation/update sequence is independent
+        of per-connection delivery metadata; replace bars by stock/second/revision.
+        """
+        if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
+            raise ValueError("after_sequence must be a nonnegative integer")
+        with self._callbacks_lock:
+            if callback not in self._callbacks:
+                self._callbacks.append(callback)
+        return self.request("market.candles.subscribe", {"generation": generation, "afterSequence": after_sequence})
+
+    def unsubscribe_candles(self) -> dict[str, Any]:
+        return self.request("market.candles.unsubscribe")
+
     def subscribe_market(self, callback: Callable[[dict[str, Any]], None]) -> None:
         """Subscribe to market.updated and trade.completed event dictionaries."""
         with self._callbacks_lock:
@@ -450,13 +486,15 @@ class BridgeClient:
                 self._invalidate_activity("Client event queue overflow; activity resynchronization is required.")
                 return
             try:
-                self._events.get_nowait()
+                removed = self._events.get_nowait()
+                if removed is not None:
+                    self._record_local_stream_drop(removed)
             except queue.Empty:
                 pass
             try:
                 self._events.put_nowait(event)
             except queue.Full:
-                pass
+                self._record_local_stream_drop(event)
 
     def _invalidate_activity(self, reason: str) -> None:
         self._activity_subscribed = False
@@ -472,17 +510,30 @@ class BridgeClient:
         # during an empty-queue window and strand the resync notification.
         self.close()
 
+    def _record_local_stream_drop(self, event: dict[str, Any]) -> None:
+        stream = str(event.get("delivery", {}).get("stream", event.get("event", "other")))
+        with self._loss_lock:
+            self._local_stream_drops[stream] = self._local_stream_drops.get(stream, 0) + 1
+            self._local_loss_pending.set()
+
     def _event_loop(self) -> None:
         while True:
-            if self._closed.is_set() and self._events.empty() and self._trade_events.empty():
+            if (self._closed.is_set() and self._events.empty() and self._trade_events.empty()
+                    and not self._local_loss_pending.is_set()):
                 return
-            try:
-                event = self._trade_events.get_nowait()
-            except queue.Empty:
+            if self._local_loss_pending.is_set():
+                with self._loss_lock:
+                    self._local_loss_pending.clear()
+                    event = {"event": "stream.loss", "data": {"origin": "python_client",
+                             "droppedEvents": dict(self._local_stream_drops)}}
+            else:
                 try:
-                    event = self._events.get(timeout=0.25)
+                    event = self._trade_events.get_nowait()
                 except queue.Empty:
-                    continue
+                    try:
+                        event = self._events.get(timeout=0.25)
+                    except queue.Empty:
+                        continue
             if event is None:
                 continue
             with self._callbacks_lock:
