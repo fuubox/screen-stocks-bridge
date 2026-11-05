@@ -331,42 +331,24 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 
 ## Read and subscribe to graph activity
 
-The game has one active human-activity focus. Set it explicitly with `bridge.set_human_activity_focus(stock_id)`; this changes the game's activity feed without changing the visible graph stock. While active, the main stock graph displays a compact amber `OVERRIDE: ON` indicator inside the bottom-left of the human activity histogram band. When the focus matches the displayed stock, it instead shows a much smaller green `TRACKING` label. The indicator scales with the game UI and hides with the graph.
+Activity v2 exposes accepted server buckets, the game's aligned samples, source
+receipt evidence, and ordered revisions through `activity.*` with
+`schemaVersion: 2`. Read the [Activity v2 contract and migration guide](activity-v2.md)
+for snapshots, passive subscriptions, connection-owned pins, explicit takeover,
+resynchronization, and consumer-side histogram calculations.
 
 ```python
-focus = bridge.set_human_activity_focus("TECH")
-print(focus)  # {"active": True, "stockId": "TECH"}
-
-page = bridge.human_activity("TECH")
+page = bridge.pin_activity("$TECH")  # explicit connection-owned pin
+snapshot = bridge.activity_snapshot()
+print(snapshot.stock_id, snapshot.focus_mode, snapshot.buckets, snapshot.samples)
+bridge.unpin_activity()  # immediately follow the currently selected game graph
 ```
 
-Clear the override with `bridge.clear_human_activity_focus()`. The game returns to the activity focus associated with the graph stock selected before the override began. Selecting a different graph stock keeps the override active; the indicator changes between `TRACKING` and `OVERRIDE: ON` according to whether the displayed stock matches. The override is global to the running game, not tied to a Python connection; another authenticated client can replace or clear it, and disconnecting does not clear it.
-
-The bridge permits at least five seconds between focus changes it requests. A request that comes too soon raises `BridgeError` with `code == "rate_limited"` and `retry_after_ms` set to the remaining milliseconds. Repeating the active focus is a no-op. Normal graph selection remains immediate.
-
-`bridge.human_activity(stock_id, limit=32, before_tick=None)` retrieves a page of in-memory graph activity for a visible stock. The page contains `stockId`, `fullScaleImpact`, `samples`, `hasMore`, and `nextBeforeTick`. `fullScaleImpact` is the game-server-provided normalization reference used by the game's chart; it is `null` when the game has no aligned activity samples for that stock (for example, when it is not the game's focused activity stock). A nonempty list of zero-valued samples still has a scale value. If the game-server-provided scale is non-finite or non-positive, the game uses `0.2` as a fallback. The scale is a reference, not a maximum impact value.
-
-Each sample matches a graph/history tick and contains `sampleTick`, `up`, `down`, `total`, `net`, `upImpact`, `downImpact`, `totalImpact`, and `netImpact`. The game receives `bucketId`, `up`, `down`, `upImpact`, and `downImpact` in activity buckets from the game server and copies the values into its in-memory model without rescaling them. It discards buckets with a negative ID or count, or with a non-finite or negative impact, then aligns valid buckets to price-history ticks. There is no client-side upper bound on impact values beyond requiring them to be finite. If multiple buckets align to the same graph sample, the game adds their values together. It derives `total = up + down`, `net = up - down`, `totalImpact = upImpact + downImpact`, and `netImpact = upImpact - downImpact`. These are aggregated bucket values, not individual trade records or player identities.
-
-The game groups neighboring graph samples into visible bars when drawing the chart. When impact data is present, it normalizes grouped impacts against `fullScaleImpact` and clamps bar height to the chart's visual limit; if the visible data has no positive impacts, the chart scales by activity counts instead. Neither display path caps the underlying impact values. Thus a visible bar can combine multiple aligned samples, and values above `fullScaleImpact` can still exist even though the bar cannot grow past its display limit. For typed access, convert a response with `HumanActivityPage.from_dict(data)`; its `.samples` are `HumanActivity` records and `.full_scale_impact` is the scale reference (or `None` when unavailable). The default and maximum page size is 32; `before_tick` is an exclusive cursor for older samples.
-
-The bridge reads the activity samples the game currently has in its in-memory market history. Paging walks backward through that available collection; it does not ask the game's server for older history or make the game load more. When `hasMore` is false, you have reached the oldest sample currently exposed by the game, which may not be the beginning of all-time activity. The game controls how many samples it retains, and that retention can vary; the bridge does not guarantee a particular number of samples or a time span. `sampleTick` is the game's history tick, not a wall-clock timestamp, so the API cannot by itself say how many minutes or hours ago a sample occurred.
-
-To receive updates, separately call `subscribe_human_activity(stock_id, callback)` for the currently focused stock. Subscribing immediately sends its current page. The plugin checks subscribed pages up to four times per second and emits `human_activity.updated` when the page changes; each event contains up to 32 latest samples. The game itself observes one activity stock at a time, so another subscribed stock can have empty or stale activity until it is focused. The bridge does not rotate stocks. Older samples that remain in the game's in-memory history are available through the paged query. Under event backpressure, an update may be dropped; query again to resynchronize. Call `unsubscribe_human_activity(stock_id)` to stop updates for one stock. Callbacks run on the Python event worker thread.
-
-```python
-def on_event(event):
-    if event.get("event") != "human_activity.updated":
-        return
-    page = event["data"]
-    print("activity refresh:", page["stockId"], page["samples"])
-
-bridge.set_human_activity_focus("TECH")
-bridge.subscribe_human_activity("TECH", on_event)
-# Later:
-bridge.unsubscribe_human_activity("TECH")
-bridge.clear_human_activity_focus()
-```
+The old `market.human_activity*` operations return
+`unsupported_activity_version`. Upgrade the Python client and migrate the desk
+before installing the replacement bridge. Recent aligned zeros are not evidence
+of a fresh source response or confirmed inactivity. Consumers choose viewport
+aggregation; `fullScaleImpact` percentages are not native histogram bar heights.
 
 ## Submit individual trades
 
@@ -626,11 +608,12 @@ Live verification on the pre-release build confirmed that `upgrades.snapshot` re
 | `offline_summary.snapshot` | Read the latest in-memory welcome-back summary |
 | `ipo.snapshot` | Read IPO unlock, eligibility, count, and net-worth state |
 | `ipo.trigger` | Ask the game to trigger an IPO if its own checks pass |
-| `market.human_activity` | Read one page of graph activity for a visible stock |
-| `market.human_activity.subscribe` | Subscribe this connection to updates for one visible stock |
-| `market.human_activity.unsubscribe` | Stop this connection's updates for one stock |
-| `market.human_activity.set_focus` | Override the game's single active activity focus |
-| `market.human_activity.clear_focus` | Clear the override and restore the previous graph stock's activity focus |
+| `activity.snapshot` | Read an immutable, paged activity v2 snapshot |
+| `activity.subscribe` | Observe ordered activity changes without changing focus |
+| `activity.unsubscribe` | Stop this connection's activity events |
+| `activity.pin` | Claim or change this connection's focus pin |
+| `activity.takeover` | Explicitly replace another connection's pin |
+| `activity.unpin` | Release this connection's pin and follow the current graph |
 | `trade.submit` | Submit one allowlisted manual trade |
 | `upgrades.snapshot` | Discover upgrade descriptions, levels, values, limits, and next prices |
 | `upgrades.quote` | Preview quantities, total costs, and effective values without purchasing |

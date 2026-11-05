@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
 using BepInEx;
 using BepInEx.Configuration;
@@ -48,8 +47,7 @@ namespace ScreenStocksBridge
         private readonly OfflineProgressCaptureService _offlineProgress = new OfflineProgressCaptureService();
         private readonly NewsTickerService _newsTicker = new NewsTickerService();
         private readonly AutoActionToastService _autoActionToasts = new AutoActionToastService();
-        private readonly HumanActivityService _humanActivity = new HumanActivityService();
-        private readonly HumanActivityFocusService _humanActivityFocus = new HumanActivityFocusService();
+        private readonly ActivityModule _activity = new ActivityModule();
         private readonly AutoActionsService _autoActions = new AutoActionsService();
         private readonly TradeService _trades = new TradeService();
         private readonly UpgradeService _upgrades = new UpgradeService();
@@ -61,9 +59,9 @@ namespace ScreenStocksBridge
         private float _nextAutoActionUiRefreshAt;
         private float _nextLevelClaimAt;
         private string _lastSnapshot = string.Empty;
-        private readonly Dictionary<string, string> _lastHumanActivitySnapshots = new Dictionary<string, string>(StringComparer.Ordinal);
 
         private bool HasNonApiPatchesActive =>
+            _activity.Available ||
             _tradeRecoveryGameHooksInstalled ||
             _harmony != null ||
             _autoActionUnlockHarmony != null ||
@@ -78,6 +76,8 @@ namespace ScreenStocksBridge
 
         private void Awake()
         {
+            try { _activity.Install(); }
+            catch (Exception ex) { Logger.LogWarning("Activity v2 unavailable: " + ex.Message); }
             _leaderboards = new LeaderboardService(this);
             TransactionHistoryCacheSeconds = Config.Bind("TransactionHistory", "CacheSeconds", 60,
                 "How long transaction-history results stay fresh in memory. Values below 60 are raised to 60; larger values are allowed.");
@@ -309,7 +309,7 @@ namespace ScreenStocksBridge
         private void Update()
         {
             _tradeRecovery?.Update();
-            _humanActivityFocus.Update(message => Logger.LogInfo(message));
+            _activity.Update();
             if (GameManager.I != null && GameManager.I.Data != null &&
                 AutoActionUnlockHarmonyPatch.TryConsumeLevelDataRefresh())
             {
@@ -345,7 +345,7 @@ namespace ScreenStocksBridge
             _netWorthHistory.Update();
             _trades.Update();
             TryAutoClaimLevelReward();
-            if (server == null || (!server.HasMarketSubscribers && !server.HasHumanActivitySubscribers) ||
+            if (server == null || !server.HasMarketSubscribers ||
                 Time.unscaledTime < _nextSnapshotAt) return;
             _nextSnapshotAt = Time.unscaledTime + 0.25f;
 
@@ -363,22 +363,7 @@ namespace ScreenStocksBridge
                 }
             }
 
-            var activityStockIds = server.GetSubscribedHumanActivityStockIds();
-            var activeStockIds = new HashSet<string>(activityStockIds, StringComparer.Ordinal);
-            foreach (var stockId in activityStockIds)
-            {
-                if (!_humanActivity.TryCreatePage(stockId, 0, 0L, out var page, out _, out _)) continue;
-                var activitySnapshot = BridgeJson.SerializeHumanActivityPage(page);
-                if (_lastHumanActivitySnapshots.TryGetValue(stockId, out var previous) &&
-                    string.Equals(activitySnapshot, previous, StringComparison.Ordinal)) continue;
-                _lastHumanActivitySnapshots[stockId] = activitySnapshot;
-                server.PublishHumanActivity(stockId, activitySnapshot);
-            }
 
-            var staleStockIds = new List<string>();
-            foreach (var stockId in _lastHumanActivitySnapshots.Keys)
-                if (!activeStockIds.Contains(stockId)) staleStockIds.Add(stockId);
-            foreach (var stockId in staleStockIds) _lastHumanActivitySnapshots.Remove(stockId);
         }
 
         internal void LogWarning(string message) => Logger.LogWarning(message);
@@ -504,42 +489,15 @@ namespace ScreenStocksBridge
                 connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"unsubscribed\"}", string.Empty), false);
                 return;
             }
-            if (request.method == "market.human_activity")
+            if (request.method.StartsWith("market.human_activity", StringComparison.Ordinal))
             {
-                connection.Send(_humanActivity.Handle(request), false);
+                connection.Send(ProtocolJson.Error(request.id, "unsupported_activity_version",
+                    "Activity v1 was replaced. Upgrade the Python client and use activity.* with schemaVersion=2."), false);
                 return;
             }
-            if (request.method == "market.human_activity.set_focus")
+            if (request.method.StartsWith("activity.", StringComparison.Ordinal))
             {
-                if (!_humanActivityFocus.TrySetFocus(request.@params?.stockId ?? string.Empty,
-                        out var focus, out var errorCode, out var errorMessage, out var retryAfterMs))
-                {
-                    connection.Send(ProtocolJson.Error(request.id, errorCode, errorMessage, retryAfterMs), false);
-                    return;
-                }
-                connection.Send(ProtocolJson.Response(request.id, true,
-                    BridgeJson.SerializeHumanActivityFocus(focus), string.Empty), false);
-                return;
-            }
-            if (request.method == "market.human_activity.clear_focus")
-            {
-                if (!_humanActivityFocus.TryClearFocus(out var focus, out var errorCode, out var errorMessage, out var retryAfterMs))
-                {
-                    connection.Send(ProtocolJson.Error(request.id, errorCode, errorMessage, retryAfterMs), false);
-                    return;
-                }
-                connection.Send(ProtocolJson.Response(request.id, true,
-                    BridgeJson.SerializeHumanActivityFocus(focus), string.Empty), false);
-                return;
-            }
-            if (request.method == "market.human_activity.subscribe")
-            {
-                SubscribeHumanActivity(request, connection);
-                return;
-            }
-            if (request.method == "market.human_activity.unsubscribe")
-            {
-                UnsubscribeHumanActivity(request, connection);
+                _activity.Handle(request, connection);
                 return;
             }
             if (request.method == "trade.submit")
@@ -576,38 +534,6 @@ namespace ScreenStocksBridge
             }
         }
 
-        private void SubscribeHumanActivity(BridgeRequest request, BridgeConnection connection)
-        {
-            var stockId = request.@params?.stockId ?? string.Empty;
-            if (!_humanActivity.TryCreatePage(stockId, 0, 0L, out var page, out var errorCode, out var errorMessage))
-            {
-                connection.Send(ProtocolJson.Error(request.id, errorCode, errorMessage), false);
-                return;
-            }
-
-            connection.SubscribeHumanActivity(stockId);
-            var snapshot = BridgeJson.SerializeHumanActivityPage(page);
-            if (!_lastHumanActivitySnapshots.ContainsKey(stockId))
-                _lastHumanActivitySnapshots[stockId] = snapshot;
-            connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"subscribed\"}", string.Empty), false);
-            _server?.PublishHumanActivityTo(connection, snapshot);
-        }
-
-        private void UnsubscribeHumanActivity(BridgeRequest request, BridgeConnection connection)
-        {
-            var stockId = request.@params?.stockId ?? string.Empty;
-            if (!RequestValidation.IsValidStockId(stockId))
-            {
-                connection.Send(ProtocolJson.Error(request.id, "invalid_stock", "stockId must be a non-empty stock identifier."), false);
-                return;
-            }
-
-            connection.UnsubscribeHumanActivity(stockId);
-            var server = _server;
-            if (server == null || !server.HasHumanActivitySubscriber(stockId))
-                _lastHumanActivitySnapshots.Remove(stockId);
-            connection.Send(ProtocolJson.Response(request.id, true, "{\"status\":\"unsubscribed\"}", string.Empty), false);
-        }
 
         private void OnDestroy()
         {
@@ -651,8 +577,7 @@ namespace ScreenStocksBridge
             _autoActionToasts.SetServer(null);
             _autoActionToastStyleHarmony?.UnpatchSelf();
             _autoActionToastStyleHarmony = null;
-            if (!_humanActivityFocus.RestoreOnShutdown())
-                Logger.LogWarning("Could not restore the game's activity focus while shutting down the plugin.");
+            _activity.Dispose();
             _humanActivityFocusIndicator.Dispose();
             _server?.Dispose();
             _server = null;
@@ -748,7 +673,7 @@ namespace ScreenStocksBridge
         private void OnGUI()
         {
             _tradeRecovery?.DrawStatus();
-            _humanActivityFocusIndicator.Draw(_humanActivityFocus.ActiveStockId,
+            _humanActivityFocusIndicator.Draw(_activity.ActiveStockId,
                 ShowTrackingDebugText.Value, ShowOverrideText.Value, HasNonApiPatchesActive,
                 message => Logger.LogInfo(message));
         }

@@ -57,16 +57,13 @@ leaderboard with `leaderboard("current")`,
 `leaderboard("all_time")`, `leaderboard("ipo")`, `leaderboard("current_top")`,
 `leaderboard("clan_net_worth")`, or `leaderboard("clan_player_share")`. Leaderboard
 requests use the game's in-process client, with one live request every 30 seconds;
-identical requests are served from a 30-second cache. Activity focus can be set with `set_human_activity_focus(stock_id)`
-and cleared with `clear_human_activity_focus()`; the in-game overlay shows the
-active stock, and bridge-driven focus changes have a five-second minimum. See the
-[bridge usage guide](https://github.com/fuubox/screen-stocks-bridge/blob/main/docs/bridge-usage.md)
-for the full API and its online behavior. Activity history reads page through
-only the samples the game currently retains in memory; they do not fetch older
-history from the game's server, and the bridge makes no guarantee about the
-retained history's total depth or time span.
-`stats_snapshot()` similarly reads values already held in local game memory; it
-does not refresh rank or cause an online request.
+identical requests are served from a 30-second cache. Activity v2 uses
+`pin_activity(stock_id)`, `takeover_activity(stock_id)`, and `unpin_activity()`
+for connection-owned focus; subscriptions are passive. Read complete typed state
+with `activity_snapshot()`, and use `subscribe_activity(callback)` with
+`ActivityReplica` for ordered changes. The previous human-activity operations
+are unsupported. See the [activity v2 migration guide](../docs/activity-v2.md)
+for source freshness, immutable pagination, histogram rules, and recovery.
 
 For a complete, runnable auto-action toast listener—including the event schema,
 callback threading, cleanup, and error handling—see [Subscribe to auto-action

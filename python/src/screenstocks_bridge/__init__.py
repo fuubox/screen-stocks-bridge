@@ -6,3 +6,6 @@ from .protocol import BridgeError
 
 __all__ = ["AutoAction", "AutoActions", "BridgeClient", "BridgeError", "Cooldown", "HumanActivity", "HumanActivityPage", "NetWorthHistory", "NetWorthHistorySample", "Position",
            "Snapshot", "StatsSnapshot", "Stock", "TradeCooldowns", "TradeReceipt"]
+
+from .activity import ActivityBucket, ActivityReplica, ActivityResyncRequired, ActivitySnapshot
+__all__ += ["ActivityBucket", "ActivityReplica", "ActivityResyncRequired", "ActivitySnapshot"]

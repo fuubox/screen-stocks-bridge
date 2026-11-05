@@ -25,6 +25,7 @@ public static class QueueRegression
             _shape = _game.GetType("StockManager+ManualTradeShape", true);
             BrokerCloseRegression.Run();
             var plugin = Assembly.Load("ScreenStocksBridge");
+            ActivityRegression.Run();
             VerifyNativeCleanup();
             VerifyExecutionFault();
             VerifyReentrantPreview();

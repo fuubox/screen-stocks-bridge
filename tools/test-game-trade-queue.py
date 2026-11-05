@@ -46,6 +46,14 @@ def main():
     unity_time = ctypes.CFUNCTYPE(ctypes.c_float)(lambda: 0.0)
     bind("mono_add_internal_call", None, string, ptr)(
         b"UnityEngine.Time::get_realtimeSinceStartup", ctypes.cast(unity_time, ptr))
+    bind("mono_add_internal_call", None, string, ptr)(
+        b"UnityEngine.Time::get_unscaledTime", ctypes.cast(unity_time, ptr))
+    # Activity focus checks use Unity's managed null comparison on a synthetic
+    # manager with a nonzero cached pointer. Initialize Object's offset constant;
+    # no native object memory is read by these managed checks.
+    object_id_offset = ctypes.CFUNCTYPE(ctypes.c_int)(lambda: 0)
+    bind("mono_add_internal_call", None, string, ptr)(
+        b"UnityEngine.Object::GetOffsetOfInstanceIDInCPlusPlusObject", ctypes.cast(object_id_offset, ptr))
     assembly = bind("mono_domain_assembly_open", ptr, ptr, string)(domain, str(target).encode())
     if not assembly:
         raise RuntimeError("Could not load the regression assembly")

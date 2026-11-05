@@ -14,6 +14,9 @@ namespace ScreenStocksBridge
     [Serializable]
     public sealed class RequestParams
     {
+        public int schemaVersion = 0;
+        public string snapshotId = string.Empty;
+        public int offset = 0;
         public string action = string.Empty;
         public string stockId = string.Empty;
         public string upgradeId = string.Empty;

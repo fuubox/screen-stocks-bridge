@@ -46,10 +46,6 @@ namespace ScreenStocksBridge
         {
             get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.IsSubscribed) return true; } return false; }
         }
-        internal bool HasHumanActivitySubscribers
-        {
-            get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.HasHumanActivitySubscriptions) return true; } return false; }
-        }
         internal bool HasNewsSubscribers
         {
             get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.IsNewsSubscribed) return true; } return false; }
@@ -59,27 +55,6 @@ namespace ScreenStocksBridge
             get { lock (_gate) { foreach (var client in _clients) if (!client.IsClosed && client.IsAutoActionToastSubscribed) return true; } return false; }
         }
 
-        internal List<string> GetSubscribedHumanActivityStockIds()
-        {
-            var stockIds = new HashSet<string>(StringComparer.Ordinal);
-            lock (_gate)
-            {
-                foreach (var client in _clients)
-                    if (!client.IsClosed) client.AddHumanActivitySubscriptionIds(stockIds);
-            }
-            return new List<string>(stockIds);
-        }
-
-        internal bool HasHumanActivitySubscriber(string stockId)
-        {
-            lock (_gate)
-            {
-                foreach (var client in _clients)
-                    if (!client.IsClosed && client.IsSubscribedToHumanActivity(stockId)) return true;
-            }
-            return false;
-        }
-
         internal void Publish(string eventName, string rawData)
         {
             var frame = ProtocolJson.Event(eventName, rawData);
@@ -87,23 +62,6 @@ namespace ScreenStocksBridge
             BridgeConnection[] clients;
             lock (_gate) clients = _clients.ToArray();
             foreach (var client in clients) if (client.IsSubscribed && !client.IsClosed) client.Send(frame, true);
-        }
-
-        internal void PublishHumanActivity(string stockId, string rawData)
-        {
-            var frame = ProtocolJson.Event("human_activity.updated", rawData);
-            if (Encoding.UTF8.GetByteCount(frame) > MaxFrameBytes) return;
-            BridgeConnection[] clients;
-            lock (_gate) clients = _clients.ToArray();
-            foreach (var client in clients)
-                if (!client.IsClosed && client.IsSubscribedToHumanActivity(stockId)) client.Send(frame, true);
-        }
-
-        internal void PublishHumanActivityTo(BridgeConnection connection, string rawData)
-        {
-            var frame = ProtocolJson.Event("human_activity.updated", rawData);
-            if (Encoding.UTF8.GetByteCount(frame) <= MaxFrameBytes && !connection.IsClosed)
-                connection.Send(frame, true);
         }
 
         internal void PublishNewsTicker(string rawData)
@@ -233,7 +191,6 @@ namespace ScreenStocksBridge
         private readonly Action<BridgeConnection> _onClosed;
         private readonly object _sendGate = new object();
         private readonly Queue<OutboundFrame> _outbound = new Queue<OutboundFrame>();
-        private readonly HashSet<string> _humanActivitySubscriptions = new HashSet<string>(StringComparer.Ordinal);
         private readonly AutoResetEvent _wake = new AutoResetEvent(false);
         private volatile bool _closed;
         private Thread? _writer;
@@ -241,18 +198,10 @@ namespace ScreenStocksBridge
         internal Stream Stream { get; }
         internal bool IsClosed => _closed;
         internal bool IsSubscribed { get; set; }
+        internal string SessionId { get; } = Guid.NewGuid().ToString("N");
+        internal bool IsActivitySubscribed { get; set; }
         internal bool IsNewsSubscribed { get; set; }
         internal bool IsAutoActionToastSubscribed { get; set; }
-        internal bool HasHumanActivitySubscriptions => _humanActivitySubscriptions.Count > 0;
-
-        internal void SubscribeHumanActivity(string stockId) { _humanActivitySubscriptions.Add(stockId); }
-        internal void UnsubscribeHumanActivity(string stockId) { _humanActivitySubscriptions.Remove(stockId); }
-        internal bool IsSubscribedToHumanActivity(string stockId) { return _humanActivitySubscriptions.Contains(stockId); }
-        internal void AddHumanActivitySubscriptionIds(HashSet<string> destination)
-        {
-            foreach (var stockId in _humanActivitySubscriptions) destination.Add(stockId);
-        }
-
         internal BridgeConnection(TcpClient tcp, Action<BridgeConnection> onClosed)
         {
             _tcp = tcp; _onClosed = onClosed; _tcp.NoDelay = true; _tcp.ReceiveTimeout = 5000; _tcp.SendTimeout = 1000;
@@ -268,6 +217,8 @@ namespace ScreenStocksBridge
 
         internal void MarkAuthenticated() { _tcp.ReceiveTimeout = 0; }
 
+        internal void SendActivity(string rawData) => Send(ProtocolJson.Event("activity.changed", rawData), true);
+
         internal void Send(string json, bool isEvent)
         {
             if (_closed) return;
@@ -277,6 +228,9 @@ namespace ScreenStocksBridge
             {
                 if (_outbound.Count >= 64)
                 {
+                    // A dropped activity chunk invalidates the replica even if the
+                    // feed stays quiet afterward. Close rather than lose continuity.
+                    if (IsActivitySubscribed) { Close(); return; }
                     if (isEvent)
                     {
                         var copy = new Queue<OutboundFrame>();

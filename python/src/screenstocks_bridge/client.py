@@ -29,6 +29,7 @@ class BridgeClient:
         self._pending: dict[str, queue.Queue[dict[str, Any] | BaseException]] = {}
         self._callbacks_lock = threading.Lock()
         self._callbacks: list[Callable[[dict[str, Any]], None]] = []
+        self._activity_subscribed = False
         self._events: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=128)
         self._trade_events: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=128)
         self._closed = threading.Event()
@@ -160,6 +161,54 @@ class BridgeClient:
         :meth:`ipo_snapshot` afterward to observe updated state.
         """
         return self.request("ipo.trigger")
+
+    def activity_snapshot_page(self, snapshot_id: str = "", offset: int = 0) -> dict[str, Any]:
+        """Read activity v2; continuation pages bind to one immutable revision (30s)."""
+        return self.request("activity.snapshot", {"schemaVersion": 2, "snapshotId": snapshot_id, "offset": offset})
+
+    def activity_snapshot(self, first_page: dict[str, Any] | None = None):
+        """Fetch one complete, revision-consistent typed snapshot; expiration is explicit."""
+        from .activity import ActivitySnapshot
+        pages = [first_page if first_page is not None else self.activity_snapshot_page()]
+        while pages[-1].get("nextOffset") is not None:
+            page = pages[-1]
+            pages.append(self.activity_snapshot_page(page["snapshotId"], page["nextOffset"]))
+        return ActivitySnapshot.from_pages(pages)
+
+    def subscribe_activity(self, callback: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
+        """Passively subscribe; return the initial snapshot's first page.
+
+        Buffer activity.changed events while completing activity_snapshot(first_page),
+        then apply them with ActivityReplica. activity.resync_required means discard
+        the replica and reconnect/resubscribe; pins require a separate explicit claim.
+        Callbacks run on the event worker, so they may issue snapshot requests.
+        """
+        with self._callbacks_lock:
+            if callback not in self._callbacks:
+                self._callbacks.append(callback)
+        self._activity_subscribed = True
+        try:
+            return self.request("activity.subscribe", {"schemaVersion": 2})
+        except BaseException:
+            self._activity_subscribed = False
+            raise
+
+    def unsubscribe_activity(self) -> dict[str, Any]:
+        result = self.request("activity.unsubscribe", {"schemaVersion": 2})
+        self._activity_subscribed = False
+        return result
+
+    def pin_activity(self, stock_id: str) -> dict[str, Any]:
+        """Claim/change this connection's pin; conflicts require explicit takeover."""
+        return self.request("activity.pin", {"schemaVersion": 2, "stockId": stock_id})
+
+    def takeover_activity(self, stock_id: str) -> dict[str, Any]:
+        """Explicitly replace another connection's pin, subject to the five-second limit."""
+        return self.request("activity.takeover", {"schemaVersion": 2, "stockId": stock_id})
+
+    def unpin_activity(self) -> dict[str, Any]:
+        """Immediately release this connection's pin and follow the current graph."""
+        return self.request("activity.unpin", {"schemaVersion": 2})
 
     def human_activity(self, stock_id: str, limit: int = 32,
                        before_tick: int | None = None) -> dict[str, Any]:
@@ -363,7 +412,7 @@ class BridgeClient:
                 if not chunk:
                     raise _ReaderStopped("Bridge closed the connection.")
                 buffer.extend(chunk)
-                while True:
+                while not self._closed.is_set():
                     newline = buffer.find(b"\n")
                     if newline < 0:
                         if len(buffer) > MAX_FRAME_BYTES:
@@ -383,8 +432,11 @@ class BridgeClient:
                             waiter.put(message)
         except BaseException as exc:
             if not self._closed.is_set():
-                self._fail_pending(exc)
-                self._closed.set()
+                if self._activity_subscribed:
+                    self._invalidate_activity(str(exc))
+                else:
+                    self._fail_pending(exc)
+                    self._closed.set()
 
     def _queue_event(self, event: dict[str, Any]) -> None:
         if event.get("event") == "trade.completed":
@@ -394,6 +446,9 @@ class BridgeClient:
         try:
             self._events.put_nowait(event)
         except queue.Full:
+            if self._activity_subscribed:
+                self._invalidate_activity("Client event queue overflow; activity resynchronization is required.")
+                return
             try:
                 self._events.get_nowait()
             except queue.Empty:
@@ -402,6 +457,20 @@ class BridgeClient:
                 self._events.put_nowait(event)
             except queue.Full:
                 pass
+
+    def _invalidate_activity(self, reason: str) -> None:
+        self._activity_subscribed = False
+        # This notification must survive the overflowing queue, even if no more
+        # server events arrive. Closing also releases this connection's pin.
+        while True:
+            try:
+                self._events.get_nowait()
+            except queue.Empty:
+                break
+        self._events.put_nowait({"event": "activity.resync_required", "data": {"reason": reason}})
+        # Queue the notification before stopping the worker, so it cannot exit
+        # during an empty-queue window and strand the resync notification.
+        self.close()
 
     def _event_loop(self) -> None:
         while True:

@@ -13,13 +13,18 @@
       "type": "GameManager",
       "name": "GetUpgradePriceAtLevel",
       "returnType": "BigNumber",
-      "parameters": ["StatType", "System.Int32"]
+      "parameters": [
+        "StatType",
+        "System.Int32"
+      ]
     },
     {
       "type": "GameManager",
       "name": "GetUpgradeMaxLevelForBuy",
       "returnType": "System.Int32",
-      "parameters": ["StatType"]
+      "parameters": [
+        "StatType"
+      ]
     },
     {
       "type": "ScreenStocks.Net.ScreenStocksAuthManager",
@@ -465,6 +470,67 @@
       "name": "get_Settings",
       "returnType": "GameSettingsSO",
       "parameters": []
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "Apply",
+      "returnType": "System.Void",
+      "parameters": [
+        "ScreenStocks.Net.HumanActivityResponse"
+      ]
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "HandleRealtimeActivityDelta",
+      "returnType": "System.Void",
+      "parameters": [
+        "ScreenStocks.Net.HumanActivityDelta"
+      ]
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "ClearFocusedData",
+      "returnType": "System.Void",
+      "parameters": []
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "GetAligned",
+      "returnType": "System.Collections.Generic.IReadOnlyList`1<HumanActivitySample>",
+      "parameters": [
+        "System.String",
+        "System.Collections.Generic.IReadOnlyList`1<System.Int64>"
+      ]
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "get_FullScaleImpactFraction",
+      "returnType": "System.Double",
+      "parameters": []
+    },
+    {
+      "type": "HumanActivityAligner",
+      "name": "FindPlacementSample",
+      "returnType": "System.Int32",
+      "parameters": [
+        "System.Collections.Generic.IReadOnlyList`1<System.Int64>",
+        "System.Int64",
+        "System.Int64"
+      ]
+    },
+    {
+      "type": "ScreenStocks.Net.ScreenStocksRealtimeClient",
+      "name": "get_Ready",
+      "returnType": "System.Boolean",
+      "parameters": []
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "HandleRealtimeConnectionChanged",
+      "returnType": "System.Void",
+      "parameters": [
+        "System.Boolean"
+      ]
     }
   ],
   "fields": [
@@ -1133,6 +1199,48 @@
       "name": "IsShort",
       "fieldType": "System.Boolean",
       "public": true
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "_buckets",
+      "fieldType": "System.Collections.Generic.List`1<HumanActivityBucket>",
+      "public": false
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "_ticksPerBucket",
+      "fieldType": "System.Int32",
+      "public": false
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "_hasGoodData",
+      "fieldType": "System.Boolean",
+      "public": false
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "_focusedStockId",
+      "fieldType": "System.String",
+      "public": false
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "_disposed",
+      "fieldType": "System.Boolean",
+      "public": false
+    },
+    {
+      "type": "HumanActivityClient",
+      "name": "_realtime",
+      "fieldType": "ScreenStocks.Net.ScreenStocksRealtimeClient",
+      "public": false
+    },
+    {
+      "type": "StockManager",
+      "name": "_humanActivityClient",
+      "fieldType": "HumanActivityClient",
+      "public": false
     }
   ]
 }
