@@ -69,18 +69,22 @@ namespace ScreenStocksBridge
             Revision = 0; _metadata = "{}"; _rows.Clear(); _snapshots.Clear();
         }
 
-        internal void Publish(string metadata, IDictionary<string, string> rows)
+        internal void Publish(string metadata, IDictionary<string, string> rows, bool rowsUnchanged = false)
         {
+            if (rowsUnchanged && metadata == _metadata) return;
             var changes = new List<string>();
-            foreach (var pair in rows.OrderBy(p => p.Key, StringComparer.Ordinal))
-                if (!_rows.TryGetValue(pair.Key, out var prior) || prior != pair.Value)
-                    changes.Add("{\"op\":\"upsert\",\"key\":" + BridgeJson.Quote(pair.Key) + ",\"value\":" + pair.Value + "}");
-            foreach (var key in _rows.Keys.OrderBy(k => k, StringComparer.Ordinal))
-                if (!rows.ContainsKey(key)) changes.Add("{\"op\":\"remove\",\"key\":" + BridgeJson.Quote(key) + "}");
+            if (!rowsUnchanged)
+            {
+                foreach (var pair in rows.OrderBy(p => p.Key, StringComparer.Ordinal))
+                    if (!_rows.TryGetValue(pair.Key, out var prior) || prior != pair.Value)
+                        changes.Add("{\"op\":\"upsert\",\"key\":" + BridgeJson.Quote(pair.Key) + ",\"value\":" + pair.Value + "}");
+                foreach (var key in _rows.Keys.OrderBy(k => k, StringComparer.Ordinal))
+                    if (!rows.ContainsKey(key)) changes.Add("{\"op\":\"remove\",\"key\":" + BridgeJson.Quote(key) + "}");
+            }
             if (changes.Count == 0 && metadata == _metadata) return;
             var previous = Revision++;
             _metadata = metadata;
-            _rows = new Dictionary<string, string>(rows, StringComparer.Ordinal);
+            if (!rowsUnchanged) _rows = new Dictionary<string, string>(rows, StringComparer.Ordinal);
             var chunks = Math.Max(1, (changes.Count + PageSize - 1) / PageSize);
             var frames = new List<string>(chunks);
             for (var i = 0; i < chunks; i++)

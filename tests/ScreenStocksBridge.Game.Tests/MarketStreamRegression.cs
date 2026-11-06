@@ -32,7 +32,7 @@ internal static class MarketStreamRegression
         {
             module.Install();
             module.Handle(new BridgeRequest { id = "capabilities", method = "market.stream_status" }, connection);
-            Require(Frames(connection).Any(x => x.Contains("\"bridgeVersion\":\"0.17.0\"") && x.Contains("\"candleSchemaVersion\":1")),
+            Require(Frames(connection).Any(x => x.Contains("\"bridgeVersion\":\"0.17.1\"") && x.Contains("\"candleSchemaVersion\":1")),
                 "canonical candle consumers can verify the minimum bridge version and candle schema");
             module.SubscribeState(connection);
             var baseline = "{ \"type\":\"priceVectorBaseline\",\"sequence\":1,\"data\":{\"layoutRevision\":\"L\",\"stockIds\":[\"A\"],\"prices\":[10],\"serverTimeMs\":1100,\"tick\":1}}";

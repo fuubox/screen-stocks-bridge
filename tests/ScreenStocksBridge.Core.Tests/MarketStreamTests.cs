@@ -8,7 +8,86 @@ namespace ScreenStocksBridge;
 
 public sealed class MarketStreamTests
 {
+    private readonly Xunit.Abstractions.ITestOutputHelper _output;
+    public MarketStreamTests(Xunit.Abstractions.ITestOutputHelper output) { _output = output; }
     private static JsonNode Parse(string json) => JsonNode.Parse(json)!;
+
+    [Fact]
+    public void IdleCandleFrameUpdatesDoNotAllocateOrRescanRetainedHistory()
+    {
+        var streams = new[] { new CandleStream(), new CandleStream(true) };
+        foreach (var stream in streams)
+        {
+            stream.Paused = false;
+            for (var second = 1; second <= 16; second++)
+                for (var stock = 0; stock < 19; stock++)
+                    stream.Add("STOCK" + stock, 10 + stock, second * 1000 + 100, second);
+            stream.Advance(17000);
+        }
+        var sequences = streams.Select(s => s.Sequence).ToArray();
+        var allocated = GC.GetAllocatedBytesForCurrentThread();
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        // One second of high frame-rate updates, without new source observations.
+        for (var frame = 1; frame < 1000; frame++)
+            foreach (var stream in streams) stream.Advance(17000 + frame);
+        timer.Stop();
+        allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
+        _output.WriteLine($"Idle candle maintenance: {allocated:N0} bytes, {timer.Elapsed.TotalMilliseconds:F2} ms for 999 frames");
+        Assert.True(allocated < 128 * 1024,
+            $"Idle candle maintenance allocated {allocated:N0} bytes in {timer.Elapsed.TotalMilliseconds:F2} ms for 999 frames");
+        Assert.Equal(sequences, streams.Select(s => s.Sequence).ToArray());
+    }
+
+    [Fact]
+    public void PendingCandlesCloseInTimeThenOrdinalStockOrderWithoutReemittingRetainedBars()
+    {
+        var stream = new CandleStream { Paused = false };
+        var emitted = new List<CandleUpdate>(); stream.Updated += emitted.Add;
+        stream.Add("Z", 1, 1100, 1); stream.Add("A", 2, 1100, 1);
+        stream.Add("B", 3, 1100, 1); stream.Advance(2000);
+        Assert.Equal(new[] { "A", "B", "Z" }, emitted.Select(x => Parse(x.Json)["stockId"]!.GetValue<string>()));
+        stream.Add("Z", 4, 2100, 2); stream.Add("A", 5, 2100, 2);
+        stream.Paused = true; stream.Advance(3000);
+        Assert.Equal(3, emitted.Count);
+        stream.Paused = false; stream.Advance(3000);
+        Assert.Equal(new[] { "A", "Z" }, emitted.Skip(3).Select(x => Parse(x.Json)["stockId"]!.GetValue<string>()));
+        stream.Advance(4000); Assert.Equal(5, emitted.Count);
+        // A newly arrived closed candle bypasses the pending queue, retaining
+        // arrival order for corrections rather than rewriting emitted history.
+        stream.Add("B", 6, 2500, 3); Assert.Equal(6, emitted.Count);
+        stream.Advance(5000); Assert.Equal(6, emitted.Count);
+        Assert.All(emitted, x => Assert.Equal(1, Parse(x.Json)["revision"]!.GetValue<long>()));
+    }
+
+    [Fact]
+    public void ExpiredPausedPendingCandlesAndResetLeaveNoQueueEntries()
+    {
+        var stream = new CandleStream(true) { Paused = false };
+        stream.Add("WAVE", 1, 1100, 1); stream.Paused = true;
+        stream.Advance(30000); stream.Paused = false; stream.Advance(30000);
+        Assert.Empty(stream.Replay("", 0).Updates);
+        stream.Add("WAVE", 2, 30100, 2); stream.Reset();
+        stream.Paused = false; stream.Advance(32000);
+        Assert.Empty(stream.Replay("", 0).Updates);
+    }
+
+    [Fact]
+    public void CandleBuffersRemainBoundedOverSeveralMinutesOfFullStockVectors()
+    {
+        foreach (var stream in new[] { new CandleStream(), new CandleStream(true) })
+        {
+            stream.Paused = false;
+            for (var second = 1; second <= 300; second++)
+            {
+                for (var stock = 0; stock < 19; stock++)
+                    stream.Add("STOCK" + stock, 10 + stock, second * 1000 + 100, second);
+                stream.Advance((second + 1) * 1000);
+            }
+            var bars = (System.Collections.ICollection)typeof(CandleStream).GetField("_bars", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(stream)!;
+            Assert.True(bars.Count <= 19 * (stream.Connected ? 16 : 15));
+            Assert.True(stream.Replay("", 0).Updates.Count <= 19 * 15);
+        }
+    }
 
     [Fact]
     public void RawTypeClassificationIgnoresNestedTypesAndHandlesEscapedPropertyStrings()
@@ -108,7 +187,7 @@ public sealed class MarketStreamTests
     }
 
     [Fact]
-    public void ConnectedCandlesCarryOnlyConsecutiveSameStockClosesWithoutAddingObservations()
+    public void ConnectedCandlesCarrySameStockClosesAcrossShortGapsWithoutAddingObservations()
     {
         var stream = new CandleStream(connected: true) { Paused = false };
         var output = new List<CandleUpdate>(); stream.Updated += output.Add;
@@ -126,8 +205,9 @@ public sealed class MarketStreamTests
         Assert.Equal("previous_close", bar["openProvenance"]!.GetValue<string>());
         stream.Add("WAVE", 20, 4100, 4); stream.Advance(5000);
         bar = Parse(output.Last().Json);
-        Assert.Equal(20, bar["open"]!.GetValue<double>());
-        Assert.Equal("source_observation", bar["openProvenance"]!.GetValue<string>());
+        Assert.Equal(8, bar["open"]!.GetValue<double>());
+        Assert.Equal("previous_close", bar["openProvenance"]!.GetValue<string>());
+        Assert.Equal(2000, bar["openSourceBucketStartMs"]!.GetValue<long>());
         Assert.DoesNotContain(output, x => x.BucketStartMs == 3000);
         var generation = stream.Generation; stream.Reset(); stream.Paused = false;
         stream.Add("WAVE", 30, 5100, 5); stream.Advance(6000);
@@ -152,6 +232,56 @@ public sealed class MarketStreamTests
         var sequence = stream.Sequence;
         stream.Add("WAVE", 100, 1050, 0);
         Assert.Equal(sequence + 1, stream.Sequence);
+    }
+
+    [Fact]
+    public void ShortGapInsertionAndCorrectionsUpdateOnlyTheNextObservedCandle()
+    {
+        var stream = new CandleStream(true) { Paused = false };
+        stream.Add("WAVE", 50, 1100, 1); stream.Add("WAVE", 10, 4100, 4); stream.Advance(5000);
+        stream.Add("WAVE", 8, 2100, 2);
+        var revised = Parse(stream.Replay("", 0).Updates.Last().Json);
+        Assert.Equal(4000, revised["bucketStartMs"]!.GetValue<long>());
+        Assert.Equal(8, revised["open"]!.GetValue<double>());
+        Assert.Equal(10, revised["high"]!.GetValue<double>());
+        Assert.Equal(8, revised["low"]!.GetValue<double>());
+        Assert.Equal(2000, revised["openSourceBucketStartMs"]!.GetValue<long>());
+        Assert.Equal(1, revised["quoteCount"]!.GetValue<long>());
+        stream.Add("WAVE", 6, 2900, 3);
+        revised = Parse(stream.Replay("", 0).Updates.Last().Json);
+        Assert.Equal(4000, revised["bucketStartMs"]!.GetValue<long>());
+        Assert.Equal(6, revised["open"]!.GetValue<double>());
+        var sequence = stream.Sequence;
+        stream.Add("WAVE", 100, 1900, 5);
+        Assert.Equal(sequence + 2, stream.Sequence);
+        Assert.Equal(2000, Parse(stream.Replay("", 0).Updates.Last().Json)["bucketStartMs"]!.GetValue<long>());
+        Assert.DoesNotContain(stream.Replay("", 0).Updates, x => x.BucketStartMs == 3000);
+    }
+
+    [Theory]
+    [InlineData(15000, 5)]
+    [InlineData(16000, 10)]
+    public void ConnectedCarryHasAnExplicitFifteenSecondLimit(long gap, double expectedOpen)
+    {
+        var stream = new CandleStream(true) { Paused = false };
+        stream.Add("WAVE", 5, 1100, 1); stream.Add("WAVE", 10, 1100 + gap, 2);
+        stream.Advance(2000 + gap);
+        var bar = Parse(stream.Replay("", 0).Updates.Last().Json);
+        Assert.Equal(expectedOpen, bar["open"]!.GetValue<double>());
+        Assert.Equal(1, bar["quoteCount"]!.GetValue<long>());
+    }
+
+    [Fact]
+    public void CorrectingAShortGapCandlePreservesCarriedOpenAfterPredecessorExpires()
+    {
+        var stream = new CandleStream(true) { Paused = false };
+        stream.Add("WAVE", 5, 1100, 1); stream.Add("WAVE", 10, 10100, 2); stream.Advance(11000);
+        stream.Advance(25000); stream.Add("WAVE", 12, 10200, 3);
+        var revised = Parse(stream.Replay("", 0).Updates.Last().Json);
+        Assert.Equal(5, revised["open"]!.GetValue<double>());
+        Assert.Equal(1000, revised["openSourceBucketStartMs"]!.GetValue<long>());
+        Assert.Equal(12, revised["close"]!.GetValue<double>());
+        Assert.Equal(2, revised["quoteCount"]!.GetValue<long>());
     }
 
     [Fact]

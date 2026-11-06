@@ -98,10 +98,21 @@ namespace ScreenStocksBridge
     internal sealed class CandleStream
     {
         private const long RetentionMs = 15000;
+        private const long MaxCarryMs = 15000;
         private const int MaxReplayEvents = 65536;
+        private static readonly IComparer<Bar> TimeOrder = Comparer<Bar>.Create((left, right) =>
+        {
+            var time = left.Start.CompareTo(right.Start);
+            return time != 0 ? time : StringComparer.Ordinal.Compare(left.StockId, right.StockId);
+        });
         private readonly Dictionary<(string, long), Bar> _bars = new Dictionary<(string, long), Bar>();
+        private readonly SortedSet<Bar> _byTime = new SortedSet<Bar>(TimeOrder);
+        private readonly SortedSet<Bar> _pending = new SortedSet<Bar>(TimeOrder);
+        private readonly Dictionary<string, SortedList<long, Bar>> _byStock = new Dictionary<string, SortedList<long, Bar>>(StringComparer.Ordinal);
         private readonly Queue<CandleUpdate> _log = new Queue<CandleUpdate>();
         private long _watermark = -1, _arrival;
+        private long _maintenanceSecond = long.MinValue;
+        private bool _maintenancePaused = true;
         internal bool Connected { get; }
         internal CandleStream(bool connected = false) { Connected = connected; }
         internal string Generation { get; private set; } = Guid.NewGuid().ToString("N");
@@ -114,26 +125,50 @@ namespace ScreenStocksBridge
         internal void Reset()
         {
             _bars.Clear(); _log.Clear(); _watermark = -1; _arrival = 0;
+            _byTime.Clear(); _pending.Clear();
+            _byStock.Clear();
+            _maintenanceSecond = long.MinValue; _maintenancePaused = true;
             Sequence = LateObservations = 0;
             Generation = Guid.NewGuid().ToString("N"); Paused = true;
         }
 
         internal void Advance(long serverTimeMs)
         {
-            var advanced = serverTimeMs > _watermark;
             _watermark = Math.Max(_watermark, serverTimeMs);
+            // Candle close and retention boundaries are whole UTC seconds.
+            // Still advance the exact watermark for admission of late quotes,
+            // without traversing pending candles on every frame or vector entry.
+            var second = _watermark / 1000;
+            if (second == _maintenanceSecond && Paused == _maintenancePaused) return;
+            _maintenanceSecond = second; _maintenancePaused = Paused;
+            Maintain();
+        }
+
+        private void Maintain()
+        {
             // Connected bars need one predecessor beyond the correction window.
             // It supplies only the opening price, never a synthetic observation.
             var historyMs = RetentionMs + (Connected ? 1000 : 0);
-            foreach (var key in _bars.Keys.Where(k => k.Item2 + 1000 <= _watermark - historyMs).ToArray()) _bars.Remove(key);
+            while (_byTime.Count > 0 && _byTime.Min!.Start + 1000 <= _watermark - historyMs)
+            {
+                var expired = _byTime.Min!;
+                _byTime.Remove(expired); _pending.Remove(expired);
+                _bars.Remove((expired.StockId, expired.Start));
+                var stockBars = _byStock[expired.StockId]; stockBars.Remove(expired.Start);
+                if (stockBars.Count == 0) _byStock.Remove(expired.StockId);
+            }
             // Late corrections are appended in emission order, not bucket-time
             // order. Expired revisions can therefore occur anywhere in the log.
-            if (advanced)
-                for (var i = _log.Count; i > 0; i--)
-                { var update = _log.Dequeue(); if (update.BucketStartMs + 1000 > _watermark - RetentionMs) _log.Enqueue(update); }
+            for (var i = _log.Count; i > 0; i--)
+            { var update = _log.Dequeue(); if (update.BucketStartMs + 1000 > _watermark - RetentionMs) _log.Enqueue(update); }
             if (Paused) return;
-            foreach (var pair in _bars.OrderBy(p => p.Key.Item2).ThenBy(p => p.Key.Item1, StringComparer.Ordinal).ToArray())
-                if (pair.Key.Item2 + 1000 <= _watermark && pair.Key.Item2 + 1000 > _watermark - RetentionMs && pair.Value.Revision == 0) Emit(pair.Value);
+            while (_pending.Count > 0)
+            {
+                var next = _pending.Min!;
+                if (next.Start + 1000 > _watermark) break;
+                _pending.Remove(next);
+                if (next.Start + 1000 > _watermark - RetentionMs) Emit(next);
+            }
         }
 
         internal void Add(string stockId, double price, long sourceTimeMs, long tick)
@@ -145,28 +180,66 @@ namespace ScreenStocksBridge
             if (sourceTimeMs < _watermark - RetentionMs) { LateObservations++; return; }
             var key = (stockId, second);
             if (!_bars.TryGetValue(key, out var bar))
-            { bar = new Bar(stockId, second); _bars.Add(key, bar); }
+            {
+                bar = new Bar(stockId, second); _bars.Add(key, bar); _byTime.Add(bar);
+                if (!_byStock.TryGetValue(stockId, out var stockBars))
+                    _byStock.Add(stockId, stockBars = new SortedList<long, Bar>());
+                stockBars.Add(second, bar);
+                if (second + 1000 > _watermark) _pending.Add(bar);
+            }
             var firstObservation = bar.Count == 0;
             var oldClose = bar.Close;
             bar.Add(price, sourceTimeMs, tick, ++_arrival);
             if (second + 1000 <= _watermark) Emit(bar);
             // A late predecessor can change an already emitted next bar's open
             // and bounds. Recompute from its observed extrema so bounds can shrink.
-            if (Connected && (firstObservation || oldClose != bar.Close) &&
-                _bars.TryGetValue((stockId, second + 1000), out var next) && next.Revision > 0)
-                Emit(next);
+            if (Connected && (firstObservation || oldClose != bar.Close))
+            {
+                var stockBars = _byStock[stockId];
+                var nextIndex = FindBarIndex(stockBars, second) + 1;
+                if (nextIndex < stockBars.Count)
+                {
+                    var next = stockBars.Values[nextIndex];
+                    if (next.Start - second <= MaxCarryMs && next.Revision > 0) Emit(next);
+                }
+            }
+        }
+
+        private static int FindBarIndex(SortedList<long, Bar> bars, long start)
+        {
+            var low = 0; var high = bars.Count;
+            while (low < high)
+            {
+                var middle = low + (high - low) / 2;
+                if (bars.Keys[middle] < start) low = middle + 1; else high = middle;
+            }
+            return low;
         }
 
         private void Emit(Bar bar)
         {
-            var carried = Connected && _bars.TryGetValue((bar.StockId, bar.Start - 1000), out _);
-            var open = carried ? _bars[(bar.StockId, bar.Start - 1000)].Close : bar.Open;
+            if (Connected)
+            {
+                var stockBars = _byStock[bar.StockId];
+                var index = FindBarIndex(stockBars, bar.Start);
+                if (index > 0)
+                {
+                    var previous = stockBars.Values[index - 1];
+                    if (bar.Start - previous.Start <= MaxCarryMs)
+                    { bar.CarriedFrom = previous.Start; bar.CarriedOpen = previous.Close; }
+                }
+            }
+            // Preserve the selected opening evidence after its source bar expires.
+            // Store values, not predecessor references, so no retained chains grow.
+            var carried = bar.CarriedFrom.HasValue;
+            var open = carried ? bar.CarriedOpen : bar.Open;
             bar.Revision++;
             var json = "{\"generation\":" + BridgeJson.Quote(Generation) + ",\"sequence\":" + ++Sequence +
                 ",\"stockId\":" + BridgeJson.Quote(bar.StockId) + ",\"bucketStartMs\":" + bar.Start +
                 ",\"bucketEndMs\":" + (bar.Start + 1000) + ",\"revision\":" + bar.Revision +
                 ",\"candleMode\":" + BridgeJson.Quote(Connected ? "connected" : "observed") +
                 ",\"openProvenance\":" + BridgeJson.Quote(carried ? "previous_close" : "source_observation") +
+                ",\"openSourceBucketStartMs\":" + (bar.CarriedFrom ?? bar.Start) +
                 ",\"open\":" + N(open) + ",\"high\":" + N(Math.Max(open, bar.High)) + ",\"low\":" + N(Math.Min(open, bar.Low)) + ",\"close\":" + N(bar.Close) +
                 ",\"quoteCount\":" + bar.Count + ",\"quoteCountKind\":\"source_observations\",\"firstSourceTimeMs\":" + bar.First.Item1 +
                 ",\"lastSourceTimeMs\":" + bar.Last.Item1 + ",\"firstTick\":" + bar.First.Item2 + ",\"lastTick\":" + bar.Last.Item2 + "}";
@@ -200,6 +273,8 @@ namespace ScreenStocksBridge
             internal readonly string StockId;
             internal readonly long Start;
             internal double Open, High, Low, Close;
+            internal double CarriedOpen;
+            internal long? CarriedFrom;
             internal long Count, Revision;
             internal (long, long, long) First, Last;
             internal Bar(string stock, long start) { StockId = stock; Start = start; }

@@ -274,7 +274,8 @@ class BridgeClient:
 
         Inspect the reply's gap flag. Candle generation/update sequence is independent
         of per-connection delivery metadata; replace bars by stock/second/revision.
-        Connected mode carries the previous consecutive second's close as open.
+        Connected mode carries the last observed close across gaps up to 15 seconds
+        between bucket starts, leaving missing seconds empty.
         Modes have separate generations; use a fresh cursor when switching modes.
         """
         if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:

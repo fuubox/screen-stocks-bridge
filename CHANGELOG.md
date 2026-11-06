@@ -5,6 +5,22 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-11-05
+
+### Fixed
+
+- Carry the last observed close across connected-candle gaps of up to 15 seconds
+  between bucket starts, without filling missing seconds. Late insertions and
+  corrections revise the next observed candle; opening provenance identifies
+  its source bucket and survives expiry of that source.
+- Reuse unchanged activity v2 captures and skip repeated row serialization and
+  diff sorting. Native activity updates, history-tick changes, focus/source
+  transitions and stream-generation resets invalidate the capture cache.
+- Replace repeated candle-history sorting with ordered pending and expiry
+  indexes. Process only due candles and expired bars at UTC second boundaries,
+  keeping the exact late-quote watermark, deterministic emission order, and
+  immediate corrections and paused-stream recovery.
+
 ## [0.17.0] - 2026-11-05
 
 ### Added

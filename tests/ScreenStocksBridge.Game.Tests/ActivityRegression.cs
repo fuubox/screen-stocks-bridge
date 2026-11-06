@@ -14,6 +14,8 @@ internal static class ActivityRegression
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
     private static readonly MethodInfo Apply = typeof(HumanActivityClient).GetMethod("Apply", Private);
     private static readonly MethodInfo Delta = typeof(HumanActivityClient).GetMethod("HandleRealtimeActivityDelta", Private);
+    private static int _captures;
+    private static void CountCapture() { _captures++; }
 
     internal static void Run()
     {
@@ -106,14 +108,32 @@ internal static class ActivityRegression
         var saved = singleton.GetValue(null);
         singleton.SetValue(null, manager);
         var module = new ActivityModule();
+        var performance = new Harmony("screenstocks.activity.idle-regression");
         try
         {
             module.Install();
+            performance.Patch(AccessTools.Method(typeof(ActivityModule), "CaptureNative"),
+                prefix: new HarmonyMethod(typeof(ActivityRegression), nameof(CountCapture)));
             var feed = (ActivityFeed)typeof(ActivityModule).GetField("_feed", Private).GetValue(module);
             Apply.Invoke(client, new object[] { new HumanActivityResponse { stockId = "A", ticksPerBucket = 10,
                 lastTick = 990, fullScaleImpact = 0.2, buckets = new List<HumanActivityBucketDto> { Bucket(1, 2, 0, 0.01, 0) } } });
             var first = feed.Snapshot("test", "", 0);
             Require(first.Contains("\"lastResponseAtUtc\":\""), "accepted native full response receipt captured");
+            _captures = 0;
+            var refresh = typeof(ActivityModule).GetMethod("Refresh", Private);
+            for (var i = 0; i < 100; i++) refresh.Invoke(module, null);
+            Require(_captures == 0, "100 unchanged activity refreshes reuse captured rows; actual captures=" + _captures);
+            feed.Reset(); refresh.Invoke(module, null);
+            Require(_captures == 1 && feed.Snapshot("test", "", 0).Contains("\"kind\":\"sample\""),
+                "generation reset repopulates rows even with unchanged native data");
+            var historyTicks = (Dictionary<string, List<long>>)typeof(RemoteMarketDataSource).GetField("_historySampleTicks", Private).GetValue(source);
+            historyTicks["A"][50]++;
+            refresh.Invoke(module, null);
+            var cachedRows = (Dictionary<string, string>)typeof(ActivityModule).GetField("_capturedRows", Private).GetValue(module);
+            Require(_captures == 2 && cachedRows.ContainsKey("sample:501") && !cachedRows.ContainsKey("sample:500"),
+                "in-place interior history-tick changes invalidate alignment cache; captures=" + _captures);
+            refresh.Invoke(module, null);
+            Require(_captures == 2, "unchanged shifted history reuses new capture");
             var revision = feed.Revision;
             Delta.Invoke(client, new object[] { new HumanActivityDelta { stockId = "other", ticksPerBucket = 10,
                 lastTick = 991, oldestRetainedBucketId = 1, buckets = new List<HumanActivityBucketDto>() } });
@@ -142,7 +162,7 @@ internal static class ActivityRegression
             feed.Unpin("owner");
             Require((string)typeof(HumanActivityClient).GetField("_focusedStockId", Private).GetValue(client) == "C", "unpin follows currently displayed graph");
         }
-        finally { module.Dispose(); singleton.SetValue(null, saved); }
+        finally { performance.UnpatchSelf(); module.Dispose(); singleton.SetValue(null, saved); }
     }
 
     private static void Publish(HumanActivityClient client, long[] ticks, ActivityFeed feed)

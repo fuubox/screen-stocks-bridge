@@ -124,13 +124,19 @@ are omitted, rather than filled with synthetic flat bars.
 Bridge and SDK 0.17.0 introduce connected mode.
 Choose `candleMode: "connected"` on the subscription, or Python
 `subscribe_candles(callback, candle_mode="connected")`, to use the same stock's
-previous consecutive second's close as the next open. High/low include that
+previous observed candle's close as the next open, including across empty seconds
+when the bucket starts are at most **15 seconds apart**. High/low include that
 carried price and all current observations; close remains the last current
-observation. Missing seconds and generation resets break the connection. The
+observation. Longer gaps and generation resets break the connection. The
 first observed second after either starts at its own first observation. No bars
 are invented, and the carried open does not add to `quoteCount` or change source
 timestamp/tick evidence. A late predecessor insertion or close correction revises
-an already closed successor, recomputing its bounds from current observations.
+the next observed closed candle within that limit, recomputing its bounds from
+current observations. `openSourceBucketStartMs` identifies the candle supplying
+the open (the current bucket for `source_observation`, the predecessor for
+`previous_close`). A carried open remains fixed when its source expires from
+retention; retained predecessors can still revise it. No predecessor objects are
+retained through reference chains.
 
 Subscriptions are independent: selecting connected candles does not change
 another client's observed candles, raw prices, or snapshot cadence. Each mode has

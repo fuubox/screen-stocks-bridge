@@ -34,6 +34,13 @@ namespace ScreenStocksBridge
         private string _valueSignature = string.Empty;
         private string? _fault;
         private double _nextRefresh;
+        private bool _captureDirty = true;
+        private string? _capturedStock;
+        private string? _capturedGeneration;
+        private bool _capturedGood;
+        private int _capturedSize;
+        private long[]? _capturedTicks;
+        private Dictionary<string, string>? _capturedRows;
         private static ActivityModule? Current;
         internal string ActiveStockId => _feed.Owner == null ? string.Empty : _feed.EffectiveStock;
         internal bool Available => _harmony != null;
@@ -122,6 +129,7 @@ namespace ScreenStocksBridge
                 _lastResponseUtc = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
                 _lastResponseAt = _clock.Elapsed.TotalSeconds;
                 _lastServerTick = lastTick; _oldestRetainedBucketId = oldest;
+                _captureDirty = true;
                 // Capture every accepted mutation, even if several arrive between frames.
                 if (!_bridgeFocus) Refresh();
             }
@@ -134,6 +142,7 @@ namespace ScreenStocksBridge
             _lastResponseAt = _lastValueChangeAt = null;
             _oldestRetainedBucketId = _lastServerTick = null;
             _valueSignature = string.Empty;
+            _captureDirty = true; _capturedRows = null; _capturedTicks = null;
             _feed.Reset();
         }
 
@@ -197,7 +206,24 @@ namespace ScreenStocksBridge
             var good = ready && (bool)GoodField.GetValue(client);
             var ticks = ready ? ((RemoteMarketDataSource)manager!.Source).GetHistorySampleTicks(stock) : null;
             var size = good ? (int)SizeField.GetValue(client) : 0;
-            var rows = CaptureNative(client, stock, ticks, out var signature);
+            var rowsUnchanged = !_captureDirty && _capturedRows != null &&
+                _capturedGeneration == _feed.Generation && stock == _capturedStock &&
+                good == _capturedGood && size == _capturedSize && SameTicks(ticks);
+            var rows = _capturedRows;
+            var signature = _valueSignature;
+            if (!rowsUnchanged)
+            {
+                rows = CaptureNative(client, stock, ticks, out signature);
+                _capturedRows = rows; _capturedStock = stock; _capturedGood = good; _capturedSize = size;
+                _capturedGeneration = _feed.Generation;
+                if (ticks == null) _capturedTicks = null;
+                else
+                {
+                    if (_capturedTicks == null || _capturedTicks.Length != ticks.Count) _capturedTicks = new long[ticks.Count];
+                    for (var i = 0; i < ticks.Count; i++) _capturedTicks[i] = ticks[i];
+                }
+                _captureDirty = false;
+            }
             if (_lastResponseAt.HasValue && signature != _valueSignature)
             {
                 _lastValueChangeUtc = _lastResponseUtc; _lastValueChangeAt = _lastResponseAt;
@@ -214,7 +240,15 @@ namespace ScreenStocksBridge
                 ",\"oldestRetainedBucketId\":" + NullableNumber(_oldestRetainedBucketId) +
                 ",\"retentionBoundsKnown\":" + Bool(_oldestRetainedBucketId.HasValue && _lastServerTick.HasValue) +
                 ",\"coverageComplete\":null}";
-            _feed.Publish(state, rows);
+            _feed.Publish(state, rows!, rowsUnchanged);
+        }
+
+        private bool SameTicks(IReadOnlyList<long>? ticks)
+        {
+            if (ticks == null) return _capturedTicks == null;
+            if (_capturedTicks == null || ticks.Count != _capturedTicks.Length) return false;
+            for (var i = 0; i < ticks.Count; i++) if (ticks[i] != _capturedTicks[i]) return false;
+            return true;
         }
 
         internal static Dictionary<string, string> CaptureNative(HumanActivityClient? client, string stock,
