@@ -12,5 +12,8 @@
       <HintPath>$(GameDir)\BepInEx\core\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameDir)\Screen Stocks_Data\Managed\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(GameDir)\Screen Stocks_Data\Managed\UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UIModule"><HintPath>$(GameDir)\Screen Stocks_Data\Managed\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 </Project>

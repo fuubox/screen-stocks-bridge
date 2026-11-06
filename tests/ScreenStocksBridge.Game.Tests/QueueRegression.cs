@@ -27,6 +27,7 @@ public static class QueueRegression
             var plugin = Assembly.Load("ScreenStocksBridge");
             ActivityRegression.Run();
             MarketStreamRegression.Run();
+            if (MarkerRegression.Run() != 0) throw new Exception("Marker regression checks failed.");
             VerifyNativeCleanup();
             VerifyExecutionFault();
             VerifyReentrantPreview();

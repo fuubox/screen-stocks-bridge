@@ -29,6 +29,14 @@ It uses synthetic objects and never launches the game or dispatches HTTP/trades.
 The ordinary `dotnet test` runner does not execute this project; matching the
 game's Mono/Harmony runtime is necessary for this check.
 
+The marker regressions execute the native graph renderer with only circle drawing
+intercepted, and reconcile native auto-action confirmations against controlled
+price history and accepted quote responses. They cover vertical clearance, trade
+side flags, plot edges, right-edge spillover, disabled behavior, restoration after
+errors, delayed and reentrant confirmations, rolled history indices, and missing
+or stale timestamp evidence. They verify sampled graph placement; live execution
+marker timestamp units and visual appearance still require an in-game smoke check.
+
 The session-recovery checks additionally run the native broker recovery loop and
 API durable-command gate with a controlled JSON-response task. No HTTP request
 is sent. They establish that resetting during retry backoff drains the trade gate,
