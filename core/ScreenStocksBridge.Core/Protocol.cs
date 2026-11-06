@@ -20,6 +20,7 @@ namespace ScreenStocksBridge
         public double rateHz = 0;
         public string generation = string.Empty;
         public long afterSequence = 0;
+        public string candleMode = "observed";
         public string action = string.Empty;
         public string stockId = string.Empty;
         public string upgradeId = string.Empty;

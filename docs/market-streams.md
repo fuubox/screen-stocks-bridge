@@ -18,7 +18,7 @@ The release number alone does not establish that native hooks are operational.
 | `market.set_rate` | `rateHz` | Set a finite positive global snapshot cadence; default 4 Hz |
 | `market.set_instant` | `enabled` | Toggle global raw price forwarding independently of snapshot cadence |
 | `state.subscribe` | None | Initial full snapshot and clock/status; then changed snapshots, clock, payout and optional raw price events |
-| `market.candles.subscribe` | Optional `generation`, `afterSequence` | Replay retained closed-candle updates, then subscribe to new updates |
+| `market.candles.subscribe` | Optional `generation`, `afterSequence`, `candleMode` | Replay retained closed-candle updates, then subscribe to new updates; mode defaults to `observed` |
 | `market.candles.unsubscribe` | None | Stop this connection's candle events |
 
 Settings apply to current and future subscribers and reset to defaults when the
@@ -118,6 +118,33 @@ to break ties. High/low cover all valid observations. Repeated unchanged prices
 count as observations; this is not trade volume. Invalid/nonpositive prices or
 invalid source timestamps/ticks do not enter candles. Seconds without observations
 are omitted, rather than filled with synthetic flat bars.
+
+### Connected candles
+
+Bridge and SDK 0.17.0 introduce connected mode.
+Choose `candleMode: "connected"` on the subscription, or Python
+`subscribe_candles(callback, candle_mode="connected")`, to use the same stock's
+previous consecutive second's close as the next open. High/low include that
+carried price and all current observations; close remains the last current
+observation. Missing seconds and generation resets break the connection. The
+first observed second after either starts at its own first observation. No bars
+are invented, and the carried open does not add to `quoteCount` or change source
+timestamp/tick evidence. A late predecessor insertion or close correction revises
+an already closed successor, recomputing its bounds from current observations.
+
+Subscriptions are independent: selecting connected candles does not change
+another client's observed candles, raw prices, or snapshot cadence. Each mode has
+its own generation, sequence, and replay log. Start with a fresh cursor when
+switching; a cursor from the other mode reports a gap. `market.stream_status`
+advertises `candleModes: ["observed", "connected"]`; check this capability before
+requesting connected mode from an older bridge. Unsupported mode names return
+`invalid_params`.
+
+Candle events and subscription replies identify `candleMode`; events also carry
+`openProvenance` (`previous_close` or `source_observation`). Connection feed-status
+events identify the selected mode and its generation. Python's typed
+`MarketCandle` exposes `candle_mode` and `open_provenance`. The default `observed`
+mode retains its existing source-only OHLC semantics.
 
 Only closed candles are emitted. While synchronized, server time closes intervals;
 otherwise a later accepted source timestamp proves that an earlier second ended.

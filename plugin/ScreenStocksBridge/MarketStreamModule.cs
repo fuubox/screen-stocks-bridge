@@ -24,6 +24,9 @@ namespace ScreenStocksBridge
         private readonly Stopwatch _timer = Stopwatch.StartNew();
         private readonly MarketCadence _cadence = new MarketCadence();
         private readonly CandleStream _candles = new CandleStream();
+        private readonly CandleStream _connectedCandles = new CandleStream(connected: true);
+        private IEnumerable<CandleStream> CandleStreams { get { yield return _candles; yield return _connectedCandles; } }
+        private CandleStream CandlesFor(BridgeConnection connection) => connection.ConnectedCandles ? _connectedCandles : _candles;
         private readonly Dictionary<BridgeConnection, Queue<CandleUpdate>> _replays = new Dictionary<BridgeConnection, Queue<CandleUpdate>>();
         private Harmony? _harmony;
         private RemoteMarketDataSource? _source;
@@ -40,10 +43,10 @@ namespace ScreenStocksBridge
         internal MarketStreamModule(StateService state, Func<BridgeServer?> server)
         {
             _state = state; _server = server;
-            _candles.Updated += update =>
+            foreach (var candles in CandleStreams) candles.Updated += update =>
             {
                 foreach (var connection in Connections())
-                    if (connection.IsCandleSubscribed)
+                    if (connection.IsCandleSubscribed && ReferenceEquals(CandlesFor(connection), candles))
                     {
                         if (_replays.TryGetValue(connection, out var replay))
                         { if (replay.Count >= 65536) connection.Close(); else replay.Enqueue(update); }
@@ -114,7 +117,8 @@ namespace ScreenStocksBridge
             Current.Guard(() =>
             {
                 if (!ReferenceEquals(Current._realtime, __instance)) return;
-                Current._websocketActive = false; Current._candles.Paused = true;
+                Current._websocketActive = false;
+                foreach (var candles in Current.CandleStreams) candles.Paused = true;
                 Current._sourceGeneration = Guid.NewGuid().ToString("N");
                 Current._baseline = Current._baselineLayout = null;
                 foreach (var connection in Current.Connections()) connection.RawLayoutRevision = null;
@@ -142,7 +146,8 @@ namespace ScreenStocksBridge
             catch (Exception ex)
             {
                 // Never throw bridge errors into the game or silently retain continuity.
-                _baseline = _baselineLayout = null; _websocketActive = false; _candles.Reset();
+                _baseline = _baselineLayout = null; _websocketActive = false;
+                foreach (var candles in CandleStreams) candles.Reset();
                 _lastCaptureError = ex.GetType().Name; _sourceGeneration = Guid.NewGuid().ToString("N"); _replays.Clear();
                 foreach (var connection in Connections())
                     if (connection.IsSubscribed || connection.IsCandleSubscribed) connection.Close();
@@ -168,7 +173,8 @@ namespace ScreenStocksBridge
             _baseline = _baselineLayout = null; _websocketActive = false;
             _legacyPrices = false;
             _payoutEpoch = _payoutBoundary = long.MinValue;
-            _candles.Reset(); _lastMaterial = _lastStatus = string.Empty;
+            foreach (var candles in CandleStreams) candles.Reset();
+            _lastMaterial = _lastStatus = string.Empty;
             _replays.Clear();
             foreach (var connection in Connections()) connection.RawLayoutRevision = null;
         }
@@ -182,7 +188,8 @@ namespace ScreenStocksBridge
             if (type != "prices" && type != "priceVector" && type != "priceVectorBaseline") return;
             _legacyPrices = type == "prices";
             if (type == "priceVectorBaseline") { _baseline = raw; _baselineLayout = layout; }
-            _websocketActive = true; _candles.Paused = false;
+            _websocketActive = true;
+            foreach (var candles in CandleStreams) candles.Paused = false;
             PublishStatus();
             if (_instant)
                 foreach (var connection in Connections())
@@ -196,13 +203,18 @@ namespace ScreenStocksBridge
                     { Bootstrap(connection); SendRaw(connection, raw, false); }
                 }
             if (timeMs <= 0 || tick < 0) return;
-            if (ServerClock.IsSynchronized) _candles.Advance(ServerClock.NowMs);
-            if (timeMs <= long.MaxValue - 1000) _candles.Advance(timeMs);
-            var late = _candles.LateObservations;
-            for (var i = 0; i < ids.Count; i++) _candles.Add(ids[i], prices[i], timeMs, tick);
-            if (_candles.LateObservations != late)
-                PublishToCandles("market.candle_late", "{\"generation\":" + Q(_candles.Generation) +
-                    ",\"sourceTimeMs\":" + timeMs + ",\"tick\":" + tick + ",\"lateObservations\":" + _candles.LateObservations + "}");
+            foreach (var candles in CandleStreams)
+            {
+                if (ServerClock.IsSynchronized) candles.Advance(ServerClock.NowMs);
+                if (timeMs <= long.MaxValue - 1000) candles.Advance(timeMs);
+                var late = candles.LateObservations;
+                for (var i = 0; i < ids.Count; i++) candles.Add(ids[i], prices[i], timeMs, tick);
+                if (candles.LateObservations != late)
+                    foreach (var connection in Connections())
+                        if (connection.IsCandleSubscribed && ReferenceEquals(CandlesFor(connection), candles))
+                            connection.SendStream("market.candle_late", "{\"generation\":" + Q(candles.Generation) +
+                                ",\"sourceTimeMs\":" + timeMs + ",\"tick\":" + tick + ",\"lateObservations\":" + candles.LateObservations + "}");
+            }
         }
 
         private void ConfirmedPayout(RealtimePassivePayoutData payout, ScreenStocksRealtimeClient client)
@@ -226,9 +238,10 @@ namespace ScreenStocksBridge
             Guard(() =>
             {
                 Bind();
-                if (_realtime == null || !_realtime.Ready) { _websocketActive = false; _candles.Paused = true; }
+                if (_realtime == null || !_realtime.Ready)
+                { _websocketActive = false; foreach (var candles in CandleStreams) candles.Paused = true; }
                 PublishStatus();
-                if (ServerClock.IsSynchronized) _candles.Advance(ServerClock.NowMs);
+                if (ServerClock.IsSynchronized) foreach (var candles in CandleStreams) candles.Advance(ServerClock.NowMs);
                 DrainReplays();
                 var now = _timer.Elapsed.TotalSeconds;
                 if (now >= _nextClock)
@@ -248,7 +261,7 @@ namespace ScreenStocksBridge
             connection.IsSubscribed = true;
             connection.SendStream("market.updated", _state.SnapshotJson());
             connection.SendStream("market.clock", ReadClockJson());
-            connection.SendStream("market.feed_status", StatusJson());
+            connection.SendStream("market.feed_status", StatusJson(connection));
             if (_instant) Bootstrap(connection);
         }
 
@@ -282,12 +295,17 @@ namespace ScreenStocksBridge
                     case "market.stream_status": result = ControlsJson(); break;
                     case "market.candles.subscribe":
                         if (!Available) throw new InvalidOperationException("Canonical candle hooks are unavailable.");
-                        var replay = _candles.Replay(args?.generation ?? string.Empty, args?.afterSequence ?? 0);
+                        var mode = string.IsNullOrEmpty(args?.candleMode) ? "observed" : args!.candleMode;
+                        if (mode != "observed" && mode != "connected")
+                            throw new ArgumentOutOfRangeException("candleMode", "Use observed or connected.");
+                        var candles = mode == "connected" ? _connectedCandles : _candles;
+                        var replay = candles.Replay(args?.generation ?? string.Empty, args?.afterSequence ?? 0);
+                        connection.ConnectedCandles = candles.Connected;
                         connection.IsCandleSubscribed = true;
-                        result = "{\"generation\":" + Q(_candles.Generation) + ",\"latestSequence\":" + _candles.Sequence +
+                        result = "{\"generation\":" + Q(candles.Generation) + ",\"latestSequence\":" + candles.Sequence + ",\"candleMode\":" + Q(mode) +
                             ",\"gap\":" + (replay.Gap ? "true" : "false") + ",\"replayCount\":" + replay.Updates.Count + "}";
                         connection.Send(ProtocolJson.Response(request.id, true, result, string.Empty), false);
-                        connection.SendStream("market.feed_status", StatusJson());
+                        connection.SendStream("market.feed_status", StatusJson(connection));
                         _replays[connection] = new Queue<CandleUpdate>(replay.Updates);
                         return;
                     case "market.candles.unsubscribe": connection.IsCandleSubscribed = false; _replays.Remove(connection); result = "{\"subscribed\":false}"; break;
@@ -300,8 +318,10 @@ namespace ScreenStocksBridge
         }
 
         private string ControlsJson() => "{\"bridgeVersion\":" + Q(Plugin.PluginVersion) + ",\"candleSchemaVersion\":1,\"snapshotRateHz\":" + _cadence.RateHz.ToString("R", CultureInfo.InvariantCulture) +
-            ",\"instant\":" + (_instant ? "true" : "false") + ",\"hooksAvailable\":" + (Available ? "true" : "false") + ",\"feed\":" + StatusJson() + "}";
-        private string StatusJson() => "{\"sourceGeneration\":" + Q(_sourceGeneration) + ",\"candleGeneration\":" + Q(_candles.Generation) +
+            ",\"instant\":" + (_instant ? "true" : "false") + ",\"hooksAvailable\":" + (Available ? "true" : "false") +
+            ",\"candleModes\":[\"observed\",\"connected\"],\"feed\":" + StatusJson() + "}";
+        private string StatusJson(BridgeConnection? connection = null) => "{\"sourceGeneration\":" + Q(_sourceGeneration) + ",\"candleGeneration\":" + Q(connection == null ? _candles.Generation : CandlesFor(connection).Generation) +
+            ",\"candleMode\":" + Q(connection?.ConnectedCandles == true ? "connected" : "observed") +
             ",\"lastCaptureError\":" + (_lastCaptureError == null ? "null" : Q(_lastCaptureError)) +
             ",\"snapshotRateHz\":" + _cadence.RateHz.ToString("R", CultureInfo.InvariantCulture) + ",\"instant\":" + (_instant ? "true" : "false") +
             ",\"source\":" + Q(_websocketActive ? "websocket" : _source?.IsReady == true ? "http_fallback" : "unavailable") +
@@ -310,21 +330,25 @@ namespace ScreenStocksBridge
         {
             var json = StatusJson();
             if (json == _lastStatus) return;
-            _lastStatus = json; PublishState("market.feed_status", json); PublishToCandles("market.feed_status", json, true);
+            _lastStatus = json;
+            foreach (var connection in Connections())
+                if (connection.IsSubscribed || connection.IsCandleSubscribed)
+                    connection.SendStream("market.feed_status", StatusJson(connection));
         }
         private void DrainReplays()
         {
             foreach (var connection in new List<BridgeConnection>(_replays.Keys))
             {
                 var pending = _replays[connection];
-                if (pending.Any(update => !_candles.IsRetained(update)))
+                var candles = CandlesFor(connection);
+                if (pending.Any(update => !candles.IsRetained(update)))
                 {
-                    connection.SendStream("market.candle_gap", "{\"generation\":" + Q(_candles.Generation) +
-                        ",\"latestSequence\":" + _candles.Sequence + ",\"reason\":\"replay_expired\",\"resubscribeRequired\":true}");
+                    connection.SendStream("market.candle_gap", "{\"generation\":" + Q(candles.Generation) +
+                        ",\"latestSequence\":" + candles.Sequence + ",\"reason\":\"replay_expired\",\"resubscribeRequired\":true}");
                     connection.IsCandleSubscribed = false;
                     _replays.Remove(connection); continue;
                 }
-                if (_candles.Paused && !connection.IsClosed && connection.IsCandleSubscribed) continue;
+                if (candles.Paused && !connection.IsClosed && connection.IsCandleSubscribed) continue;
                 if (!connection.IsClosed && connection.IsCandleSubscribed)
                     for (var i = 0; i < 8 && pending.Count > 0; i++) connection.SendStream("market.candle", pending.Dequeue().Json);
                 if (connection.IsClosed || !connection.IsCandleSubscribed || pending.Count == 0) _replays.Remove(connection);
@@ -333,8 +357,6 @@ namespace ScreenStocksBridge
         private BridgeConnection[] Connections() => _server()?.Connections ?? Array.Empty<BridgeConnection>();
         private void PublishState(string name, string data)
         { foreach (var connection in Connections()) if (connection.IsSubscribed) connection.SendStream(name, data); }
-        private void PublishToCandles(string name, string data, bool skipState = false)
-        { foreach (var connection in Connections()) if (connection.IsCandleSubscribed && (!skipState || !connection.IsSubscribed)) connection.SendStream(name, data); }
 
         internal static string ReadClockJson()
         {

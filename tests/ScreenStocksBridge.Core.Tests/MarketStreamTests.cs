@@ -108,6 +108,80 @@ public sealed class MarketStreamTests
     }
 
     [Fact]
+    public void ConnectedCandlesCarryOnlyConsecutiveSameStockClosesWithoutAddingObservations()
+    {
+        var stream = new CandleStream(connected: true) { Paused = false };
+        var output = new List<CandleUpdate>(); stream.Updated += output.Add;
+        stream.Add("WAVE", 10, 1100, 1);
+        stream.Add("OTHER", 99, 2100, 2);
+        stream.Add("WAVE", 8, 2100, 2); stream.Advance(3000);
+        var bar = Parse(output.Last(x => x.BucketStartMs == 2000 && Parse(x.Json)["stockId"]!.GetValue<string>() == "WAVE").Json);
+        Assert.Equal(10, bar["open"]!.GetValue<double>());
+        Assert.Equal(10, bar["high"]!.GetValue<double>());
+        Assert.Equal(8, bar["low"]!.GetValue<double>());
+        Assert.Equal(8, bar["close"]!.GetValue<double>());
+        Assert.Equal(1, bar["quoteCount"]!.GetValue<long>());
+        Assert.Equal(2100, bar["firstSourceTimeMs"]!.GetValue<long>());
+        Assert.Equal("connected", bar["candleMode"]!.GetValue<string>());
+        Assert.Equal("previous_close", bar["openProvenance"]!.GetValue<string>());
+        stream.Add("WAVE", 20, 4100, 4); stream.Advance(5000);
+        bar = Parse(output.Last().Json);
+        Assert.Equal(20, bar["open"]!.GetValue<double>());
+        Assert.Equal("source_observation", bar["openProvenance"]!.GetValue<string>());
+        Assert.DoesNotContain(output, x => x.BucketStartMs == 3000);
+        var generation = stream.Generation; stream.Reset(); stream.Paused = false;
+        stream.Add("WAVE", 30, 5100, 5); stream.Advance(6000);
+        Assert.NotEqual(generation, stream.Generation);
+        Assert.Equal(30, Parse(output.Last().Json)["open"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public void ConnectedLatePredecessorRevisesSuccessorAndCanShrinkItsBounds()
+    {
+        var stream = new CandleStream(true) { Paused = false };
+        stream.Add("WAVE", 50, 1100, 1); stream.Add("WAVE", 10, 2100, 2); stream.Advance(3000);
+        stream.Add("WAVE", 8, 1900, 3);
+        var successor = Parse(stream.Replay("", 0).Updates.Last().Json);
+        Assert.Equal(2000, successor["bucketStartMs"]!.GetValue<long>());
+        Assert.Equal(2, successor["revision"]!.GetValue<long>());
+        Assert.Equal(8, successor["open"]!.GetValue<double>());
+        Assert.Equal(10, successor["high"]!.GetValue<double>());
+        Assert.Equal(8, successor["low"]!.GetValue<double>());
+        Assert.Equal(1, successor["quoteCount"]!.GetValue<long>());
+        // An earlier quote changes the predecessor's observed open, not its close.
+        var sequence = stream.Sequence;
+        stream.Add("WAVE", 100, 1050, 0);
+        Assert.Equal(sequence + 1, stream.Sequence);
+    }
+
+    [Fact]
+    public void ConnectedLateInsertionConnectsAlreadyPublishedSuccessorAndKeepsReplayIndependent()
+    {
+        var stream = new CandleStream(true) { Paused = false };
+        var observed = new CandleStream { Paused = false };
+        stream.Add("WAVE", 10, 2100, 2); stream.Advance(3000);
+        stream.Add("WAVE", 20, 1500, 1);
+        var bar = Parse(stream.Replay("", 0).Updates.Last().Json);
+        Assert.Equal(2000, bar["bucketStartMs"]!.GetValue<long>());
+        Assert.Equal(20, bar["open"]!.GetValue<double>());
+        Assert.True(observed.Replay(stream.Generation, stream.Sequence).Gap);
+        Assert.Single(stream.Replay(stream.Generation, stream.Sequence - 1).Updates);
+    }
+
+    [Fact]
+    public void ConnectedCorrectionAtRetentionEdgeStillUsesItsOriginalPredecessor()
+    {
+        var stream = new CandleStream(true) { Paused = false };
+        stream.Add("WAVE", 5, 1900, 1); stream.Add("WAVE", 10, 2700, 2);
+        stream.Advance(17500); stream.Add("WAVE", 12, 2800, 3);
+        var bar = Parse(stream.Replay("", 0).Updates.Last().Json);
+        Assert.Equal(5, bar["open"]!.GetValue<double>());
+        Assert.Equal(5, bar["low"]!.GetValue<double>());
+        Assert.Equal(2, bar["quoteCount"]!.GetValue<long>());
+        Assert.All(stream.Replay("", 0).Updates, x => Assert.True(x.BucketStartMs >= 2000));
+    }
+
+    [Fact]
     public void LateQuotesReviseClosedCandlesAndReplayEmittedRevisionsInOrder()
     {
         var stream = new CandleStream { Paused = false };

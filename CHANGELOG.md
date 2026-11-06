@@ -5,6 +5,16 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-05
+
+### Added
+
+- Add opt-in `connected` one-second candles and the Python `candle_mode` helper.
+  Use the previous consecutive second's close as open, include it in high/low,
+  and revise dependent candles after late corrections. Gaps and resets break the
+  connection; source counts remain unchanged. Each subscription selects its own
+  mode and replay generation; observed OHLC remains the default.
+
 ## [0.16.0] - 2026-11-05
 
 ### Changed

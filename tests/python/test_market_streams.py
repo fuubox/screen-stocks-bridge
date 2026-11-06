@@ -25,12 +25,35 @@ class MarketStreamClientTests(unittest.TestCase):
             client.set_instant_mode("true")
         with self.assertRaises(ValueError):
             client.subscribe_candles(lambda _: None, after_sequence=-1)
+        with self.assertRaises(ValueError):
+            client.subscribe_candles(lambda _: None, candle_mode="filled")
         self.assertEqual(sent, [])
         client.set_market_rate(1000)
         client.set_instant_mode(True)
         client.market_stream_status()
         self.assertEqual(sent, [("market.set_rate", {"rateHz": 1000}),
                                 ("market.set_instant", {"enabled": True}), ("market.stream_status",)])
+
+    def test_connected_candles_explicitly_request_mode_and_expose_open_provenance(self):
+        client = BridgeClient(token="test")
+        sent = []
+        client.request = lambda *args: sent.append(args) or {"candleModes": ["observed", "connected"]}
+        client.subscribe_candles(lambda _: None, candle_mode="connected", generation="connected-generation", after_sequence=7)
+        self.assertEqual(sent, [("market.stream_status",), ("market.candles.subscribe", {"generation": "connected-generation", "afterSequence": 7, "candleMode": "connected"})])
+        bar = MarketCandle.from_dict({**candle(), "candleMode": "connected", "openProvenance": "previous_close"})
+        self.assertEqual((bar.candle_mode, bar.open_provenance), ("connected", "previous_close"))
+        bar = MarketCandle.from_dict(candle())
+        self.assertEqual((bar.candle_mode, bar.open_provenance), ("observed", "source_observation"))
+
+    def test_connected_mode_refuses_old_plugins_instead_of_silently_receiving_observed_candles(self):
+        from screenstocks_bridge import BridgeError
+        client = BridgeClient(token="test")
+        sent = []
+        client.request = lambda *args: sent.append(args) or {}
+        with self.assertRaises(BridgeError) as error:
+            client.subscribe_candles(lambda _: None, candle_mode="connected")
+        self.assertEqual(error.exception.code, "unsupported_candle_mode")
+        self.assertEqual(sent, [("market.stream_status",)])
 
     def test_wire_callbacks_preserve_raw_json_and_replay_candle_revisions(self):
         raw = '{ "type":"priceVector", "sequence":30, "data":{"prices":[12],"tick":4,"serverTimeMs":1900}}'

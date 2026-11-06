@@ -32,7 +32,7 @@ internal static class MarketStreamRegression
         {
             module.Install();
             module.Handle(new BridgeRequest { id = "capabilities", method = "market.stream_status" }, connection);
-            Require(Frames(connection).Any(x => x.Contains("\"bridgeVersion\":\"0.16.0\"") && x.Contains("\"candleSchemaVersion\":1")),
+            Require(Frames(connection).Any(x => x.Contains("\"bridgeVersion\":\"0.17.0\"") && x.Contains("\"candleSchemaVersion\":1")),
                 "canonical candle consumers can verify the minimum bridge version and candle schema");
             module.SubscribeState(connection);
             var baseline = "{ \"type\":\"priceVectorBaseline\",\"sequence\":1,\"data\":{\"layoutRevision\":\"L\",\"stockIds\":[\"A\"],\"prices\":[10],\"serverTimeMs\":1100,\"tick\":1}}";
@@ -91,6 +91,7 @@ internal static class MarketStreamRegression
                     prices = new List<float> { 13 }, serverTimeMs = 3100, tick = 3 } }));
             module.Update();
             Require(Frames(fallbackSubscriber).Any(x => x.Contains("\"event\":\"market.candle\"")), "pending replay resumes after accepted websocket prices");
+            VerifyConnectedSubscriptions(module, realtime, server);
             VerifyPayoutConfirmation(module, realtime, connection);
             var expiredSubscriber = Connection();
             ((List<BridgeConnection>)typeof(BridgeServer).GetField("_clients", Flags).GetValue(server)).Add(expiredSubscriber);
@@ -120,6 +121,32 @@ internal static class MarketStreamRegression
         payout.dataEpoch = 6; payout.boundary = 99;
         WithRaw(realtime, "{\"type\":\"passivePayout\"}", () => method.Invoke(game, new object[] { payout }));
         Require(Frames(connection).Count(x => x.Contains("\"event\":\"market.dividend_paid\"")) == 1, "obsolete data epoch cannot confirm a payout");
+    }
+
+    private static void VerifyConnectedSubscriptions(MarketStreamModule module, ScreenStocksRealtimeClient realtime, BridgeServer server)
+    {
+        var observed = Connection(); var connected = Connection();
+        var clients = (List<BridgeConnection>)typeof(BridgeServer).GetField("_clients", Flags).GetValue(server);
+        clients.Add(observed); clients.Add(connected);
+        module.Handle(new BridgeRequest { id = "observed", method = "market.candles.subscribe", @params = new RequestParams { candleMode = "" } }, observed);
+        module.Handle(new BridgeRequest { id = "connected", method = "market.candles.subscribe", @params = new RequestParams { candleMode = "connected" } }, connected);
+        var ordinary = (CandleStream)typeof(MarketStreamModule).GetField("_candles", Flags).GetValue(module);
+        var joined = (CandleStream)typeof(MarketStreamModule).GetField("_connectedCandles", Flags).GetValue(module);
+        ordinary.Advance(4000); joined.Advance(4000); module.Update();
+        Require(Frames(connected).Any(x => x.Contains("\"event\":\"market.candle\"") && x.Contains("\"bucketStartMs\":2000") && x.Contains("\"open\":10,")),
+            "connected subscription replays previous close as open through native accepted feed");
+        Require(Frames(observed).Where(x => x.Contains("\"event\":\"market.candle\"")).All(x => x.Contains("\"candleMode\":\"observed\"")), "observed subscribers never receive connected bars");
+        Require(Frames(connected).Where(x => x.Contains("\"event\":\"market.candle\"")).All(x => x.Contains("\"candleMode\":\"connected\"")), "connected subscribers never receive observed bars");
+        Require(Frames(connected).Any(x => x.Contains("\"candleGeneration\":\"" + joined.Generation + "\"")), "connected feed status uses selected generation");
+        var observedCount = Frames(observed).Count(x => x.Contains("\"event\":\"market.candle\""));
+        module.Accept(realtime, "{\"type\":\"priceVector\"}", "L", new[] { "A" }, new float[] { 8 }, 2900, 4);
+        Require(Frames(connected).Any(x => x.Contains("\"bucketStartMs\":3000") && x.Contains("\"revision\":2") && x.Contains("\"open\":8,")), "late predecessor close revises live connected successor");
+        Require(Frames(observed).Count(x => x.Contains("\"event\":\"market.candle\"")) == observedCount + 1, "observed mode has no synthetic successor correction");
+        module.Handle(new BridgeRequest { id = "wrong-mode-cursor", method = "market.candles.subscribe", @params = new RequestParams { generation = joined.Generation, afterSequence = joined.Sequence } }, observed);
+        Require(Frames(observed).Any(x => x.Contains("\"id\":\"wrong-mode-cursor\"") && x.Contains("\"gap\":true")), "foreign mode cursor requests resynchronization");
+        module.Handle(new BridgeRequest { id = "invalid-mode", method = "market.candles.subscribe", @params = new RequestParams { candleMode = "invented" } }, connected);
+        Require(Frames(connected).Any(x => x.Contains("\"id\":\"invalid-mode\"") && x.Contains("invalid_params")), "invalid mode rejected without altering active subscription");
+        Require(connected.ConnectedCandles, "invalid request preserves connected mode");
     }
 
     private static void VerifyLossAccounting()

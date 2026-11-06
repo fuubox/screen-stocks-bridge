@@ -43,6 +43,14 @@ class MarketCandle:
     last_tick: int
     raw: dict[str, Any] = field(repr=False)
 
+    @property
+    def candle_mode(self) -> str:
+        return str(self.raw.get("candleMode", "observed"))
+
+    @property
+    def open_provenance(self) -> str:
+        return str(self.raw.get("openProvenance", "source_observation"))
+
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> MarketCandle:
         return cls(str(value["generation"]), int(value["sequence"]), str(value["stockId"]),

@@ -203,6 +203,7 @@ namespace ScreenStocksBridge
         internal string SessionId { get; } = Guid.NewGuid().ToString("N");
         internal bool IsActivitySubscribed { get; set; }
         internal bool IsCandleSubscribed { get; set; }
+        internal bool ConnectedCandles { get; set; }
         internal string? RawLayoutRevision { get; set; }
         internal bool IsNewsSubscribed { get; set; }
         internal bool IsAutoActionToastSubscribed { get; set; }

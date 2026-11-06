@@ -268,18 +268,28 @@ class BridgeClient:
         return self.request("market.stream_status")
 
     def subscribe_candles(self, callback: Callable[[dict[str, Any]], None], *,
-                          generation: str = "", after_sequence: int = 0) -> dict[str, Any]:
+                          generation: str = "", after_sequence: int = 0,
+                          candle_mode: str = "observed") -> dict[str, Any]:
         """Replay retained closed-candle revisions, then receive market.candle events.
 
         Inspect the reply's gap flag. Candle generation/update sequence is independent
         of per-connection delivery metadata; replace bars by stock/second/revision.
+        Connected mode carries the previous consecutive second's close as open.
+        Modes have separate generations; use a fresh cursor when switching modes.
         """
         if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
             raise ValueError("after_sequence must be a nonnegative integer")
+        if candle_mode not in ("observed", "connected"):
+            raise ValueError("candle_mode must be observed or connected")
+        if candle_mode == "connected" and "connected" not in self.market_stream_status().get("candleModes", []):
+            raise BridgeError("unsupported_candle_mode", "This bridge does not support connected candles; update the plugin.")
         with self._callbacks_lock:
             if callback not in self._callbacks:
                 self._callbacks.append(callback)
-        return self.request("market.candles.subscribe", {"generation": generation, "afterSequence": after_sequence})
+        params = {"generation": generation, "afterSequence": after_sequence}
+        if candle_mode != "observed":
+            params["candleMode"] = candle_mode
+        return self.request("market.candles.subscribe", params)
 
     def unsubscribe_candles(self) -> dict[str, Any]:
         return self.request("market.candles.unsubscribe")

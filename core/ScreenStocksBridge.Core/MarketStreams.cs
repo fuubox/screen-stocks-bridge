@@ -102,6 +102,8 @@ namespace ScreenStocksBridge
         private readonly Dictionary<(string, long), Bar> _bars = new Dictionary<(string, long), Bar>();
         private readonly Queue<CandleUpdate> _log = new Queue<CandleUpdate>();
         private long _watermark = -1, _arrival;
+        internal bool Connected { get; }
+        internal CandleStream(bool connected = false) { Connected = connected; }
         internal string Generation { get; private set; } = Guid.NewGuid().ToString("N");
         internal long Sequence { get; private set; }
         internal long LateObservations { get; private set; }
@@ -120,7 +122,10 @@ namespace ScreenStocksBridge
         {
             var advanced = serverTimeMs > _watermark;
             _watermark = Math.Max(_watermark, serverTimeMs);
-            foreach (var key in _bars.Keys.Where(k => k.Item2 + 1000 <= _watermark - RetentionMs).ToArray()) _bars.Remove(key);
+            // Connected bars need one predecessor beyond the correction window.
+            // It supplies only the opening price, never a synthetic observation.
+            var historyMs = RetentionMs + (Connected ? 1000 : 0);
+            foreach (var key in _bars.Keys.Where(k => k.Item2 + 1000 <= _watermark - historyMs).ToArray()) _bars.Remove(key);
             // Late corrections are appended in emission order, not bucket-time
             // order. Expired revisions can therefore occur anywhere in the log.
             if (advanced)
@@ -128,7 +133,7 @@ namespace ScreenStocksBridge
                 { var update = _log.Dequeue(); if (update.BucketStartMs + 1000 > _watermark - RetentionMs) _log.Enqueue(update); }
             if (Paused) return;
             foreach (var pair in _bars.OrderBy(p => p.Key.Item2).ThenBy(p => p.Key.Item1, StringComparer.Ordinal).ToArray())
-                if (pair.Key.Item2 + 1000 <= _watermark && pair.Value.Revision == 0) Emit(pair.Value);
+                if (pair.Key.Item2 + 1000 <= _watermark && pair.Key.Item2 + 1000 > _watermark - RetentionMs && pair.Value.Revision == 0) Emit(pair.Value);
         }
 
         internal void Add(string stockId, double price, long sourceTimeMs, long tick)
@@ -141,17 +146,28 @@ namespace ScreenStocksBridge
             var key = (stockId, second);
             if (!_bars.TryGetValue(key, out var bar))
             { bar = new Bar(stockId, second); _bars.Add(key, bar); }
+            var firstObservation = bar.Count == 0;
+            var oldClose = bar.Close;
             bar.Add(price, sourceTimeMs, tick, ++_arrival);
             if (second + 1000 <= _watermark) Emit(bar);
+            // A late predecessor can change an already emitted next bar's open
+            // and bounds. Recompute from its observed extrema so bounds can shrink.
+            if (Connected && (firstObservation || oldClose != bar.Close) &&
+                _bars.TryGetValue((stockId, second + 1000), out var next) && next.Revision > 0)
+                Emit(next);
         }
 
         private void Emit(Bar bar)
         {
+            var carried = Connected && _bars.TryGetValue((bar.StockId, bar.Start - 1000), out _);
+            var open = carried ? _bars[(bar.StockId, bar.Start - 1000)].Close : bar.Open;
             bar.Revision++;
             var json = "{\"generation\":" + BridgeJson.Quote(Generation) + ",\"sequence\":" + ++Sequence +
                 ",\"stockId\":" + BridgeJson.Quote(bar.StockId) + ",\"bucketStartMs\":" + bar.Start +
                 ",\"bucketEndMs\":" + (bar.Start + 1000) + ",\"revision\":" + bar.Revision +
-                ",\"open\":" + N(bar.Open) + ",\"high\":" + N(bar.High) + ",\"low\":" + N(bar.Low) + ",\"close\":" + N(bar.Close) +
+                ",\"candleMode\":" + BridgeJson.Quote(Connected ? "connected" : "observed") +
+                ",\"openProvenance\":" + BridgeJson.Quote(carried ? "previous_close" : "source_observation") +
+                ",\"open\":" + N(open) + ",\"high\":" + N(Math.Max(open, bar.High)) + ",\"low\":" + N(Math.Min(open, bar.Low)) + ",\"close\":" + N(bar.Close) +
                 ",\"quoteCount\":" + bar.Count + ",\"quoteCountKind\":\"source_observations\",\"firstSourceTimeMs\":" + bar.First.Item1 +
                 ",\"lastSourceTimeMs\":" + bar.Last.Item1 + ",\"firstTick\":" + bar.First.Item2 + ",\"lastTick\":" + bar.Last.Item2 + "}";
             var update = new CandleUpdate(Sequence, bar.Start, json);
