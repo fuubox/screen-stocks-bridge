@@ -73,19 +73,21 @@ UnstackPurchaseMarkersWithin15Ticks = true
 ```
 
 - `CorrectAutoActionMarkers` repositions a remote auto-action dot when the
-  server confirms it, using that action slot's trigger price, condition, and
-  visible graph history to infer the closest logical point. The search stops
-  at the latest server-confirmed price sample received at confirmation, so later
-  client-side samples cannot pull the inferred marker forward.
-- `UnstackPurchaseMarkersWithin15Ticks` separates nearby graph dots vertically:
-  sell-side markers move up, and buy-side markers move down when at least two
-  markers from the same trade side are within the window. Short covers count as
-  buy-side. A marker with both `IsBuy` and `IsShort` set takes its side from the
-  pure buy or short marker at the same rendered X; a paired cover is placed
-  below its buy-side companion. Overlapping opposite-side markers do not move
-  each other.
-  Offsets stay within one marker diameter per side, so very dense same-side
-  groups can still partially overlap.
+  server confirms it by mapping the authoritative execution timestamp onto the
+  graph's server-sample ticks. It chooses the sample nearest in event time; the
+  slot's trigger price and Above/Below condition break ties between equally
+  close samples. This does not require the graph to show the trigger-price crossing.
+  The search ends at the latest server update received at confirmation; if the
+  timestamp cannot be mapped to visible history, the game keeps its marker.
+  Mapping uses the tick and timestamp from one accepted price update and the
+  configured game tick duration, so confirmation delay does not move the dot.
+  The price is the nearest graph sample, rather than an exact execution fill.
+- `UnstackPurchaseMarkersWithin15Ticks` separates overlapping graph dots within
+  15 displayed ticks using vertical lanes with full circle clearance. Buys and
+  short covers prefer below their execution price; sells and shorts prefer above.
+  Opposite-side overlaps are separated too. Horizontal positions never change.
+  Dots remain within the plot; at an edge they may use the other side, and an
+  overcrowded plot can still overlap when there is insufficient vertical space.
   It affects graph display only; stored marker ticks and prices are unchanged.
 - The activity-focus labels are controlled independently. `ShowTrackingDebugText`
   is an opt-in (default `false`) for the `TRACKING` debug label.

@@ -23,9 +23,27 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
   canonical source-time one-second OHLC candles with 15-second revision replay;
   feed status and per-stream delivery/loss evidence; Python helpers and typed views.
 
-- Add the opt-in QualityOfLife.SingleLineAutoActionToasts setting. It shows
+- Add the opt-in `QualityOfLife.SingleLineAutoActionToasts` setting. It shows
   auto-action completion toasts on one line without image backgrounds or
   outlines, truncating long text with an ellipsis.
+
+### Fixed
+
+- Separate overlapping marker circles vertically with full clearance, including
+  opposite-side overlaps and the native right-edge spillover. Preserve horizontal
+  positions and the game's explicit buy-side flag for short covers. Prefer each
+  trade side's direction, using remaining plot space at edges.
+- Prevent confirmation delay from shifting auto-action dots by pairing the
+  accepted quote's tick and timestamp. Match the native graph's one-based sample
+  origin so a correction at the oldest visible sample stays visible. Keep the
+  native marker if reliable timing evidence is missing.
+- Align auto-action dots to the authoritative execution timestamp by mapping it
+  onto the graph's server-sample ticks. When the event falls between graph
+  samples, choose the sample nearest in event time and use the slot's trigger
+  price and Above/Below condition to break ties. A visible trigger-price crossing
+  is not required. Search only through the latest server update received at
+  confirmation, and keep the game's marker if its timestamp cannot be mapped to
+  visible history.
 
 ## [0.15.0] - 2026-11-01
 

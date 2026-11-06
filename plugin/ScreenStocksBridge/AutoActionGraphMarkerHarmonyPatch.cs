@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using ScreenStocks.Net;
 using HarmonyLib;
 using UnityEngine;
 
@@ -18,6 +20,8 @@ namespace ScreenStocksBridge
         private static readonly Dictionary<ActionMarkerKey, MarkerCapture> ServerMarkers =
             new Dictionary<ActionMarkerKey, MarkerCapture>();
         private static bool _reportedFailure;
+        private static ConditionalWeakTable<RemoteMarketDataSource, SourceAnchor> SourceAnchors =
+            new ConditionalWeakTable<RemoteMarketDataSource, SourceAnchor>();
 
         private static readonly MethodInfo? GetMarkersMethod = typeof(StockManager).GetMethod("GetMarkers",
             BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(string) }, null);
@@ -34,6 +38,9 @@ namespace ScreenStocksBridge
                 null, new[] { typeof(AutoAction), typeof(float?) }, null);
             var reconcileMarkers = typeof(AutoActionManager).GetMethod("AddRemoteExecutionMarkers", managerFlags,
                 null, new[] { typeof(IReadOnlyList<AutoAction>), typeof(IReadOnlyList<AutoAction>) }, null);
+            var applyPrices = typeof(RemoteMarketDataSource).GetMethod("ApplyPollResult", managerFlags,
+                null, new[] { typeof(ApiResult<PricesResponse>) }, null);
+            var beforePrices = typeof(AutoActionGraphMarkerHarmonyPatch).GetMethod(nameof(BeforeApplyPrices), flags);
             var beforeAddMarker = typeof(AutoActionGraphMarkerHarmonyPatch).GetMethod(
                 nameof(BeforeAddRemoteExecutionMarker), flags);
             var afterAddMarker = typeof(AutoActionGraphMarkerHarmonyPatch).GetMethod(
@@ -41,12 +48,13 @@ namespace ScreenStocksBridge
             var afterReconcile = typeof(AutoActionGraphMarkerHarmonyPatch).GetMethod(
                 nameof(AfterRemoteExecutionMarkers), flags);
 
-            if (addMarker == null || reconcileMarkers == null || beforeAddMarker == null ||
+            if (applyPrices == null || beforePrices == null || addMarker == null || reconcileMarkers == null || beforeAddMarker == null ||
                 afterAddMarker == null || afterReconcile == null || GetMarkersMethod == null ||
                 MarkerDataIndexField == null || MarkerPriceField == null ||
                 MarkerIsBuyField == null || MarkerIsShortField == null)
                 throw new MissingMethodException("Could not locate the auto-action graph marker methods or fields.");
 
+            harmony.Patch(applyPrices, prefix: new HarmonyMethod(beforePrices));
             harmony.Patch(addMarker,
                 prefix: new HarmonyMethod(beforeAddMarker),
                 postfix: new HarmonyMethod(afterAddMarker));
@@ -58,6 +66,7 @@ namespace ScreenStocksBridge
             PredictedMarkers.Clear();
             ServerMarkers.Clear();
             _reportedFailure = false;
+            SourceAnchors = new ConditionalWeakTable<RemoteMarketDataSource, SourceAnchor>();
         }
 
         private static void BeforeAddRemoteExecutionMarker(AutoAction __0, float? __1,
@@ -96,7 +105,7 @@ namespace ScreenStocksBridge
                 if (!TryReadMarker(markers, markerIndex, out var marker)) return;
 
                 var capture = new MarkerCapture(markers, markerIndex, marker, __state.Settings,
-                    __state.IsPrediction, Time.realtimeSinceStartup);
+                    Time.realtimeSinceStartup);
                 var key = new ActionMarkerKey(__state.Settings.StockId, __0.slotIndex, __0.lastExecutionMarker);
                 Store(__state.IsPrediction ? PredictedMarkers : ServerMarkers, key, capture);
             }
@@ -120,21 +129,22 @@ namespace ScreenStocksBridge
                     if (current == null) continue;
 
                     var previous = FindBySlot(__0, current.slotIndex);
-                    if (previous == null || current.lastExecutionMarker <= previous.lastExecutionMarker ||
-                        string.IsNullOrWhiteSpace(current.stockId))
+                    if (previous == null) continue;
+                    if (current.lastExecutionMarker <= previous.lastExecutionMarker)
                         continue;
+                    if (string.IsNullOrWhiteSpace(current.stockId)) continue;
 
                     var predictionKey = new ActionMarkerKey(current.stockId, current.slotIndex,
                         previous.lastExecutionMarker);
                     var serverKey = new ActionMarkerKey(current.stockId, current.slotIndex,
                         current.lastExecutionMarker);
-
                     MarkerCapture? capture = Take(PredictedMarkers, predictionKey);
                     if (capture == null) capture = Take(ServerMarkers, serverKey);
                     if (capture == null) continue;
 
-                    if (!TryFindLogicalPoint(capture, out var dataIndex, out var price)) continue;
-                    TryWriteMarker(capture, dataIndex, price);
+                    if (TryFindLogicalPoint(capture, current.lastExecutionMarker,
+                            out var dataIndex, out var price))
+                        TryWriteMarker(capture, dataIndex, price);
                 }
             }
             catch (Exception exception)
@@ -160,13 +170,15 @@ namespace ScreenStocksBridge
             return null;
         }
 
-        private static bool TryFindLogicalPoint(MarkerCapture capture, out long dataIndex, out float price)
+        private static bool TryFindLogicalPoint(MarkerCapture capture, long executionTimestamp,
+            out long dataIndex, out float price)
         {
             dataIndex = capture.Original.DataIndex;
             price = capture.Original.Price;
 
             var settings = capture.Settings;
-            if (string.IsNullOrWhiteSpace(settings.StockId) || !IsFinitePositive(settings.TargetPrice)) return false;
+            if (string.IsNullOrWhiteSpace(settings.StockId) || !IsFinitePositive(settings.TargetPrice))
+                return false;
 
             var stockManager = StockManager.I;
             if (stockManager == null) return false;
@@ -177,67 +189,127 @@ namespace ScreenStocksBridge
             var totalSamples = stockManager.GetTotalTickCount(settings.StockId);
             if (totalSamples <= 0) return false;
 
-            var historyCount = history.Count;
-            var firstGlobalIndex = Math.Max(0L, totalSamples - historyCount);
-            if (!TryGetSearchEndIndex(stockManager, settings.StockId, historyCount, out var searchEnd))
+            if (!(stockManager.Source is RemoteMarketDataSource remoteSource))
                 return false;
 
+            var historyCount = history.Count;
+            var firstGlobalIndex = Math.Max(0L, totalSamples - historyCount + 1L);
             var visibleCount = GetVisiblePointCount(historyCount);
             var firstVisibleIndex = Math.Max(0, historyCount - visibleCount);
-            var searchStart = firstVisibleIndex;
+            var sampleTicks = remoteSource.GetHistorySampleTicks(settings.StockId);
+            if (sampleTicks == null || sampleTicks.Count != historyCount) return false;
 
-            if (capture.IsPrediction)
-            {
-                var capturedLocalIndex = capture.Original.DataIndex - firstGlobalIndex;
-                if (capturedLocalIndex >= firstVisibleIndex && capturedLocalIndex < historyCount)
-                    searchStart = (int)capturedLocalIndex;
-            }
-            if (searchStart >= searchEnd) return false;
+            var gameSettings = GameManager.I != null ? GameManager.I.Settings : null;
+            if (executionTimestamp <= 0 || gameSettings == null || gameSettings.tickRateMs <= 0 ||
+                !SourceAnchors.TryGetValue(remoteSource, out var anchor) ||
+                anchor.TimeMs <= 0 || anchor.Tick != remoteSource.ServerTick)
+                return false;
+
+            // A received quote tick and its timestamp form one anchor. The
+            // continuously advancing clock must never be paired with a stale tick.
+            var latestServerTick = anchor.Tick;
+            var eventServerTick = latestServerTick +
+                ((double)executionTimestamp - anchor.TimeMs) / gameSettings.tickRateMs;
+            var searchEnd = FindLastServerSample(sampleTicks, latestServerTick);
+            if (searchEnd <= firstVisibleIndex) return false;
 
             var isAbove = settings.Condition == ActionCondition.Above;
-            var crossingFound = TryFindConditionCrossing(history, searchStart, searchEnd, settings.TargetPrice,
-                isAbove, enteringCondition: true, firstMatch: capture.IsPrediction, out var localIndex);
-            if (!crossingFound)
-            {
-                crossingFound = TryFindConditionCrossing(history, searchStart, searchEnd, settings.TargetPrice,
-                    isAbove, enteringCondition: false, firstMatch: capture.IsPrediction, out localIndex);
-            }
+            if (!TryFindEventSampleBracket(sampleTicks, firstVisibleIndex, searchEnd, eventServerTick,
+                    out var lowerIndex, out var upperIndex)) return false;
 
-            if (!crossingFound)
-                localIndex = FindClosestPoint(history, searchStart, searchEnd, settings.TargetPrice, isAbove);
-
-            if (localIndex < 0 || localIndex >= historyCount || !IsFinitePositive(history[localIndex])) return false;
+            var localIndex = FindNearestEventSample(history, sampleTicks, lowerIndex, upperIndex,
+                eventServerTick, settings.TargetPrice, isAbove);
+            if (localIndex < lowerIndex || localIndex > upperIndex || !IsFinitePositive(history[localIndex]))
+                return false;
 
             dataIndex = firstGlobalIndex + localIndex;
             price = history[localIndex];
             return true;
         }
 
-        private static bool TryFindConditionCrossing(IReadOnlyList<float> history, int startIndex,
-            int endExclusive, float targetPrice, bool isAbove, bool enteringCondition, bool firstMatch,
-            out int localIndex)
+        private static void BeforeApplyPrices(RemoteMarketDataSource __instance, ApiResult<PricesResponse> __0)
         {
-            localIndex = -1;
-            for (var index = startIndex + 1; index < endExclusive; index++)
+            // Mirror native admission before callbacks can reconcile actions. The
+            // mapping below additionally requires ServerTick to have advanced to
+            // this anchor, so evidence is unusable until the game accepts it.
+            if (!__0.Success || __0.Data == null ||
+                (__instance.IsReady && __0.Data.tick < __instance.ServerTick)) return;
+            // A successful response without time invalidates any older pairing.
+            var anchor = SourceAnchors.GetValue(__instance, _ => new SourceAnchor());
+            anchor.Tick = __0.Data.tick;
+            anchor.TimeMs = __0.Data.serverTimeMs;
+        }
+
+        private sealed class SourceAnchor
+        {
+            internal long Tick;
+            internal long TimeMs;
+        }
+
+        private static int FindLastServerSample(IReadOnlyList<long> sampleTicks, long latestServerTick)
+        {
+            for (var index = sampleTicks.Count - 1; index >= 0; index--)
+                if (sampleTicks[index] <= latestServerTick)
+                    return index + 1;
+            return 0;
+        }
+
+        private static bool TryFindEventSampleBracket(IReadOnlyList<long> sampleTicks, int startIndex,
+            int endExclusive, double eventServerTick, out int lowerIndex, out int upperIndex)
+        {
+            lowerIndex = -1;
+            upperIndex = -1;
+            for (var index = startIndex; index < endExclusive; index++)
             {
-                var previousPrice = history[index - 1];
-                var currentPrice = history[index];
-                if (!IsFinitePositive(previousPrice) || !IsFinitePositive(currentPrice)) continue;
-
-                var previousMatched = IsConditionMet(previousPrice, targetPrice, isAbove);
-                var currentMatched = IsConditionMet(currentPrice, targetPrice, isAbove);
-                var crossed = enteringCondition
-                    ? !previousMatched && currentMatched
-                    : previousMatched && !currentMatched;
-                if (!crossed) continue;
-
-                localIndex = Math.Abs((double)currentPrice - targetPrice) <=
-                             Math.Abs((double)previousPrice - targetPrice)
-                    ? index
-                    : index - 1;
-                if (firstMatch) return true;
+                var tick = sampleTicks[index];
+                if (tick <= eventServerTick) lowerIndex = index;
+                if (tick >= eventServerTick)
+                {
+                    upperIndex = index;
+                    break;
+                }
             }
-            return localIndex >= 0;
+
+            if (lowerIndex >= 0 && upperIndex >= 0) return true;
+
+            if (lowerIndex < 0 && upperIndex >= 0)
+            {
+                var interval = upperIndex + 1 < endExclusive
+                    ? sampleTicks[upperIndex + 1] - sampleTicks[upperIndex]
+                    : upperIndex > startIndex ? sampleTicks[upperIndex] - sampleTicks[upperIndex - 1] : 0L;
+                if (interval <= 0L || sampleTicks[upperIndex] - eventServerTick > interval) return false;
+                lowerIndex = upperIndex;
+                return true;
+            }
+
+            if (upperIndex < 0 && lowerIndex >= startIndex)
+            {
+                var interval = lowerIndex > startIndex
+                    ? sampleTicks[lowerIndex] - sampleTicks[lowerIndex - 1]
+                    : lowerIndex + 1 < endExclusive ? sampleTicks[lowerIndex + 1] - sampleTicks[lowerIndex] : 0L;
+                if (interval <= 0L || eventServerTick - sampleTicks[lowerIndex] > interval) return false;
+                upperIndex = lowerIndex;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static int FindNearestEventSample(IReadOnlyList<float> history,
+            IReadOnlyList<long> sampleTicks, int lowerIndex, int upperIndex, double eventServerTick,
+            float targetPrice, bool isAbove)
+        {
+            if (lowerIndex == upperIndex)
+                return IsFinitePositive(history[lowerIndex]) ? lowerIndex : -1;
+
+            var lowerDistance = Math.Abs(eventServerTick - sampleTicks[lowerIndex]);
+            var upperDistance = Math.Abs(eventServerTick - sampleTicks[upperIndex]);
+            if (lowerDistance < upperDistance)
+                return IsFinitePositive(history[lowerIndex]) ? lowerIndex : upperIndex;
+            if (upperDistance < lowerDistance)
+                return IsFinitePositive(history[upperIndex]) ? upperIndex : lowerIndex;
+
+            return FindClosestPoint(history, lowerIndex, upperIndex + 1, targetPrice, isAbove);
         }
 
         private static int FindClosestPoint(IReadOnlyList<float> history, int startIndex, int endExclusive,
@@ -269,41 +341,6 @@ namespace ScreenStocksBridge
             }
 
             return closestIndex;
-        }
-
-        private static bool TryGetSearchEndIndex(StockManager stockManager, string stockId, int historyCount,
-            out int endExclusive)
-        {
-            endExclusive = historyCount;
-            try
-            {
-                var source = stockManager.Source;
-                if (source == null) return false;
-
-                // Local market sources have no separate server stream; their full history is authoritative.
-                if (!(source is RemoteMarketDataSource remoteSource))
-                    return true;
-
-                var serverTick = source.ServerTick;
-                var sampleTicks = remoteSource.GetHistorySampleTicks(stockId);
-                if (sampleTicks == null || sampleTicks.Count != historyCount)
-                    return false;
-
-                for (var index = sampleTicks.Count - 1; index >= 0; index--)
-                {
-                    if (sampleTicks[index] > serverTick) continue;
-                    endExclusive = index + 1;
-                    return true;
-                }
-
-                // Do not fall back to later client-side samples if no server-confirmed point is retained.
-                return false;
-            }
-            catch
-            {
-                // A stale or unavailable remote-history boundary is safer to skip than to search past it.
-                return false;
-            }
         }
 
         private static bool IsConditionMet(float price, float targetPrice, bool isAbove)
@@ -507,17 +544,15 @@ namespace ScreenStocksBridge
             internal readonly int MarkerIndex;
             internal readonly MarkerValue Original;
             internal readonly ActionSettings Settings;
-            internal readonly bool IsPrediction;
             internal readonly float CapturedAt;
 
             internal MarkerCapture(IList markers, int markerIndex, MarkerValue original,
-                ActionSettings settings, bool isPrediction, float capturedAt)
+                ActionSettings settings, float capturedAt)
             {
                 Markers = markers;
                 MarkerIndex = markerIndex;
                 Original = original;
                 Settings = settings;
-                IsPrediction = isPrediction;
                 CapturedAt = capturedAt;
             }
         }

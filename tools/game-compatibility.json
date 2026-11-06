@@ -10,6 +10,12 @@
   "harmonyVersion": "2.9.0.0",
   "methods": [
     {
+      "type": "RemoteMarketDataSource",
+      "name": "ApplyPollResult",
+      "returnType": "System.Void",
+      "parameters": ["ScreenStocks.Net.ApiResult`1<ScreenStocks.Net.PricesResponse>"]
+    },
+    {
       "type": "GameManager",
       "name": "GetUpgradePriceAtLevel",
       "returnType": "BigNumber",
@@ -609,6 +615,12 @@
     }
   ],
   "fields": [
+    {
+      "type": "UILineGraph",
+      "name": "_visiblePointCount",
+      "fieldType": "System.Int32",
+      "public": false
+    },
     {
       "type": "ScreenStocks.Net.UpgradeViewDto",
       "name": "baseValue",

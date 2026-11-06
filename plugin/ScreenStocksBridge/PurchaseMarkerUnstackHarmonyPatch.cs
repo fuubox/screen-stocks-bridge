@@ -18,6 +18,8 @@ namespace ScreenStocksBridge
             "_purchaseMarkers", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo? VisibleDataCountField = typeof(UILineGraph).GetField(
             "_visibleDataCount", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo? VisiblePointCountField = typeof(UILineGraph).GetField(
+            "_visiblePointCount", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo? FirstVisibleTickField = typeof(UILineGraph).GetField(
             "_firstVisibleTick", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo? MinimumPriceField = typeof(UILineGraph).GetField(
@@ -35,8 +37,6 @@ namespace ScreenStocksBridge
             "Price", BindingFlags.Instance | BindingFlags.Public);
         private static readonly FieldInfo? MarkerIsBuyField = PurchaseMarkerType?.GetField(
             "IsBuy", BindingFlags.Instance | BindingFlags.Public);
-        private static readonly FieldInfo? MarkerIsShortField = PurchaseMarkerType?.GetField(
-            "IsShort", BindingFlags.Instance | BindingFlags.Public);
 
         private static bool _reportedFailure;
 
@@ -50,11 +50,11 @@ namespace ScreenStocksBridge
                 nameof(RestoreAfterDraw), BindingFlags.Static | BindingFlags.NonPublic);
 
             if (DrawPurchaseMarkersMethod == null || PurchaseMarkersField == null ||
-                VisibleDataCountField == null || FirstVisibleTickField == null ||
+                VisibleDataCountField == null || VisiblePointCountField == null || FirstVisibleTickField == null ||
                 MinimumPriceField == null || MaximumPriceField == null ||
                 MarkerRadiusField == null || MarkerStrokeWidthField == null ||
                 MarkerDataIndexField == null || MarkerPriceField == null ||
-                MarkerIsBuyField == null || MarkerIsShortField == null || prefix == null || finalizer == null)
+                MarkerIsBuyField == null || prefix == null || finalizer == null)
                 throw new MissingMethodException("Could not locate the stock graph purchase-marker draw method or fields.");
 
             harmony.Patch(DrawPurchaseMarkersMethod,
@@ -73,11 +73,10 @@ namespace ScreenStocksBridge
             try
             {
                 if (PurchaseMarkersField?.GetValue(__instance) is not IList markers ||
-                    VisibleDataCountField == null || FirstVisibleTickField == null ||
+                    VisibleDataCountField == null || VisiblePointCountField == null || FirstVisibleTickField == null ||
                     MinimumPriceField == null || MaximumPriceField == null ||
                     MarkerRadiusField == null || MarkerStrokeWidthField == null ||
-                    MarkerDataIndexField == null || MarkerPriceField == null || MarkerIsBuyField == null ||
-                    MarkerIsShortField == null)
+                    MarkerDataIndexField == null || MarkerPriceField == null || MarkerIsBuyField == null)
                     return;
 
                 var visibleDataCount = (int)VisibleDataCountField.GetValue(__instance)!;
@@ -98,7 +97,10 @@ namespace ScreenStocksBridge
                 if (minimumMarkerPrice >= maximumMarkerPrice) return;
 
                 var visibleLastTick = firstVisibleTick + visibleDataCount - 1L;
-                var visibleDrawLastTick = visibleLastTick + 4L;
+                var visibleDrawLastTick = firstVisibleTick + visibleDataCount + 4L;
+                var visiblePointCount = (int)VisiblePointCountField!.GetValue(__instance)!;
+                if (visiblePointCount < 2 || drawRect.width <= 0f) return;
+                var xPerTick = drawRect.width / (visiblePointCount - 1);
                 var candidates = new List<MarkerPoint>(markers.Count);
                 for (var markerIndex = 0; markerIndex < markers.Count; markerIndex++)
                 {
@@ -110,17 +112,15 @@ namespace ScreenStocksBridge
 
                     var price = (float)MarkerPriceField.GetValue(marker)!;
                     // Match the native renderer: off-range markers are not part of the visible graph.
-                    if (price < minimumPrice || price > maximumPrice) continue;
+                    if (float.IsNaN(price) || float.IsInfinity(price) || price < minimumPrice || price > maximumPrice) continue;
 
-                    // The native renderer maps its final four accepted ticks onto the last visible x position.
+                    // Match all spillover samples accepted and clamped by the native renderer.
                     var displayedTick = Math.Min(dataIndex, visibleLastTick);
                     candidates.Add(new MarkerPoint(markerIndex, displayedTick,
-                        price, (bool)MarkerIsBuyField.GetValue(marker)!,
-                        (bool)MarkerIsShortField.GetValue(marker)!));
+                        price, (bool)MarkerIsBuyField.GetValue(marker)!));
                 }
 
                 if (candidates.Count < 2) return;
-                candidates = ResolveXStackedActionSides(candidates);
                 candidates.Sort((left, right) =>
                 {
                     var byTick = left.DisplayedTick.CompareTo(right.DisplayedTick);
@@ -128,7 +128,7 @@ namespace ScreenStocksBridge
                 });
 
                 var changes = CalculateVerticalOffsets(candidates, minimumMarkerPrice, maximumMarkerPrice,
-                    markerDiameter * pricePerLocalUnit);
+                    (markerDiameter + markerStroke + 1f) * pricePerLocalUnit, xPerTick * pricePerLocalUnit);
                 if (changes.Count == 0) return;
 
                 __state = new MarkerDrawState(markers, changes);
@@ -143,159 +143,83 @@ namespace ScreenStocksBridge
         }
 
         private static List<PriceChange> CalculateVerticalOffsets(List<MarkerPoint> candidates,
-            float minimumPrice, float maximumPrice, float maximumPriceOffset)
+            float minimumPrice, float maximumPrice, float spacing, float horizontalScale)
         {
             var changes = new List<PriceChange>();
-            var firstCandidate = 0;
-            while (firstCandidate < candidates.Count)
+            var colliding = new bool[candidates.Count];
+            for (var i = 0; i < candidates.Count; i++)
+                for (var j = i + 1; j < candidates.Count; j++)
+                {
+                    var dx = (candidates[j].DisplayedTick - candidates[i].DisplayedTick) * horizontalScale;
+                    if (candidates[j].DisplayedTick - candidates[i].DisplayedTick > ClusterWindowTicks) break;
+                    var dy = candidates[j].Price - candidates[i].Price;
+                    if (dx * dx + dy * dy >= spacing * spacing) continue;
+                    colliding[i] = colliding[j] = true;
+                }
+
+            // Preserve isolated dots and treat them as obstacles for moved dots.
+            var placed = new List<MarkerPoint>();
+            for (var i = 0; i < candidates.Count; i++)
+                if (!colliding[i]) placed.Add(candidates[i]);
+            for (var i = 0; i < candidates.Count; i++)
             {
-                var afterCluster = firstCandidate + 1;
-                while (afterCluster < candidates.Count &&
-                       candidates[afterCluster].DisplayedTick - candidates[afterCluster - 1].DisplayedTick <= ClusterWindowTicks)
-                    afterCluster++;
+                if (!colliding[i]) continue;
+                var marker = candidates[i];
+                var bands = new List<VerticalBand>();
+                foreach (var other in placed)
+                {
+                    var ticks = Math.Abs(marker.DisplayedTick - other.DisplayedTick);
+                    var dx = ticks * horizontalScale;
+                    if (ticks > ClusterWindowTicks || dx >= spacing) continue;
+                    var clearance = (float)Math.Sqrt(spacing * spacing - dx * dx);
+                    bands.Add(new VerticalBand(other.Price - clearance, other.Price + clearance));
+                }
+                bands.Sort((a, b) => a.Low.CompareTo(b.Low));
+                var free = new List<VerticalBand>();
+                var cursor = minimumPrice;
+                foreach (var band in bands)
+                {
+                    if (band.High < cursor) continue;
+                    if (band.Low > cursor) free.Add(new VerticalBand(cursor, Math.Min(band.Low, maximumPrice)));
+                    cursor = Math.Max(cursor, band.High);
+                    if (cursor > maximumPrice) break;
+                }
+                if (cursor <= maximumPrice) free.Add(new VerticalBand(cursor, maximumPrice));
 
-                var clusterCount = afterCluster - firstCandidate;
-                if (clusterCount > 1)
-                    AddClusterOffsets(candidates, firstCandidate, afterCluster, minimumPrice, maximumPrice,
-                        maximumPriceOffset, changes);
-
-                firstCandidate = afterCluster;
+                // IsBuy is authoritative, including CloseShort. Prefer buys below
+                // execution and sells above it, with full circle clearance per lane.
+                var desired = marker.Price + (marker.IsBuy ? -spacing / 2f : spacing / 2f);
+                var selected = Mathf.Clamp(desired, minimumPrice, maximumPrice);
+                var bestDistance = float.PositiveInfinity;
+                var preferred = new List<VerticalBand>();
+                foreach (var interval in free)
+                {
+                    var low = marker.IsBuy ? interval.Low : Math.Max(interval.Low, desired);
+                    var high = marker.IsBuy ? Math.Min(interval.High, desired) : interval.High;
+                    if (low <= high) preferred.Add(new VerticalBand(low, high));
+                }
+                foreach (var interval in preferred.Count > 0 ? preferred : free)
+                {
+                    var candidate = Mathf.Clamp(desired, interval.Low, interval.High);
+                    var distance = Math.Abs(candidate - desired);
+                    if (distance >= bestDistance) continue;
+                    selected = candidate;
+                    bestDistance = distance;
+                }
+                // If the plot cannot fit another circle, retain a visible dot.
+                // No horizontal shift or data deletion is used to hide congestion.
+                placed.Add(new MarkerPoint(marker.MarkerIndex, marker.DisplayedTick, selected, marker.IsBuy));
+                if (!Mathf.Approximately(selected, marker.Price))
+                    changes.Add(new PriceChange(marker.MarkerIndex, marker.Price, selected));
             }
-
             return changes;
         }
 
-        private static void AddClusterOffsets(List<MarkerPoint> candidates, int start, int end,
-            float minimumPrice, float maximumPrice, float maximumPriceOffset, List<PriceChange> changes)
+        private readonly struct VerticalBand
         {
-            var sellMarkers = new List<MarkerPoint>();
-            var buyMarkers = new List<MarkerPoint>();
-            for (var index = start; index < end; index++)
-            {
-                var marker = candidates[index];
-                if (marker.IsBuySide) buyMarkers.Add(marker);
-                else sellMarkers.Add(marker);
-            }
-
-            sellMarkers.Sort((left, right) =>
-            {
-                var byPrice = left.Price.CompareTo(right.Price);
-                return byPrice != 0 ? byPrice : left.MarkerIndex.CompareTo(right.MarkerIndex);
-            });
-            buyMarkers.Sort((left, right) =>
-            {
-                var byPrice = left.Price.CompareTo(right.Price);
-                return byPrice != 0 ? byPrice : left.MarkerIndex.CompareTo(right.MarkerIndex);
-            });
-
-            // IsBuy represents trade side: a short cover is buy-side, while a long close is sell-side.
-            // A lone marker on either side stays put; opposite-side overlap is not a collision.
-            if (sellMarkers.Count > 1)
-            {
-                OrderPairedMarkers(sellMarkers, buySide: false);
-                for (var index = 0; index < sellMarkers.Count; index++)
-                {
-                    var fraction = (index + 1f) / sellMarkers.Count;
-                    AddOffset(sellMarkers[index], fraction * maximumPriceOffset,
-                        minimumPrice, maximumPrice, changes);
-                }
-            }
-
-            if (buyMarkers.Count > 1)
-            {
-                OrderPairedMarkers(buyMarkers, buySide: true);
-                for (var index = 0; index < buyMarkers.Count; index++)
-                {
-                    var fraction = (buyMarkers.Count - index) / (float)buyMarkers.Count;
-                    AddOffset(buyMarkers[index], -fraction * maximumPriceOffset,
-                        minimumPrice, maximumPrice, changes);
-                }
-            }
-        }
-
-        private static List<MarkerPoint> ResolveXStackedActionSides(List<MarkerPoint> candidates)
-        {
-            var resolved = new List<MarkerPoint>(candidates.Count);
-            for (var index = 0; index < candidates.Count; index++)
-            {
-                var marker = candidates[index];
-                if (marker.IsBuy && marker.IsShort &&
-                    TryFindXStackedCounterpart(candidates, index, out var counterpart))
-                {
-                    // A dual-flag marker is ambiguous until its x-aligned action is present:
-                    // with a short it is a sell; with a buy it is a short cover.
-                    marker = marker.WithResolvedSide(counterpart.IsBuy, counterpart.MarkerIndex);
-                }
-                resolved.Add(marker);
-            }
-
-            return resolved;
-        }
-
-        private static bool TryFindXStackedCounterpart(List<MarkerPoint> candidates, int markerIndex,
-            out MarkerPoint counterpart)
-        {
-            var marker = candidates[markerIndex];
-            counterpart = default;
-            var found = false;
-            var closestPriceDistance = double.PositiveInfinity;
-            for (var index = 0; index < candidates.Count; index++)
-            {
-                if (index == markerIndex) continue;
-                var candidate = candidates[index];
-                if (candidate.DisplayedTick != marker.DisplayedTick || candidate.IsBuy == candidate.IsShort)
-                    continue;
-
-                var priceDistance = Math.Abs((double)candidate.Price - marker.Price);
-                if (priceDistance > closestPriceDistance ||
-                    (priceDistance == closestPriceDistance && found && candidate.MarkerIndex > counterpart.MarkerIndex))
-                    continue;
-
-                counterpart = candidate;
-                closestPriceDistance = priceDistance;
-                found = true;
-            }
-
-            return found;
-        }
-
-        private static void OrderPairedMarkers(List<MarkerPoint> markers, bool buySide)
-        {
-            for (var index = 0; index < markers.Count; index++)
-            {
-                var marker = markers[index];
-                if (marker.PairedMarkerIndex < 0) continue;
-
-                var counterpartIndex = -1;
-                for (var candidateIndex = 0; candidateIndex < markers.Count; candidateIndex++)
-                {
-                    if (markers[candidateIndex].MarkerIndex != marker.PairedMarkerIndex) continue;
-                    counterpartIndex = candidateIndex;
-                    break;
-                }
-                if (counterpartIndex < 0) continue;
-
-                // Buy-side cover markers go below their paired buy; sell-side markers go above their short.
-                var pairShouldComeFirst = buySide;
-                if ((pairShouldComeFirst && index > counterpartIndex) ||
-                    (!pairShouldComeFirst && index < counterpartIndex))
-                {
-                    var paired = markers[index];
-                    markers[index] = markers[counterpartIndex];
-                    markers[counterpartIndex] = paired;
-                }
-            }
-        }
-
-        private static void AddOffset(MarkerPoint marker, float desiredOffset, float minimumPrice,
-            float maximumPrice, List<PriceChange> changes)
-        {
-            var boundedPrice = Mathf.Clamp(marker.Price + desiredOffset, minimumPrice, maximumPrice);
-            if ((desiredOffset > 0f && boundedPrice <= marker.Price) ||
-                (desiredOffset < 0f && boundedPrice >= marker.Price))
-                return;
-            if (Mathf.Approximately(boundedPrice, marker.Price)) return;
-            changes.Add(new PriceChange(marker.MarkerIndex, marker.Price, boundedPrice));
+            internal readonly float Low;
+            internal readonly float High;
+            internal VerticalBand(float low, float high) { Low = low; High = high; }
         }
 
         private static void ApplyPriceChanges(IList markers, List<PriceChange> changes)
@@ -342,35 +266,14 @@ namespace ScreenStocksBridge
             internal readonly long DisplayedTick;
             internal readonly float Price;
             internal readonly bool IsBuy;
-            internal readonly bool IsShort;
-            internal readonly bool IsBuySide;
-            internal readonly int PairedMarkerIndex;
 
-            internal MarkerPoint(int markerIndex, long displayedTick, float price, bool isBuy, bool isShort)
+            internal MarkerPoint(int markerIndex, long displayedTick, float price, bool isBuy)
             {
                 MarkerIndex = markerIndex;
                 DisplayedTick = displayedTick;
                 Price = price;
                 IsBuy = isBuy;
-                IsShort = isShort;
-                IsBuySide = isBuy;
-                PairedMarkerIndex = -1;
             }
-
-            private MarkerPoint(int markerIndex, long displayedTick, float price, bool isBuy, bool isShort,
-                bool isBuySide, int pairedMarkerIndex)
-            {
-                MarkerIndex = markerIndex;
-                DisplayedTick = displayedTick;
-                Price = price;
-                IsBuy = isBuy;
-                IsShort = isShort;
-                IsBuySide = isBuySide;
-                PairedMarkerIndex = pairedMarkerIndex;
-            }
-
-            internal MarkerPoint WithResolvedSide(bool isBuySide, int pairedMarkerIndex) =>
-                new MarkerPoint(MarkerIndex, DisplayedTick, Price, IsBuy, IsShort, isBuySide, pairedMarkerIndex);
         }
 
         private readonly struct PriceChange

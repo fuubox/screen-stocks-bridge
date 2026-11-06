@@ -133,7 +133,7 @@ namespace ScreenStocksBridge
                 "On server confirmation, reposition auto-action graph dots using each slot's trigger settings and visible price history. Disabled by default.");
             CorrectAutoActionGraphMarkers.SettingChanged += OnAutoActionGraphMarkerSettingChanged;
             UnstackPurchaseMarkersWithin15Ticks = Config.Bind("Graph", "UnstackPurchaseMarkersWithin15Ticks", false,
-                "For same-side graph dots within 15 ticks, bump sell-side markers up and buy-side markers down by at most one marker diameter. Dual-flag markers inherit the side of their x-aligned action marker. This changes graph display only.");
+                "Separate overlapping graph dots vertically within 15 displayed ticks, preserving horizontal positions. Buys and short covers prefer below; sells and shorts prefer above. Use remaining plot space at edges. This changes graph display only.");
             UnstackPurchaseMarkersWithin15Ticks.SettingChanged += OnPurchaseMarkerUnstackSettingChanged;
             ShowTrackingDebugText = Config.Bind("Graph", "ShowTrackingDebugText", false,
                 "Show the debug TRACKING label when the activity focus matches the displayed stock graph. Disabled by default.");
