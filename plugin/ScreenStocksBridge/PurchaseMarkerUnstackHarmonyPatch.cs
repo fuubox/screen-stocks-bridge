@@ -91,7 +91,10 @@ namespace ScreenStocksBridge
                 var markerDiameter = markerRadius * 2f;
                 if (pricePerLocalUnit <= 0f || markerDiameter <= 0f) return;
 
-                var markerClearance = markerRadius + markerStroke + 1f;
+                // Graph coordinates are local units, not screen pixels. A fixed
+                // one-unit gap dwarfs circles on the live 8-by-4 graph.
+                var markerGap = markerRadius * 0.2f;
+                var markerClearance = markerRadius + markerStroke + markerGap;
                 var minimumMarkerPrice = minimumPrice + (markerClearance * pricePerLocalUnit);
                 var maximumMarkerPrice = maximumPrice - (markerClearance * pricePerLocalUnit);
                 if (minimumMarkerPrice >= maximumMarkerPrice) return;
@@ -128,7 +131,7 @@ namespace ScreenStocksBridge
                 });
 
                 var changes = CalculateVerticalOffsets(candidates, minimumMarkerPrice, maximumMarkerPrice,
-                    (markerDiameter + markerStroke + 1f) * pricePerLocalUnit, xPerTick * pricePerLocalUnit);
+                    (markerDiameter + markerStroke + markerGap) * pricePerLocalUnit, xPerTick * pricePerLocalUnit);
                 if (changes.Count == 0) return;
 
                 __state = new MarkerDrawState(markers, changes);

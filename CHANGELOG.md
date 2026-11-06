@@ -5,6 +5,8 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-05
+
 ### Changed
 
 - Replace activity v1 with the breaking, explicitly negotiated activity v2
@@ -29,6 +31,9 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ### Fixed
 
+- Scale purchase-marker collision padding with the native dot radius. Fixed
+  one-unit padding was treating separated dots as overlapping and displacing
+  auto-action markers far from their execution line on the live graph.
 - Separate overlapping marker circles vertically with full clearance, including
   opposite-side overlaps and the native right-edge spillover. Preserve horizontal
   positions and the game's explicit buy-side flag for short covers. Prefer each

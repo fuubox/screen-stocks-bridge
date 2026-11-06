@@ -29,6 +29,7 @@ public static class MarkerRegression
             harness.Patch(AccessTools.Method(typeof(UILineGraph), "DrawCircle"), prefix: new HarmonyMethod(typeof(MarkerRegression), nameof(Circle)));
             PurchaseMarkerUnstackHarmonyPatch.Enabled = true;
             PurchaseMarkerUnstackHarmonyPatch.Install(harness);
+            DrawScaledCase();
             DrawCase("two coincident buys", new[] { Marker(true, false), Marker(true, false) }, true);
             DrawCase("three coincident buys", new[] { Marker(true, false), Marker(true, false), Marker(true, false) }, true);
             DrawCase("one buy and one sell", new[] { Marker(true, false), Marker(false, false) }, true);
@@ -61,6 +62,34 @@ public static class MarkerRegression
         finally { harness.UnpatchSelf(); PurchaseMarkerUnstackHarmonyPatch.Enabled = enabled; AutoActionGraphMarkerHarmonyPatch.Clear(); }
     }
     static bool Circle(Vector2 __1) { Centers.Add(__1); if (_throwCircle) throw new InvalidOperationException("controlled draw failure"); return false; }
+    static void DrawScaledCase()
+    {
+        // The live graph is roughly 8 by 4 local units, scaled up on screen.
+        // Collision padding must scale with its circles, not assume local units are pixels.
+        var graph = (UILineGraph)New(typeof(UILineGraph)); Alive(graph);
+        var markers = new List<UILineGraph.PurchaseMarker> { Marker(true, false), Marker(true, false) };
+        Set(graph, "_purchaseMarkers", markers); Set(graph, "_visibleDataCount", 100); Set(graph, "_visiblePointCount", 100);
+        Set(graph, "_firstVisibleTick", 0L); Set(graph, "_minValue", 0f); Set(graph, "_maxValue", 100f);
+        Set(graph, "_purchaseMarkerRadius", .08f); Set(graph, "_purchaseMarkerStrokeWidth", .02f);
+        Centers.Clear();
+        typeof(UILineGraph).GetMethod("DrawPurchaseMarkers", Fields).Invoke(graph, new object?[] { null, new Rect(-4, -2, 8, 4) });
+        Check(Centers.Count == 2 && Centers.All(p => Math.Abs(p.y) < .4f),
+            "live-scale stacked markers stay near execution price", "centers=" + string.Join(",", Centers.Select(p => p.y)));
+        Check(Centers.Count == 2 && Math.Abs(Centers[0].y - Centers[1].y) >= .16f,
+            "live-scale stacked circles remain separated", "diameter=.16 local units");
+        Check(markers.All(m => m.Price == 50), "live-scale draw restores execution prices", "after draw");
+        markers[1] = new UILineGraph.PurchaseMarker { DataIndex = 54, Price = 50, IsBuy = false };
+        Centers.Clear();
+        typeof(UILineGraph).GetMethod("DrawPurchaseMarkers", Fields).Invoke(graph, new object?[] { null, new Rect(-4, -2, 8, 4) });
+        Check(Centers.Count == 2 && Centers.All(p => Math.Abs(p.y) < .001f),
+            "live-scale separated trades stay on execution line", "centers=" + string.Join(",", Centers.Select(p => p.y)));
+        markers[0] = new UILineGraph.PurchaseMarker { DataIndex = 50, Price = 99, IsBuy = true };
+        markers[1] = new UILineGraph.PurchaseMarker { DataIndex = 51, Price = 99, IsBuy = false };
+        Centers.Clear();
+        typeof(UILineGraph).GetMethod("DrawPurchaseMarkers", Fields).Invoke(graph, new object?[] { null, new Rect(-4, -2, 8, 4) });
+        Check(Centers.Count == 2 && Centers.All(p => Math.Abs(p.y - 1.96f) < .4f),
+            "live-scale trades near chart top stay near execution line", "centers=" + string.Join(",", Centers.Select(p => p.y)));
+    }
     static UILineGraph.PurchaseMarker Marker(bool buy, bool shortTrade)
         => new UILineGraph.PurchaseMarker { DataIndex = 50, Price = 50, IsBuy = buy, IsShort = shortTrade };
     static void DrawCase(string name, UILineGraph.PurchaseMarker[] values, bool requireSeparation, bool coverBelow = false, bool unchanged = false, bool throwDraw = false)

@@ -31,6 +31,9 @@ internal static class MarketStreamRegression
         try
         {
             module.Install();
+            module.Handle(new BridgeRequest { id = "capabilities", method = "market.stream_status" }, connection);
+            Require(Frames(connection).Any(x => x.Contains("\"bridgeVersion\":\"0.16.0\"") && x.Contains("\"candleSchemaVersion\":1")),
+                "canonical candle consumers can verify the minimum bridge version and candle schema");
             module.SubscribeState(connection);
             var baseline = "{ \"type\":\"priceVectorBaseline\",\"sequence\":1,\"data\":{\"layoutRevision\":\"L\",\"stockIds\":[\"A\"],\"prices\":[10],\"serverTimeMs\":1100,\"tick\":1}}";
             WithRaw(realtime, baseline, () => typeof(ScreenStocksRealtimeClient).GetMethod("ApplyPriceVectorBaseline", Flags).Invoke(realtime,

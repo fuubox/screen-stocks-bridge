@@ -7,6 +7,11 @@ requests or submit trades.
 
 ## Controls and events
 
+Canonical candle consumers require bridge/SDK 0.16.0 or newer. The
+`market.stream_status` response advertises `bridgeVersion` and
+`candleSchemaVersion: 1`; check these alongside `hooksAvailable` before ingesting.
+The release number alone does not establish that native hooks are operational.
+
 | Operation | Parameters | Meaning |
 | --- | --- | --- |
 | `market.stream_status` | None | Global cadence, instant mode, hook availability, source and generation status |

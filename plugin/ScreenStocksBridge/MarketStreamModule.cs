@@ -299,7 +299,7 @@ namespace ScreenStocksBridge
             catch (Exception ex) { connection.Send(ProtocolJson.Error(request.id, "market_stream_unavailable", ex.Message), false); }
         }
 
-        private string ControlsJson() => "{\"snapshotRateHz\":" + _cadence.RateHz.ToString("R", CultureInfo.InvariantCulture) +
+        private string ControlsJson() => "{\"bridgeVersion\":" + Q(Plugin.PluginVersion) + ",\"candleSchemaVersion\":1,\"snapshotRateHz\":" + _cadence.RateHz.ToString("R", CultureInfo.InvariantCulture) +
             ",\"instant\":" + (_instant ? "true" : "false") + ",\"hooksAvailable\":" + (Available ? "true" : "false") + ",\"feed\":" + StatusJson() + "}";
         private string StatusJson() => "{\"sourceGeneration\":" + Q(_sourceGeneration) + ",\"candleGeneration\":" + Q(_candles.Generation) +
             ",\"lastCaptureError\":" + (_lastCaptureError == null ? "null" : Q(_lastCaptureError)) +
