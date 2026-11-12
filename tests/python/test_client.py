@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from screenstocks_bridge import BridgeClient, BridgeError, Stock
+from screenstocks_bridge import BridgeClient, BridgeError, Position, Stock
 
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "offline_summary_result.json"
@@ -315,6 +315,21 @@ class StockModelTests(unittest.TestCase):
         self.assertEqual(30000, stock.max_volume)
         self.assertEqual("12345678901234567890", stock.effective_max_volume)
         self.assertEqual(120, stock.available_shares)
+
+
+class PositionModelTests(unittest.TestCase):
+    def test_remaining_close_impact_is_read_and_defaults_to_zero(self) -> None:
+        position = Position.from_dict({
+            "stockId": "$TECH", "sharesOwned": "10", "averageBuyPrice": "12.5",
+            "sharesShorted": "0", "averageShortPrice": "0",
+            "remainingLongCloseImpact": 0.25, "remainingShortCloseImpact": 1,
+        })
+        self.assertEqual(0.25, position.remaining_long_close_impact)
+        self.assertEqual(1.0, position.remaining_short_close_impact)
+
+        older = Position.from_dict({"stockId": "$TECH", "sharesOwned": "10"})
+        self.assertEqual(0.0, older.remaining_long_close_impact)
+        self.assertEqual(0.0, older.remaining_short_close_impact)
 
 
 if __name__ == "__main__":

@@ -131,13 +131,17 @@ class Position:
     average_buy_price: str
     shares_shorted: str
     average_short_price: str
+    remaining_long_close_impact: float
+    remaining_short_close_impact: float
     raw: dict[str, Any] = field(repr=False)
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> Position:
         return cls(str(value.get("stockId", "")), str(value.get("sharesOwned", "0")),
                    str(value.get("averageBuyPrice", "0")), str(value.get("sharesShorted", "0")),
-                   str(value.get("averageShortPrice", "0")), value)
+                   str(value.get("averageShortPrice", "0")),
+                   float(value.get("remainingLongCloseImpact", 0.0)),
+                   float(value.get("remainingShortCloseImpact", 0.0)), value)
 
 
 @dataclass(frozen=True)

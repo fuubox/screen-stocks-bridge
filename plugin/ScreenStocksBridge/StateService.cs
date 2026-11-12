@@ -62,7 +62,9 @@ namespace ScreenStocksBridge
                     sharesOwned = FormatBigNumber(position.sharesOwned),
                     averageBuyPrice = position.averageBuyPrice.ToString("R", CultureInfo.InvariantCulture),
                     sharesShorted = FormatBigNumber(position.sharesShorted),
-                    averageShortPrice = position.averageShortPrice.ToString("R", CultureInfo.InvariantCulture)
+                    averageShortPrice = position.averageShortPrice.ToString("R", CultureInfo.InvariantCulture),
+                    remainingLongCloseImpact = position.remainingLongCloseImpact,
+                    remainingShortCloseImpact = position.remainingShortCloseImpact
                 });
             }
             return snapshot;

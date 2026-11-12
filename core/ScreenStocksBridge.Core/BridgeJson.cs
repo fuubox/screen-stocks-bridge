@@ -340,7 +340,9 @@ namespace ScreenStocksBridge
                 .Append(",\"sharesOwned\":").Append(Quote(value.sharesOwned))
                 .Append(",\"averageBuyPrice\":").Append(Quote(value.averageBuyPrice))
                 .Append(",\"sharesShorted\":").Append(Quote(value.sharesShorted))
-                .Append(",\"averageShortPrice\":").Append(Quote(value.averageShortPrice)).Append('}');
+                .Append(",\"averageShortPrice\":").Append(Quote(value.averageShortPrice))
+                .Append(",\"remainingLongCloseImpact\":").Append(Number(value.remainingLongCloseImpact))
+                .Append(",\"remainingShortCloseImpact\":").Append(Number(value.remainingShortCloseImpact)).Append('}');
         }
 
         private static void AppendCooldowns(StringBuilder json, TradeCooldownsDto value)

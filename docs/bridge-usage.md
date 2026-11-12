@@ -105,7 +105,7 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 - `dividendPayoutPerCycle`: the exact amount calculated for one dividend payout cycle. This matches the amount used by the game's Dividends display; the game derives it from its per-minute calculation and the effective payout interval.
 - `marketClock`: synchronized server-time evidence and the local-settings dividend schedule; timer fields are null when unsynchronized. See [market clock and streams](market-streams.md).
 - `stocks`: stocks visible to the current player and edition. Each record includes `stockId`, `name`, current `price`, `unlocked`, `basePrice`, `priceCap`, `dividendRate`, `baseDividendRate`, `maxVolume`, `effectiveMaxVolume`, and `availableShares`. `dividendRate` applies the game's current dividend payout multipliers; `baseDividendRate` preserves the stock definition's unmodified rate. The per-stock rate does not include price, player holdings, or payout interval, so use the top-level dividend totals to read actual income.
-- `positions`: the player's long and short holdings and average prices.
+- `positions`: the player's long and short holdings and average prices, plus `remainingLongCloseImpact` and `remainingShortCloseImpact`. Each is a number from 0 to 1: the share of full player trade impact that closing the rest of that side would apply, as last reported by the server. The game resets it to 1 when a new position opens and reduces it on partial closes.
 - `cooldowns` and `autoActions`: trade cooldown and auto-action state described below.
 
 The stock list is intentionally scoped to stocks visible to the player; it is not a dump of hidden or unavailable stock definitions. Use each returned `stockId` in later calls rather than inventing identifiers.
