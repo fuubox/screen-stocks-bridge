@@ -226,4 +226,22 @@ public sealed class ProtocolSerializationTests
         Assert.Equal("12345678901234567890", serializedStock.GetProperty("effectiveMaxVolume").GetString());
         Assert.Equal(120, serializedStock.GetProperty("availableShares").GetInt32());
     }
+
+    [Fact]
+    public void SnapshotIncludesRemainingCloseImpactPerSide()
+    {
+        var snapshot = new StateSnapshotDto();
+        snapshot.positions.Add(new PositionDto
+        {
+            stockId = "$TECH",
+            sharesOwned = "10",
+            remainingLongCloseImpact = 0.25f,
+            remainingShortCloseImpact = 1f
+        });
+        using var document = JsonDocument.Parse(BridgeJson.SerializeSnapshot(snapshot));
+        var position = document.RootElement.GetProperty("positions")[0];
+
+        Assert.Equal(0.25, position.GetProperty("remainingLongCloseImpact").GetDouble());
+        Assert.Equal(1.0, position.GetProperty("remainingShortCloseImpact").GetDouble());
+    }
 }

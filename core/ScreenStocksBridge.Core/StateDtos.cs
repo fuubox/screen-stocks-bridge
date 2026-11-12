@@ -204,6 +204,8 @@ namespace ScreenStocksBridge
         public string averageBuyPrice = "0";
         public string sharesShorted = "0";
         public string averageShortPrice = "0";
+        public float remainingLongCloseImpact;
+        public float remainingShortCloseImpact;
     }
 
     [Serializable]

@@ -5,6 +5,11 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Added
+
+- Include each position's `remainingLongCloseImpact` and `remainingShortCloseImpact`
+  in snapshots and expose them on the Python `Position` model.
+
 ## [0.17.1] - 2026-11-05
 
 ### Fixed
