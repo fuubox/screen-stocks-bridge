@@ -5,6 +5,17 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-11-18
+
+### Fixed
+
+- Restore trade recovery and owned-request protection for reviewed Steam build
+  26701870 by updating the exact game assembly fingerprint. Unknown builds still
+  fail closed; offline installer and recovery regressions pass on the new build.
+- Report the IPO run peak through `GetRunPeakNetWorthForIpo()`, matching native
+  eligibility instead of exposing only the stored peak. Add a native regression
+  covering both eligible and ineligible values when that accessor differs.
+
 ## [0.17.1] - 2026-11-05
 
 ### Fixed

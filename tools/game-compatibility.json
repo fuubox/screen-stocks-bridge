@@ -4,11 +4,17 @@
   "contractStatus": "reviewed",
   "assemblyName": "Assembly-CSharp",
   "assemblyVersion": "0.0.0.0",
-  "moduleMvid": "dd09793d-9059-4247-9120-a2f8f1761f21",
-  "sha256": "c7f7be7089891d1740eb7b97b8a5c83d43c7cc73e82c468a7ad992700093a7d8",
+  "moduleMvid": "147c912a-2142-488b-9aa1-ba219f725d25",
+  "sha256": "55be35ae6b44b3d45542ebccc43c3dfa4db69d6b5c262ee34ba5bb624b04ee3d",
   "bepInExVersion": "5.4.23.6",
   "harmonyVersion": "2.9.0.0",
   "methods": [
+    {
+      "type": "GameManager",
+      "name": "GetRunPeakNetWorthForIpo",
+      "returnType": "BigNumber",
+      "parameters": []
+    },
     {
       "type": "RemoteMarketDataSource",
       "name": "ApplyPollResult",

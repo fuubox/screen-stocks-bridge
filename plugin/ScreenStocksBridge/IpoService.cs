@@ -44,7 +44,7 @@ namespace ScreenStocksBridge
             snapshot.eligible = game.CanIPO();
             snapshot.ipoCount = game.RawIPOCount;
             snapshot.effectiveIpoCount = game.EffectiveIPOCount;
-            snapshot.roundPeakNetWorth = StateService.FormatBigNumber(game.Data.roundPeakNetWorth);
+            snapshot.roundPeakNetWorth = StateService.FormatBigNumber(game.GetRunPeakNetWorthForIpo());
             snapshot.requiredNetWorth = StateService.FormatBigNumber(game.GetRequiredNetWorthForIPO());
             return snapshot;
         }

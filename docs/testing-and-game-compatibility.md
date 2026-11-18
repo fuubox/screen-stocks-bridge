@@ -152,6 +152,21 @@ The game changed `CanIPO()` to use `GetRunPeakNetWorthForIpo()` instead of readi
 compatibility review only; live Unity networking, reconnect behavior, and market
 acceptance remain unverified.
 
+### November 18, 2026 game update: Steam build 26701870
+
+The reviewed MVID is `147c912a-2142-488b-9aa1-ba219f725d25`; SHA-256 is
+`55be35ae6b44b3d45542ebccc43c3dfa4db69d6b5c262ee34ba5bb624b04ee3d`.
+Bridge 0.17.2 updates both the manifest and runtime trade-protection guard after
+offline installer, queue, recovery, request-ownership, activity, candle, and
+marker checks. Unknown binaries still fail closed. The native trade-completion
+state machine adds an accepted-trade leaderboard refresh after cleanup.
+
+The IPO snapshot now reports `GetRunPeakNetWorthForIpo()`, the same peak used by
+native `CanIPO()`. A regression covers a stored peak differing from the effective
+peak, including both eligibility outcomes. All Harmony installers are smoke-tested
+in the isolated native runner. See [the patch review](game-patch-review-2026-11-18.md)
+for findings, saved evidence, and live-validation limits.
+
 ## Check a game patch
 
 The trusted Windows runner must have the full Screen Stocks release and BepInEx installed. Set the repository Actions variable `SCREENSTOCKS_GAME_DIR` to that installation; the fallback path is `C:\Program Files (x86)\Steam\steamapps\common\Screen Stocks`. A push to `main` or a manual run of the **Continuous integration** workflow checks the installed binaries against `tools/game-compatibility.json`, then builds the plugin against the installed assemblies. Pull requests do not execute repository code on this self-hosted runner.

@@ -23,7 +23,9 @@ public static class QueueRegression
             _game = Assembly.Load("Assembly-CSharp");
             _stock = _game.GetType("StockManager", true);
             _shape = _game.GetType("StockManager+ManualTradeShape", true);
+            PatchInstallationRegression.Run();
             BrokerCloseRegression.Run();
+            IpoPeakRegression.Run();
             var plugin = Assembly.Load("ScreenStocksBridge");
             ActivityRegression.Run();
             MarketStreamRegression.Run();
