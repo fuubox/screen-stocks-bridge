@@ -8,6 +8,7 @@ namespace ScreenStocksBridge
     {
         public string marketClock = "null";
         public bool ready;
+        public bool canStartManualTrade;
         public long serverTick;
         public string cash = "0";
         public string netWorth = "0";
@@ -57,6 +58,7 @@ namespace ScreenStocksBridge
         public int maxVolume;
         public string effectiveMaxVolume = "0";
         public int availableShares;
+        public bool isManualTradeHeld;
     }
 
     [Serializable]

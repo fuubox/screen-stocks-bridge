@@ -71,6 +71,11 @@ class Stock:
         """Shares currently available from market supply; not the player's cap."""
         return int(self.raw.get("availableShares", 0))
 
+    @property
+    def is_manual_trade_held(self) -> bool | None:
+        """Whether this stock is held by a manual trade, or None if unavailable."""
+        return self.raw.get("isManualTradeHeld")
+
 
 @dataclass(frozen=True)
 class HumanActivityPage:
@@ -232,6 +237,11 @@ class Snapshot:
     raw: dict[str, Any] = field(repr=False)
     dividend_income_per_minute: str = "0"
     dividend_payout_per_cycle: str = "0"
+
+    @property
+    def can_start_manual_trade(self) -> bool | None:
+        """Whether the game's manual trade queue admits a new trade, if reported."""
+        return self.raw.get("canStartManualTrade")
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> Snapshot:

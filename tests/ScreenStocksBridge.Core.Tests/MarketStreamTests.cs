@@ -144,6 +144,27 @@ public sealed class MarketStreamTests
     }
 
     [Fact]
+    public void ManualTradeAdmissionAndStockHoldsAreMaterialSnapshotChanges()
+    {
+        var snapshot = new StateSnapshotDto { ready = true, canStartManualTrade = true };
+        var held = new StockDto { stockId = "$WAVE", isManualTradeHeld = true };
+        snapshot.stocks.Add(held);
+        snapshot.stocks.Add(new StockDto { stockId = "$BUBL" });
+        var initial = MarketClock.MaterialSnapshot(snapshot);
+        var json = Parse(initial);
+        Assert.True(json["canStartManualTrade"]!.GetValue<bool>());
+        Assert.True(json["stocks"]![0]!["isManualTradeHeld"]!.GetValue<bool>());
+        Assert.False(json["stocks"]![1]!["isManualTradeHeld"]!.GetValue<bool>());
+
+        snapshot.canStartManualTrade = false;
+        var busy = MarketClock.MaterialSnapshot(snapshot);
+        Assert.False(Parse(busy)["canStartManualTrade"]!.GetValue<bool>());
+        Assert.NotEqual(initial, busy);
+        held.isManualTradeHeld = false;
+        Assert.NotEqual(busy, MarketClock.MaterialSnapshot(snapshot));
+    }
+
+    [Fact]
     public void CadenceDefaultsToFourHertzAndAcceptsAnyFinitePositiveRate()
     {
         var cadence = new MarketCadence();

@@ -98,6 +98,7 @@ with BridgeClient(token="YOUR_TOKEN") as bridge:
 `bridge.snapshot()` returns a dictionary assembled from the current in-memory game state:
 
 - `ready`: whether the online market data source is ready.
+- `canStartManualTrade`: the game's global manual trade admission flag. Each stock has its own `isManualTradeHeld` flag. These flags also appear in `market.updated`. They describe the state at capture time. Trade submissions still check eligibility and current state.
 - `serverTick`: the current market tick.
 - `cash`: the player's available cash as an exact decimal string.
 - `netWorth`: the game's current net-worth calculation as an exact decimal string. This comes from the running game's in-memory `CalculateNetWorth()` value, so it is part of the ordinary snapshot and does not request chart history.

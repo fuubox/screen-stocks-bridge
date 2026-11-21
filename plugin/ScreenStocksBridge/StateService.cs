@@ -17,6 +17,7 @@ namespace ScreenStocksBridge
                 return snapshot;
 
             snapshot.ready = true;
+            snapshot.canStartManualTrade = manager.CanStartManualTrade;
             snapshot.marketClock = MarketStreamModule.ReadClockJson();
             snapshot.serverTick = manager.Source.ServerTick;
             snapshot.cash = FormatBigNumber(game.Money);
@@ -46,7 +47,8 @@ namespace ScreenStocksBridge
                         baseDividendRate = stock.dividendRate,
                         maxVolume = stock.maxVolume,
                         effectiveMaxVolume = FormatBigNumber(manager.GetEffectiveMaxVolume(stockId)),
-                        availableShares = (int)Math.Max(0, Math.Min(int.MaxValue, manager.GetAvailableShares(stockId).ToDouble()))
+                        availableShares = (int)Math.Max(0, Math.Min(int.MaxValue, manager.GetAvailableShares(stockId).ToDouble())),
+                        isManualTradeHeld = manager.IsManualTradeHeld(stockId)
                     };
                     snapshot.stocks.Add(stockDto);
                 }

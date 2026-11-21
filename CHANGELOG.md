@@ -5,6 +5,13 @@ Notable changes to Screen Stocks Bridge are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.17.3] - 2026-11-20
+
+### Added
+
+- Expose global manual trade admission and per-stock manual trade holds in
+  state snapshots, market updates, and the typed Python SDK.
+
 ## [0.17.2] - 2026-11-18
 
 ### Fixed

@@ -10,6 +10,7 @@ namespace ScreenStocksBridge
         {
             var json = new StringBuilder(1024);
             json.Append("{\"ready\":").Append(Bool(value.ready))
+                .Append(",\"canStartManualTrade\":").Append(Bool(value.canStartManualTrade))
                 .Append(",\"marketClock\":").Append(value.marketClock)
                 .Append(",\"serverTick\":").Append(value.serverTick.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"cash\":").Append(Quote(value.cash))
@@ -331,7 +332,8 @@ namespace ScreenStocksBridge
                 .Append(",\"baseDividendRate\":").Append(Number(value.baseDividendRate))
                 .Append(",\"maxVolume\":").Append(value.maxVolume.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"effectiveMaxVolume\":").Append(Quote(value.effectiveMaxVolume))
-                .Append(",\"availableShares\":").Append(value.availableShares.ToString(CultureInfo.InvariantCulture)).Append('}');
+                .Append(",\"availableShares\":").Append(value.availableShares.ToString(CultureInfo.InvariantCulture))
+                .Append(",\"isManualTradeHeld\":").Append(Bool(value.isManualTradeHeld)).Append('}');
         }
 
         private static void AppendPosition(StringBuilder json, PositionDto value)
